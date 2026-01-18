@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import useSWR from "swr"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,15 +14,22 @@ import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { AlertTriangle, CheckCircle, FileText, UserCheck } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+interface Patient {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  date_of_birth: string | null
+  client_number: string | null
+}
 
 export default function GuestDosingPage() {
   const { toast } = useToast()
   const supabase = createClient()
-  const { data: patientsData } = useSWR("/api/patients", fetcher)
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedPatient, setSelectedPatient] = useState<any>(null)
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [homeFacility, setHomeFacility] = useState("")
   const [authorizationNumber, setAuthorizationNumber] = useState("")
   const [medication, setMedication] = useState("methadone")
@@ -32,8 +38,36 @@ export default function GuestDosingPage() {
   const [verificationMethod, setVerificationMethod] = useState<"pin" | "biometric" | "id">("id")
   const [verifiedIdentity, setVerifiedIdentity] = useState(false)
 
-  const patients = patientsData?.patients || []
-  const filteredPatients = patients.filter((p: any) => {
+  // Fetch patients from Supabase
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from("patients")
+          .select("id, first_name, last_name, date_of_birth, client_number")
+          .order("last_name", { ascending: true })
+          .limit(1000)
+
+        if (error) throw error
+        setPatients(data || [])
+      } catch (error) {
+        console.error("Error fetching patients:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load patients",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPatients()
+  }, [supabase, toast])
+
+  const filteredPatients = patients.filter((p) => {
+    if (!searchQuery) return false
     const query = searchQuery.toLowerCase()
     return (
       p.first_name?.toLowerCase().includes(query) ||
@@ -152,10 +186,12 @@ export default function GuestDosingPage() {
                   />
                   {searchQuery && (
                     <div className="max-h-64 overflow-y-auto space-y-2">
-                      {filteredPatients.length === 0 ? (
+                      {loading ? (
+                        <p className="text-sm text-muted-foreground py-4">Loading patients...</p>
+                      ) : filteredPatients.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-4">No patients found</p>
                       ) : (
-                        filteredPatients.slice(0, 10).map((patient: any) => (
+                        filteredPatients.slice(0, 10).map((patient) => (
                           <div
                             key={patient.id}
                             className={`p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -204,7 +240,7 @@ export default function GuestDosingPage() {
 
                       <div className="space-y-2">
                         <Label>Verification Method</Label>
-                        <Select value={verificationMethod} onValueChange={(v: any) => setVerificationMethod(v)}>
+                        <Select value={verificationMethod} onValueChange={(v: "pin" | "biometric" | "id") => setVerificationMethod(v)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>

@@ -1,17 +1,29 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from "react"
-import useSWR from "swr"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useCallback } from "react";
+import useSWR from "swr";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle,
   Truck,
@@ -37,41 +49,41 @@ import {
   Printer,
   CheckCircle,
   XCircle,
-} from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
+} from "lucide-react";
+import { createBrowserClient } from "@/lib/supabase/client";
 
 interface InventoryItem {
-  id: string
-  serialNo: string
-  batchNumber: string
-  concentration: number
-  quantity: number
-  startVolume: number
-  unit: string
-  expirationDate: string | null
-  manufacturer: string
-  status: string
-  location: string
-  openedAt: string | null
-  medicationName: string
+  id: string;
+  serialNo: string;
+  batchNumber: string;
+  concentration: number;
+  quantity: number;
+  startVolume: number;
+  unit: string;
+  expirationDate: string | null;
+  manufacturer: string;
+  status: string;
+  location: string;
+  openedAt: string | null;
+  medicationName: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function InventoryPage() {
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [showInitialInventory, setShowInitialInventory] = useState(false)
-  const [showBiennialInventory, setShowBiennialInventory] = useState(false)
-  const [showAcquisitionRecord, setShowAcquisitionRecord] = useState(false)
-  const [showDisposalRecord, setShowDisposalRecord] = useState(false)
-  const [showReportDialog, setShowReportDialog] = useState(false)
-  const [showAdjustDialog, setShowAdjustDialog] = useState(false)
-  const [selectedReport, setSelectedReport] = useState<string | null>(null)
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
-  const [generatingReport, setGeneratingReport] = useState(false)
-  const [reportData, setReportData] = useState<any>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showInitialInventory, setShowInitialInventory] = useState(false);
+  const [showBiennialInventory, setShowBiennialInventory] = useState(false);
+  const [showAcquisitionRecord, setShowAcquisitionRecord] = useState(false);
+  const [showDisposalRecord, setShowDisposalRecord] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportData, setReportData] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
   const [acquisitionForm, setAcquisitionForm] = useState({
@@ -84,7 +96,7 @@ export default function InventoryPage() {
     medication: "Methadone HCl",
     quantity: "",
     concentration: "10",
-  })
+  });
 
   const [disposalForm, setDisposalForm] = useState({
     bottleId: "",
@@ -94,64 +106,64 @@ export default function InventoryPage() {
     witnessSignature: "",
     disposalMethod: "reverse_distributor",
     fullDisposal: false,
-  })
+  });
 
   const [inventoryForm, setInventoryForm] = useState({
     physicalCount: "",
     countedBy: "",
     verifiedBy: "",
     notes: "",
-  })
+  });
 
   const [adjustForm, setAdjustForm] = useState({
     quantity: "",
     reason: "",
     adjustmentType: "correction",
-  })
+  });
 
-  const { data, error, isLoading, mutate } = useSWR("/api/inventory", fetcher)
+  const { data, error, isLoading, mutate } = useSWR("/api/inventory", fetcher);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
       case "in_use":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "low":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "expired":
       case "disposed":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "quarantine":
       case "sealed":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
-  const inventory: InventoryItem[] = data?.inventory || []
-  const metrics = data?.metrics || {}
-  const form222s = data?.form222s || []
-  const shiftCounts = data?.shiftCounts || []
-  const transactions = data?.transactions || []
+  const inventory: InventoryItem[] = data?.inventory || [];
+  const metrics = data?.metrics || {};
+  const form222s = data?.form222s || [];
+  const shiftCounts = data?.shiftCounts || [];
+  const transactions = data?.transactions || [];
 
   const filteredInventory = inventory.filter(
     (item) =>
       item.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.serialNo?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      item.serialNo?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleGenerateReport = useCallback(
     async (reportType: string) => {
-      setSelectedReport(reportType)
-      setShowReportDialog(true)
-      setGeneratingReport(true)
-      setReportData(null)
+      setSelectedReport(reportType);
+      setShowReportDialog(true);
+      setGeneratingReport(true);
+      setReportData(null);
 
       try {
-        const supabase = createBrowserClient()
-        let reportContent: any = {}
+        const supabase = createBrowserClient();
+        let reportContent: any = {};
 
         switch (reportType) {
           case "initial_inventory":
@@ -160,64 +172,64 @@ export default function InventoryPage() {
               .select("*")
               .ilike("notes", "%Initial%")
               .order("date", { ascending: false })
-              .limit(1)
+              .limit(1);
             reportContent = {
               title: "Initial Inventory Report",
               data: initialData?.[0] || null,
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           case "biennial_inventory":
             const { data: biennialData } = await supabase
               .from("shift_count")
               .select("*")
               .ilike("notes", "%Biennial%")
-              .order("date", { ascending: false })
+              .order("date", { ascending: false });
             reportContent = {
               title: "Biennial Inventory Report",
               data: biennialData || [],
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           case "acquisitions_register":
             const { data: acquisitionsData } = await supabase
               .from("dea_form_222")
               .select("*, lines:dea_form_222_line(*)")
-              .order("execution_date", { ascending: false })
+              .order("execution_date", { ascending: false });
             reportContent = {
               title: "Acquisitions Register",
               data: acquisitionsData || [],
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           case "dispensing_log":
             const { data: dispensingData } = await supabase
               .from("dosing_log")
               .select("*, patient:patient_id(first_name, last_name)")
               .order("dose_date", { ascending: false })
-              .limit(100)
+              .limit(100);
             reportContent = {
               title: "Dispensing Log",
               data: dispensingData || [],
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           case "waste_destruction":
             const { data: wasteData } = await supabase
               .from("inventory_txn")
               .select("*")
               .in("type", ["disposal", "waste"])
-              .order("at_time", { ascending: false })
+              .order("at_time", { ascending: false });
             reportContent = {
               title: "Waste & Destruction Register",
               data: wasteData || [],
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           case "variance_reconciliation":
             const { data: varianceData } = await supabase
@@ -225,60 +237,62 @@ export default function InventoryPage() {
               .select("*")
               .not("variance_ml", "is", null)
               .order("date", { ascending: false })
-              .limit(30)
+              .limit(30);
             reportContent = {
               title: "Variance & Reconciliation Report",
               data: varianceData || [],
               generated: new Date().toISOString(),
-            }
-            break
+            };
+            break;
 
           default:
-            reportContent = { title: "Unknown Report", data: null }
+            reportContent = { title: "Unknown Report", data: null };
         }
 
-        setReportData(reportContent)
+        setReportData(reportContent);
       } catch (err) {
-        console.error("Error generating report:", err)
+        console.error("Error generating report:", err);
         toast({
           title: "Error",
           description: "Failed to generate report",
           variant: "destructive",
-        })
+        });
       } finally {
-        setGeneratingReport(false)
+        setGeneratingReport(false);
       }
     },
-    [toast],
-  )
+    [toast]
+  );
 
   const handleExportReport = useCallback(() => {
-    if (!reportData) return
+    if (!reportData) return;
 
-    const reportText = JSON.stringify(reportData, null, 2)
-    const blob = new Blob([reportText], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${reportData.title.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    const reportText = JSON.stringify(reportData, null, 2);
+    const blob = new Blob([reportText], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${reportData.title.replace(/\s+/g, "_")}_${
+      new Date().toISOString().split("T")[0]
+    }.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
     toast({
       title: "Report Exported",
       description: "Report has been downloaded",
-    })
-  }, [reportData, toast])
+    });
+  }, [reportData, toast]);
 
   const handleAdjustInventory = useCallback(async () => {
-    if (!selectedItem) return
-    setIsSubmitting(true)
+    if (!selectedItem) return;
+    setIsSubmitting(true);
 
     try {
-      const supabase = createBrowserClient()
-      const adjustmentQty = Number.parseFloat(adjustForm.quantity)
+      const supabase = createBrowserClient();
+      const adjustmentQty = Number.parseFloat(adjustForm.quantity);
 
       // Record the adjustment transaction
       await supabase.from("inventory_txn").insert({
@@ -288,7 +302,7 @@ export default function InventoryPage() {
         reason: adjustForm.reason,
         by_user: "Current User",
         at_time: new Date().toISOString(),
-      })
+      });
 
       // Update the bottle's current volume
       await supabase
@@ -296,46 +310,49 @@ export default function InventoryPage() {
         .update({
           current_volume_ml: selectedItem.quantity + adjustmentQty,
         })
-        .eq("id", selectedItem.id)
+        .eq("id", selectedItem.id);
 
       toast({
         title: "Inventory Adjusted",
         description: `Adjusted ${selectedItem.batchNumber} by ${adjustmentQty}mL`,
-      })
+      });
 
-      setShowAdjustDialog(false)
-      setSelectedItem(null)
-      setAdjustForm({ quantity: "", reason: "", adjustmentType: "correction" })
-      mutate()
+      setShowAdjustDialog(false);
+      setSelectedItem(null);
+      setAdjustForm({ quantity: "", reason: "", adjustmentType: "correction" });
+      mutate();
     } catch (err) {
-      console.error("Error adjusting inventory:", err)
+      console.error("Error adjusting inventory:", err);
       toast({
         title: "Error",
         description: "Failed to adjust inventory",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }, [selectedItem, adjustForm, mutate, toast])
+  }, [selectedItem, adjustForm, mutate, toast]);
 
   const handleRecordAcquisition = useCallback(async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const response = await fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "record_acquisition", data: acquisitionForm }),
-      })
+        body: JSON.stringify({
+          action: "record_acquisition",
+          data: acquisitionForm,
+        }),
+      });
 
-      if (!response.ok) throw new Error("Failed to record acquisition")
+      if (!response.ok) throw new Error("Failed to record acquisition");
 
       toast({
         title: "Acquisition Recorded",
         description: `Form 222 ${acquisitionForm.formNumber} recorded successfully`,
-      })
+      });
 
-      setShowAcquisitionRecord(false)
+      setShowAcquisitionRecord(false);
       setAcquisitionForm({
         formNumber: "",
         supplierName: "",
@@ -346,22 +363,22 @@ export default function InventoryPage() {
         medication: "Methadone HCl",
         quantity: "",
         concentration: "10",
-      })
-      mutate()
+      });
+      mutate();
     } catch (err) {
-      console.error("Error recording acquisition:", err)
+      console.error("Error recording acquisition:", err);
       toast({
         title: "Error",
         description: "Failed to record acquisition",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }, [acquisitionForm, mutate, toast])
+  }, [acquisitionForm, mutate, toast]);
 
   const handleRecordDisposal = useCallback(async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const response = await fetch("/api/inventory", {
         method: "POST",
@@ -374,16 +391,16 @@ export default function InventoryPage() {
             user: disposalForm.witnesses,
           },
         }),
-      })
+      });
 
-      if (!response.ok) throw new Error("Failed to record disposal")
+      if (!response.ok) throw new Error("Failed to record disposal");
 
       toast({
         title: "Disposal Recorded",
         description: "Disposal has been documented for DEA compliance",
-      })
+      });
 
-      setShowDisposalRecord(false)
+      setShowDisposalRecord(false);
       setDisposalForm({
         bottleId: "",
         quantity: "",
@@ -392,72 +409,87 @@ export default function InventoryPage() {
         witnessSignature: "",
         disposalMethod: "reverse_distributor",
         fullDisposal: false,
-      })
-      mutate()
+      });
+      mutate();
     } catch (err) {
-      console.error("Error recording disposal:", err)
+      console.error("Error recording disposal:", err);
       toast({
         title: "Error",
         description: "Failed to record disposal",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }, [disposalForm, mutate, toast])
+  }, [disposalForm, mutate, toast]);
 
   const handleInventorySnapshot = useCallback(
     async (type: "initial" | "biennial") => {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
       try {
         const response = await fetch("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: type === "initial" ? "initial_inventory" : "biennial_inventory",
+            action:
+              type === "initial" ? "initial_inventory" : "biennial_inventory",
             data: {
               physicalCount: Number.parseFloat(inventoryForm.physicalCount),
               openingCount: metrics.totalStock || 0,
-              variance: Number.parseFloat(inventoryForm.physicalCount) - (metrics.totalStock || 0),
+              variance:
+                Number.parseFloat(inventoryForm.physicalCount) -
+                (metrics.totalStock || 0),
               countedBy: inventoryForm.countedBy,
               verifiedBy: inventoryForm.verifiedBy,
               notes: inventoryForm.notes,
             },
           }),
-        })
+        });
 
-        if (!response.ok) throw new Error("Failed to record inventory")
+        if (!response.ok) throw new Error("Failed to record inventory");
 
         toast({
-          title: `${type === "initial" ? "Initial" : "Biennial"} Inventory Recorded`,
+          title: `${
+            type === "initial" ? "Initial" : "Biennial"
+          } Inventory Recorded`,
           description: "Inventory snapshot has been documented",
-        })
+        });
 
-        type === "initial" ? setShowInitialInventory(false) : setShowBiennialInventory(false)
-        setInventoryForm({ physicalCount: "", countedBy: "", verifiedBy: "", notes: "" })
-        mutate()
+        if (type === "initial") {
+          setShowInitialInventory(false);
+        } else {
+          setShowBiennialInventory(false);
+        }
+        setInventoryForm({
+          physicalCount: "",
+          countedBy: "",
+          verifiedBy: "",
+          notes: "",
+        });
+        mutate();
       } catch (err) {
-        console.error("Error recording inventory:", err)
+        console.error("Error recording inventory:", err);
         toast({
           title: "Error",
           description: "Failed to record inventory",
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsSubmitting(false)
+        setIsSubmitting(false);
       }
     },
-    [inventoryForm, metrics.totalStock, mutate, toast],
-  )
+    [inventoryForm, metrics.totalStock, mutate, toast]
+  );
 
   const complianceStatus = {
     recordsSeparated: true, // This would be based on actual audit
     retentionCompliant: true, // Check if records exist for 2+ years
     form222Complete: (metrics.pendingForm222 || 0) === 0,
     disposalComplete: (metrics.expiredBatches || 0) === 0,
-    biennialCurrent: metrics.daysSinceBiennial !== null && metrics.daysSinceBiennial < 730,
+    biennialCurrent:
+      metrics.daysSinceBiennial !== null && metrics.daysSinceBiennial < 730,
     varianceAcceptable: Number.parseFloat(metrics.variancePercent || "0") < 1,
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -469,10 +501,14 @@ export default function InventoryPage() {
             <div className="flex items-start space-x-3">
               <Shield className="w-5 h-5 text-red-600 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-800">DEA Diversion Control Priority</h3>
+                <h3 className="font-semibold text-red-800">
+                  DEA Diversion Control Priority
+                </h3>
                 <p className="text-sm text-red-700 mt-1">
-                  OTPs must prevent diversion by keeping accurate inventories and complete records from acquisition →
-                  dispensing → disposal. DEA conducts inspections that scrutinize these records and physical counts.
+                  OTPs must prevent diversion by keeping accurate inventories
+                  and complete records from acquisition → dispensing → disposal.
+                  DEA conducts inspections that scrutinize these records and
+                  physical counts.
                 </p>
               </div>
             </div>
@@ -481,9 +517,12 @@ export default function InventoryPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">DEA Compliant Inventory</h1>
+              <h1 className="text-3xl font-bold tracking-tight">
+                DEA Compliant Inventory
+              </h1>
               <p className="text-muted-foreground">
-                Controlled substance tracking with perpetual counts and audit trails
+                Controlled substance tracking with perpetual counts and audit
+                trails
               </p>
             </div>
             <div className="flex space-x-2">
@@ -491,19 +530,27 @@ export default function InventoryPage() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Button variant="outline" onClick={() => setShowInitialInventory(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowInitialInventory(true)}>
                 <ClipboardCheck className="w-4 h-4 mr-2" />
                 Initial Inventory
               </Button>
-              <Button variant="outline" onClick={() => setShowBiennialInventory(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowBiennialInventory(true)}>
                 <Calendar className="w-4 h-4 mr-2" />
                 Biennial Inventory
               </Button>
-              <Button variant="outline" onClick={() => setShowAcquisitionRecord(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowAcquisitionRecord(true)}>
                 <Truck className="w-4 h-4 mr-2" />
                 Record Acquisition
               </Button>
-              <Button variant="outline" onClick={() => setShowDisposalRecord(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowDisposalRecord(true)}>
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Record Disposal
               </Button>
@@ -529,25 +576,38 @@ export default function InventoryPage() {
             <div className="grid gap-6 md:grid-cols-5">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Schedule II Stock</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Schedule II Stock
+                  </CardTitle>
                   <Lock className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics.totalStock?.toFixed(1) || 0}mL</div>
-                  <p className="text-xs text-muted-foreground">Methadone (exact count required)</p>
+                  <div className="text-2xl font-bold">
+                    {metrics.totalStock?.toFixed(1) || 0}mL
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Methadone (exact count required)
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Last Biennial</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Last Biennial
+                  </CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics.daysSinceBiennial ?? "N/A"}</div>
+                  <div className="text-2xl font-bold">
+                    {metrics.daysSinceBiennial ?? "N/A"}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {metrics.daysSinceBiennial !== null
-                      ? `Days ago (due in ${Math.max(0, 730 - metrics.daysSinceBiennial)} days)`
+                      ? `Days ago (due in ${Math.max(
+                          0,
+                          730 - metrics.daysSinceBiennial
+                        )} days)`
                       : "No biennial recorded"}
                   </p>
                 </CardContent>
@@ -555,33 +615,49 @@ export default function InventoryPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Form 222</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Pending Form 222
+                  </CardTitle>
                   <FileText className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics.pendingForm222 || 0}</div>
-                  <p className="text-xs text-muted-foreground">Awaiting documentation</p>
+                  <div className="text-2xl font-bold">
+                    {metrics.pendingForm222 || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Awaiting documentation
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Disposal Pending</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Disposal Pending
+                  </CardTitle>
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics.expiredBatches || 0}</div>
-                  <p className="text-xs text-muted-foreground">Expired batch needs Form 41</p>
+                  <div className="text-2xl font-bold">
+                    {metrics.expiredBatches || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Expired batch needs Form 41
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Variance Alert</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Variance Alert
+                  </CardTitle>
                   <AlertCircle className="h-4 w-4 text-orange-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics.variancePercent || 0}%</div>
+                  <div className="text-2xl font-bold">
+                    {metrics.variancePercent || 0}%
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {Number.parseFloat(metrics.variancePercent || 0) < 1
                       ? "Within acceptable limits"
@@ -597,7 +673,9 @@ export default function InventoryPage() {
             <TabsList>
               <TabsTrigger value="inventory">Current Inventory</TabsTrigger>
               <TabsTrigger value="snapshots">Inventory Snapshots</TabsTrigger>
-              <TabsTrigger value="acquisitions">Acquisition Records</TabsTrigger>
+              <TabsTrigger value="acquisitions">
+                Acquisition Records
+              </TabsTrigger>
               <TabsTrigger value="disposals">Disposal Records</TabsTrigger>
               <TabsTrigger value="reports">DEA Reports</TabsTrigger>
             </TabsList>
@@ -606,7 +684,9 @@ export default function InventoryPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Inventory Batches</CardTitle>
-                  <CardDescription>Monitor all methadone batches and stock levels</CardDescription>
+                  <CardDescription>
+                    Monitor all methadone batches and stock levels
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center space-x-2 mb-4">
@@ -622,7 +702,9 @@ export default function InventoryPage() {
                   {isLoading ? (
                     <div className="space-y-4">
                       {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div
+                          key={i}
+                          className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="space-y-2">
                             <Skeleton className="h-5 w-32" />
                             <Skeleton className="h-4 w-64" />
@@ -635,8 +717,12 @@ export default function InventoryPage() {
                     <div className="text-center py-8 text-muted-foreground">
                       <Lock className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No inventory batches found</p>
-                      <p className="text-sm">Record an acquisition to add inventory</p>
-                      <Button className="mt-4" onClick={() => setShowAcquisitionRecord(true)}>
+                      <p className="text-sm">
+                        Record an acquisition to add inventory
+                      </p>
+                      <Button
+                        className="mt-4"
+                        onClick={() => setShowAcquisitionRecord(true)}>
                         <Truck className="w-4 h-4 mr-2" />
                         Record First Acquisition
                       </Button>
@@ -644,19 +730,27 @@ export default function InventoryPage() {
                   ) : (
                     <div className="space-y-4">
                       {filteredInventory.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex items-center space-x-4">
                             <div>
                               <p className="font-medium">{item.batchNumber}</p>
                               <p className="text-sm text-muted-foreground">
-                                {item.manufacturer} • {item.concentration}mg/mL •
-                                {item.expirationDate ? ` Expires: ${item.expirationDate}` : " No expiry set"}
+                                {item.manufacturer} • {item.concentration}mg/mL
+                                •
+                                {item.expirationDate
+                                  ? ` Expires: ${item.expirationDate}`
+                                  : " No expiry set"}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                Location: {item.location} • Serial: {item.serialNo || "N/A"}
+                                Location: {item.location} • Serial:{" "}
+                                {item.serialNo || "N/A"}
                               </p>
                             </div>
-                            <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                            <Badge className={getStatusColor(item.status)}>
+                              {item.status}
+                            </Badge>
                           </div>
                           <div className="flex items-center space-x-4">
                             <div className="text-right">
@@ -673,10 +767,9 @@ export default function InventoryPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                setSelectedItem(item)
-                                setShowAdjustDialog(true)
-                              }}
-                            >
+                                setSelectedItem(item);
+                                setShowAdjustDialog(true);
+                              }}>
                               Adjust
                             </Button>
                           </div>
@@ -692,7 +785,9 @@ export default function InventoryPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Inventory Snapshots</CardTitle>
-                  <CardDescription>DEA-required inventory counts and documentation</CardDescription>
+                  <CardDescription>
+                    DEA-required inventory counts and documentation
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -708,13 +803,17 @@ export default function InventoryPage() {
                     <div className="text-center py-8 text-muted-foreground">
                       <ClipboardCheck className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No inventory snapshots recorded</p>
-                      <p className="text-sm">Complete an initial or biennial inventory</p>
+                      <p className="text-sm">
+                        Complete an initial or biennial inventory
+                      </p>
                       <div className="flex justify-center gap-2 mt-4">
                         <Button onClick={() => setShowInitialInventory(true)}>
                           <ClipboardCheck className="w-4 h-4 mr-2" />
                           Initial Inventory
                         </Button>
-                        <Button variant="outline" onClick={() => setShowBiennialInventory(true)}>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowBiennialInventory(true)}>
                           <Calendar className="w-4 h-4 mr-2" />
                           Biennial Inventory
                         </Button>
@@ -724,33 +823,37 @@ export default function InventoryPage() {
                     <div className="space-y-4">
                       {shiftCounts.map(
                         (count: {
-                          id: number
-                          date: string
-                          shift: string
-                          by_user: string
-                          verified_by: string
-                          physical_count_ml: number
-                          variance_ml: number
-                          notes: string
+                          id: number;
+                          date: string;
+                          shift: string;
+                          by_user: string;
+                          verified_by: string;
+                          physical_count_ml: number;
+                          variance_ml: number;
+                          notes: string;
                         }) => (
-                          <div key={count.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div
+                            key={count.id}
+                            className="flex items-center justify-between p-4 border rounded-lg">
                             <div>
                               <p className="font-medium">
                                 {count.shift} Inventory - {count.date}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                Counted by: {count.by_user || "Unknown"} • Verified: {count.verified_by || "Pending"}
+                                Counted by: {count.by_user || "Unknown"} •
+                                Verified: {count.verified_by || "Pending"}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                Physical Count: {count.physical_count_ml}mL • Variance: {count.variance_ml || 0}mL
+                                Physical Count: {count.physical_count_ml}mL •
+                                Variance: {count.variance_ml || 0}mL
                               </p>
                               {count.notes && (
                                 <Badge className="mt-2 bg-green-100 text-green-800">
                                   {count.notes.includes("Biennial")
                                     ? "Biennial"
                                     : count.notes.includes("Initial")
-                                      ? "Initial"
-                                      : "Snapshot"}
+                                    ? "Initial"
+                                    : "Snapshot"}
                                 </Badge>
                               )}
                             </div>
@@ -759,15 +862,16 @@ export default function InventoryPage() {
                               size="sm"
                               onClick={() =>
                                 handleGenerateReport(
-                                  count.notes?.includes("Biennial") ? "biennial_inventory" : "initial_inventory",
+                                  count.notes?.includes("Biennial")
+                                    ? "biennial_inventory"
+                                    : "initial_inventory"
                                 )
-                              }
-                            >
+                              }>
                               <Download className="w-4 h-4 mr-2" />
                               Export PDF
                             </Button>
                           </div>
-                        ),
+                        )
                       )}
                     </div>
                   )}
@@ -779,7 +883,9 @@ export default function InventoryPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Acquisition Records</CardTitle>
-                  <CardDescription>Controlled substance receipts with supplier documentation</CardDescription>
+                  <CardDescription>
+                    Controlled substance receipts with supplier documentation
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -795,7 +901,9 @@ export default function InventoryPage() {
                     <div className="text-center py-8 text-muted-foreground">
                       <Truck className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No acquisition records found</p>
-                      <Button className="mt-4" onClick={() => setShowAcquisitionRecord(true)}>
+                      <Button
+                        className="mt-4"
+                        onClick={() => setShowAcquisitionRecord(true)}>
                         Record First Acquisition
                       </Button>
                     </div>
@@ -803,24 +911,28 @@ export default function InventoryPage() {
                     <div className="space-y-4">
                       {form222s.map(
                         (form: {
-                          id: number
-                          supplier_name: string
-                          form_number: string
-                          supplier_dea_number: string
-                          execution_date: string
-                          status: string
-                          lines: { quantity_ordered: number }[]
+                          id: number;
+                          supplier_name: string;
+                          form_number: string;
+                          supplier_dea_number: string;
+                          execution_date: string;
+                          status: string;
+                          lines: { quantity_ordered: number }[];
                         }) => (
                           <div
                             key={form.id}
                             className={`flex items-center justify-between p-4 border rounded-lg ${
-                              form.status === "pending" ? "border-yellow-200 bg-yellow-50" : ""
-                            }`}
-                          >
+                              form.status === "pending"
+                                ? "border-yellow-200 bg-yellow-50"
+                                : ""
+                            }`}>
                             <div>
-                              <p className="font-medium">{form.supplier_name} - Methadone HCl</p>
+                              <p className="font-medium">
+                                {form.supplier_name} - Methadone HCl
+                              </p>
                               <p className="text-sm text-muted-foreground">
-                                Form 222: {form.form_number} • DEA: {form.supplier_dea_number} • Date:{" "}
+                                Form 222: {form.form_number} • DEA:{" "}
+                                {form.supplier_dea_number} • Date:{" "}
                                 {form.execution_date}
                               </p>
                               <Badge
@@ -828,9 +940,10 @@ export default function InventoryPage() {
                                   form.status === "completed"
                                     ? "bg-green-100 text-green-800"
                                     : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {form.status === "completed" ? "Complete Documentation" : "Pending"}
+                                }`}>
+                                {form.status === "completed"
+                                  ? "Complete Documentation"
+                                  : "Pending"}
                               </Badge>
                             </div>
                             <Button variant="outline" size="sm">
@@ -838,7 +951,7 @@ export default function InventoryPage() {
                               View Form 222
                             </Button>
                           </div>
-                        ),
+                        )
                       )}
                     </div>
                   )}
@@ -850,7 +963,9 @@ export default function InventoryPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Disposal Records</CardTitle>
-                  <CardDescription>Waste documentation and destruction records with DEA Form 41</CardDescription>
+                  <CardDescription>
+                    Waste documentation and destruction records with DEA Form 41
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -862,46 +977,66 @@ export default function InventoryPage() {
                         </div>
                       ))}
                     </div>
-                  ) : transactions.filter((t: { type: string }) => t.type === "disposal" || t.type === "waste")
-                      .length === 0 ? (
+                  ) : transactions.filter(
+                      (t: { type: string }) =>
+                        t.type === "disposal" || t.type === "waste"
+                    ).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No disposal records found</p>
-                      <Button className="mt-4" onClick={() => setShowDisposalRecord(true)}>
+                      <Button
+                        className="mt-4"
+                        onClick={() => setShowDisposalRecord(true)}>
                         Record Disposal
                       </Button>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {transactions
-                        .filter((t: { type: string }) => t.type === "disposal" || t.type === "waste")
+                        .filter(
+                          (t: { type: string }) =>
+                            t.type === "disposal" || t.type === "waste"
+                        )
                         .map(
                           (txn: {
-                            id: number
-                            type: string
-                            at_time: string
-                            qty_ml: number
-                            by_user: string
-                            reason: string
+                            id: number;
+                            type: string;
+                            at_time: string;
+                            qty_ml: number;
+                            by_user: string;
+                            reason: string;
                           }) => (
-                            <div key={txn.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div
+                              key={txn.id}
+                              className="flex items-center justify-between p-4 border rounded-lg">
                               <div>
-                                <p className="font-medium">{txn.type === "waste" ? "Witnessed Waste" : "Disposal"}</p>
+                                <p className="font-medium">
+                                  {txn.type === "waste"
+                                    ? "Witnessed Waste"
+                                    : "Disposal"}
+                                </p>
                                 <p className="text-sm text-muted-foreground">
-                                  Date: {new Date(txn.at_time).toLocaleDateString()} • Quantity: {Math.abs(txn.qty_ml)}
+                                  Date:{" "}
+                                  {new Date(txn.at_time).toLocaleDateString()} •
+                                  Quantity: {Math.abs(txn.qty_ml)}
                                   mL • By: {txn.by_user}
                                 </p>
-                                <p className="text-sm text-muted-foreground">Reason: {txn.reason || "Not specified"}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Reason: {txn.reason || "Not specified"}
+                                </p>
                               </div>
                               <Badge
                                 className={
-                                  txn.type === "waste" ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"
-                                }
-                              >
-                                {txn.type === "waste" ? "Witnessed Waste" : "Requires Form 41"}
+                                  txn.type === "waste"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-red-100 text-red-800"
+                                }>
+                                {txn.type === "waste"
+                                  ? "Witnessed Waste"
+                                  : "Requires Form 41"}
                               </Badge>
                             </div>
-                          ),
+                          )
                         )}
                     </div>
                   )}
@@ -914,54 +1049,56 @@ export default function InventoryPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>DEA Inspection Reports</CardTitle>
-                    <CardDescription>One-click compliance reports for DEA inspections</CardDescription>
+                    <CardDescription>
+                      One-click compliance reports for DEA inspections
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("initial_inventory")}
-                    >
+                      onClick={() => handleGenerateReport("initial_inventory")}>
                       <FileText className="w-4 h-4 mr-2" />
                       Initial Inventory Report
                     </Button>
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("biennial_inventory")}
-                    >
+                      onClick={() =>
+                        handleGenerateReport("biennial_inventory")
+                      }>
                       <FileText className="w-4 h-4 mr-2" />
                       Biennial Inventory Report
                     </Button>
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("acquisitions_register")}
-                    >
+                      onClick={() =>
+                        handleGenerateReport("acquisitions_register")
+                      }>
                       <FileText className="w-4 h-4 mr-2" />
                       Acquisitions Register
                     </Button>
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("dispensing_log")}
-                    >
+                      onClick={() => handleGenerateReport("dispensing_log")}>
                       <FileText className="w-4 h-4 mr-2" />
                       Dispensing Log
                     </Button>
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("waste_destruction")}
-                    >
+                      onClick={() => handleGenerateReport("waste_destruction")}>
                       <FileText className="w-4 h-4 mr-2" />
                       Waste & Destruction Register
                     </Button>
                     <Button
                       className="w-full justify-start bg-transparent"
                       variant="outline"
-                      onClick={() => handleGenerateReport("variance_reconciliation")}
-                    >
+                      onClick={() =>
+                        handleGenerateReport("variance_reconciliation")
+                      }>
                       <BarChart3 className="w-4 h-4 mr-2" />
                       Variance & Reconciliation
                     </Button>
@@ -971,7 +1108,9 @@ export default function InventoryPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Compliance Status</CardTitle>
-                    <CardDescription>Current DEA compliance indicators</CardDescription>
+                    <CardDescription>
+                      Current DEA compliance indicators
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -985,10 +1124,13 @@ export default function InventoryPage() {
                       </span>
                       <Badge
                         className={
-                          complianceStatus.recordsSeparated ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }
-                      >
-                        {complianceStatus.recordsSeparated ? "Compliant" : "Action Needed"}
+                          complianceStatus.recordsSeparated
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }>
+                        {complianceStatus.recordsSeparated
+                          ? "Compliant"
+                          : "Action Needed"}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1005,9 +1147,10 @@ export default function InventoryPage() {
                           complianceStatus.retentionCompliant
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
-                        }
-                      >
-                        {complianceStatus.retentionCompliant ? "Compliant" : "Action Needed"}
+                        }>
+                        {complianceStatus.retentionCompliant
+                          ? "Compliant"
+                          : "Action Needed"}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1024,9 +1167,10 @@ export default function InventoryPage() {
                           complianceStatus.form222Complete
                             ? "bg-green-100 text-green-800"
                             : "bg-yellow-100 text-yellow-800"
-                        }
-                      >
-                        {complianceStatus.form222Complete ? "Compliant" : `${metrics.pendingForm222} Pending`}
+                        }>
+                        {complianceStatus.form222Complete
+                          ? "Compliant"
+                          : `${metrics.pendingForm222} Pending`}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1040,10 +1184,13 @@ export default function InventoryPage() {
                       </span>
                       <Badge
                         className={
-                          complianceStatus.disposalComplete ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }
-                      >
-                        {complianceStatus.disposalComplete ? "Compliant" : `${metrics.expiredBatches} Overdue`}
+                          complianceStatus.disposalComplete
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }>
+                        {complianceStatus.disposalComplete
+                          ? "Compliant"
+                          : `${metrics.expiredBatches} Overdue`}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1060,13 +1207,12 @@ export default function InventoryPage() {
                           complianceStatus.biennialCurrent
                             ? "bg-green-100 text-green-800"
                             : "bg-yellow-100 text-yellow-800"
-                        }
-                      >
+                        }>
                         {complianceStatus.biennialCurrent
                           ? "Compliant"
                           : metrics.daysSinceBiennial === null
-                            ? "Not Done"
-                            : "Overdue"}
+                          ? "Not Done"
+                          : "Overdue"}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1083,12 +1229,17 @@ export default function InventoryPage() {
                           complianceStatus.varianceAcceptable
                             ? "bg-green-100 text-green-800"
                             : "bg-orange-100 text-orange-800"
-                        }
-                      >
-                        {complianceStatus.varianceAcceptable ? "Compliant" : `${metrics.variancePercent}% Variance`}
+                        }>
+                        {complianceStatus.varianceAcceptable
+                          ? "Compliant"
+                          : `${metrics.variancePercent}% Variance`}
                       </Badge>
                     </div>
-                    <Button className="w-full mt-4" onClick={() => handleGenerateReport("compliance_summary")}>
+                    <Button
+                      className="w-full mt-4"
+                      onClick={() =>
+                        handleGenerateReport("compliance_summary")
+                      }>
                       Generate Compliance Summary
                     </Button>
                   </CardContent>
@@ -1098,19 +1249,22 @@ export default function InventoryPage() {
           </Tabs>
 
           {/* Initial Inventory Dialog */}
-          <Dialog open={showInitialInventory} onOpenChange={setShowInitialInventory}>
+          <Dialog
+            open={showInitialInventory}
+            onOpenChange={setShowInitialInventory}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Initial Inventory</DialogTitle>
                 <DialogDescription>
-                  Complete accurate physical count of all controlled substances on hand
+                  Complete accurate physical count of all controlled substances
+                  on hand
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    DEA requires an initial inventory on the first day of dispensing. Schedule II substances require
-                    exact counts.
+                    DEA requires an initial inventory on the first day of
+                    dispensing. Schedule II substances require exact counts.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -1119,7 +1273,12 @@ export default function InventoryPage() {
                     type="number"
                     step="0.1"
                     value={inventoryForm.physicalCount}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, physicalCount: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        physicalCount: e.target.value,
+                      })
+                    }
                     placeholder="Enter exact count"
                   />
                 </div>
@@ -1127,7 +1286,12 @@ export default function InventoryPage() {
                   <Label>Counted By</Label>
                   <Input
                     value={inventoryForm.countedBy}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, countedBy: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        countedBy: e.target.value,
+                      })
+                    }
                     placeholder="Name of person counting"
                   />
                 </div>
@@ -1135,7 +1299,12 @@ export default function InventoryPage() {
                   <Label>Verified By</Label>
                   <Input
                     value={inventoryForm.verifiedBy}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, verifiedBy: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        verifiedBy: e.target.value,
+                      })
+                    }
                     placeholder="Name of verifier"
                   />
                 </div>
@@ -1143,16 +1312,25 @@ export default function InventoryPage() {
                   <Label>Notes</Label>
                   <Textarea
                     value={inventoryForm.notes}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, notes: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        notes: e.target.value,
+                      })
+                    }
                     placeholder="Additional notes"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowInitialInventory(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowInitialInventory(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => handleInventorySnapshot("initial")} disabled={isSubmitting}>
+                <Button
+                  onClick={() => handleInventorySnapshot("initial")}
+                  disabled={isSubmitting}>
                   {isSubmitting ? "Saving..." : "Complete Initial Inventory"}
                 </Button>
               </DialogFooter>
@@ -1160,17 +1338,21 @@ export default function InventoryPage() {
           </Dialog>
 
           {/* Biennial Inventory Dialog */}
-          <Dialog open={showBiennialInventory} onOpenChange={setShowBiennialInventory}>
+          <Dialog
+            open={showBiennialInventory}
+            onOpenChange={setShowBiennialInventory}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Biennial Inventory</DialogTitle>
-                <DialogDescription>Complete the required two-year inventory count</DialogDescription>
+                <DialogDescription>
+                  Complete the required two-year inventory count
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-sm text-yellow-800">
-                    DEA requires biennial inventory every two years. Schedule II: exact count. Schedule III-V: estimated
-                    allowed.
+                    DEA requires biennial inventory every two years. Schedule
+                    II: exact count. Schedule III-V: estimated allowed.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -1179,7 +1361,12 @@ export default function InventoryPage() {
                     type="number"
                     step="0.1"
                     value={inventoryForm.physicalCount}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, physicalCount: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        physicalCount: e.target.value,
+                      })
+                    }
                     placeholder="Enter exact count"
                   />
                 </div>
@@ -1187,7 +1374,12 @@ export default function InventoryPage() {
                   <Label>Counted By</Label>
                   <Input
                     value={inventoryForm.countedBy}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, countedBy: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        countedBy: e.target.value,
+                      })
+                    }
                     placeholder="Name of person counting"
                   />
                 </div>
@@ -1195,7 +1387,12 @@ export default function InventoryPage() {
                   <Label>Verified By</Label>
                   <Input
                     value={inventoryForm.verifiedBy}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, verifiedBy: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        verifiedBy: e.target.value,
+                      })
+                    }
                     placeholder="Name of verifier"
                   />
                 </div>
@@ -1203,16 +1400,25 @@ export default function InventoryPage() {
                   <Label>Notes</Label>
                   <Textarea
                     value={inventoryForm.notes}
-                    onChange={(e) => setInventoryForm({ ...inventoryForm, notes: e.target.value })}
+                    onChange={(e) =>
+                      setInventoryForm({
+                        ...inventoryForm,
+                        notes: e.target.value,
+                      })
+                    }
                     placeholder="Additional notes"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowBiennialInventory(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBiennialInventory(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => handleInventorySnapshot("biennial")} disabled={isSubmitting}>
+                <Button
+                  onClick={() => handleInventorySnapshot("biennial")}
+                  disabled={isSubmitting}>
                   {isSubmitting ? "Saving..." : "Complete Biennial Inventory"}
                 </Button>
               </DialogFooter>
@@ -1220,18 +1426,27 @@ export default function InventoryPage() {
           </Dialog>
 
           {/* Record Acquisition Dialog */}
-          <Dialog open={showAcquisitionRecord} onOpenChange={setShowAcquisitionRecord}>
+          <Dialog
+            open={showAcquisitionRecord}
+            onOpenChange={setShowAcquisitionRecord}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Record Acquisition</DialogTitle>
-                <DialogDescription>Document controlled substance receipt with DEA Form 222</DialogDescription>
+                <DialogDescription>
+                  Document controlled substance receipt with DEA Form 222
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Form 222 Number</Label>
                   <Input
                     value={acquisitionForm.formNumber}
-                    onChange={(e) => setAcquisitionForm({ ...acquisitionForm, formNumber: e.target.value })}
+                    onChange={(e) =>
+                      setAcquisitionForm({
+                        ...acquisitionForm,
+                        formNumber: e.target.value,
+                      })
+                    }
                     placeholder="F222-2024-001"
                   />
                 </div>
@@ -1239,7 +1454,12 @@ export default function InventoryPage() {
                   <Label>Supplier Name</Label>
                   <Input
                     value={acquisitionForm.supplierName}
-                    onChange={(e) => setAcquisitionForm({ ...acquisitionForm, supplierName: e.target.value })}
+                    onChange={(e) =>
+                      setAcquisitionForm({
+                        ...acquisitionForm,
+                        supplierName: e.target.value,
+                      })
+                    }
                     placeholder="Cardinal Health"
                   />
                 </div>
@@ -1247,7 +1467,12 @@ export default function InventoryPage() {
                   <Label>Supplier DEA Number</Label>
                   <Input
                     value={acquisitionForm.supplierDea}
-                    onChange={(e) => setAcquisitionForm({ ...acquisitionForm, supplierDea: e.target.value })}
+                    onChange={(e) =>
+                      setAcquisitionForm({
+                        ...acquisitionForm,
+                        supplierDea: e.target.value,
+                      })
+                    }
                     placeholder="BC1234567"
                   />
                 </div>
@@ -1255,7 +1480,12 @@ export default function InventoryPage() {
                   <Label>Registrant Name</Label>
                   <Input
                     value={acquisitionForm.registrantName}
-                    onChange={(e) => setAcquisitionForm({ ...acquisitionForm, registrantName: e.target.value })}
+                    onChange={(e) =>
+                      setAcquisitionForm({
+                        ...acquisitionForm,
+                        registrantName: e.target.value,
+                      })
+                    }
                     placeholder="Your facility name"
                   />
                 </div>
@@ -1263,7 +1493,12 @@ export default function InventoryPage() {
                   <Label>Registrant DEA Number</Label>
                   <Input
                     value={acquisitionForm.registrantDea}
-                    onChange={(e) => setAcquisitionForm({ ...acquisitionForm, registrantDea: e.target.value })}
+                    onChange={(e) =>
+                      setAcquisitionForm({
+                        ...acquisitionForm,
+                        registrantDea: e.target.value,
+                      })
+                    }
                     placeholder="Your DEA number"
                   />
                 </div>
@@ -1273,7 +1508,12 @@ export default function InventoryPage() {
                     <Input
                       type="number"
                       value={acquisitionForm.quantity}
-                      onChange={(e) => setAcquisitionForm({ ...acquisitionForm, quantity: e.target.value })}
+                      onChange={(e) =>
+                        setAcquisitionForm({
+                          ...acquisitionForm,
+                          quantity: e.target.value,
+                        })
+                      }
                       placeholder="1000"
                     />
                   </div>
@@ -1282,16 +1522,25 @@ export default function InventoryPage() {
                     <Input
                       type="date"
                       value={acquisitionForm.executionDate}
-                      onChange={(e) => setAcquisitionForm({ ...acquisitionForm, executionDate: e.target.value })}
+                      onChange={(e) =>
+                        setAcquisitionForm({
+                          ...acquisitionForm,
+                          executionDate: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowAcquisitionRecord(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAcquisitionRecord(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleRecordAcquisition} disabled={isSubmitting}>
+                <Button
+                  onClick={handleRecordAcquisition}
+                  disabled={isSubmitting}>
                   {isSubmitting ? "Saving..." : "Record Acquisition"}
                 </Button>
               </DialogFooter>
@@ -1299,31 +1548,38 @@ export default function InventoryPage() {
           </Dialog>
 
           {/* Record Disposal Dialog */}
-          <Dialog open={showDisposalRecord} onOpenChange={setShowDisposalRecord}>
+          <Dialog
+            open={showDisposalRecord}
+            onOpenChange={setShowDisposalRecord}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Record Disposal</DialogTitle>
-                <DialogDescription>Document controlled substance disposal for DEA compliance</DialogDescription>
+                <DialogDescription>
+                  Document controlled substance disposal for DEA compliance
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800">
-                    All disposals must be witnessed and documented. Schedule II disposals require DEA Form 41.
+                    All disposals must be witnessed and documented. Schedule II
+                    disposals require DEA Form 41.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Select Batch</Label>
                   <Select
                     value={disposalForm.bottleId}
-                    onValueChange={(value) => setDisposalForm({ ...disposalForm, bottleId: value })}
-                  >
+                    onValueChange={(value) =>
+                      setDisposalForm({ ...disposalForm, bottleId: value })
+                    }>
                     <SelectTrigger>
                       <SelectValue placeholder="Select batch to dispose" />
                     </SelectTrigger>
                     <SelectContent>
                       {inventory.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.batchNumber} - {item.quantity.toFixed(1)}mL available
+                          {item.batchNumber} - {item.quantity.toFixed(1)}mL
+                          available
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1335,7 +1591,12 @@ export default function InventoryPage() {
                     type="number"
                     step="0.1"
                     value={disposalForm.quantity}
-                    onChange={(e) => setDisposalForm({ ...disposalForm, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setDisposalForm({
+                        ...disposalForm,
+                        quantity: e.target.value,
+                      })
+                    }
                     placeholder="Enter quantity"
                   />
                 </div>
@@ -1343,16 +1604,28 @@ export default function InventoryPage() {
                   <Label>Disposal Method</Label>
                   <Select
                     value={disposalForm.disposalMethod}
-                    onValueChange={(value) => setDisposalForm({ ...disposalForm, disposalMethod: value })}
-                  >
+                    onValueChange={(value) =>
+                      setDisposalForm({
+                        ...disposalForm,
+                        disposalMethod: value,
+                      })
+                    }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="reverse_distributor">Reverse Distributor</SelectItem>
-                      <SelectItem value="dea_authorized">DEA Authorized Collector</SelectItem>
-                      <SelectItem value="law_enforcement">Law Enforcement</SelectItem>
-                      <SelectItem value="witnessed_waste">Witnessed Waste (patient refusal)</SelectItem>
+                      <SelectItem value="reverse_distributor">
+                        Reverse Distributor
+                      </SelectItem>
+                      <SelectItem value="dea_authorized">
+                        DEA Authorized Collector
+                      </SelectItem>
+                      <SelectItem value="law_enforcement">
+                        Law Enforcement
+                      </SelectItem>
+                      <SelectItem value="witnessed_waste">
+                        Witnessed Waste (patient refusal)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1360,7 +1633,12 @@ export default function InventoryPage() {
                   <Label>Reason for Disposal</Label>
                   <Textarea
                     value={disposalForm.reason}
-                    onChange={(e) => setDisposalForm({ ...disposalForm, reason: e.target.value })}
+                    onChange={(e) =>
+                      setDisposalForm({
+                        ...disposalForm,
+                        reason: e.target.value,
+                      })
+                    }
                     placeholder="Expired, damaged, patient refusal, etc."
                   />
                 </div>
@@ -1368,7 +1646,12 @@ export default function InventoryPage() {
                   <Label>Witness Name</Label>
                   <Input
                     value={disposalForm.witnesses}
-                    onChange={(e) => setDisposalForm({ ...disposalForm, witnesses: e.target.value })}
+                    onChange={(e) =>
+                      setDisposalForm({
+                        ...disposalForm,
+                        witnesses: e.target.value,
+                      })
+                    }
                     placeholder="Name of witness"
                   />
                 </div>
@@ -1376,13 +1659,20 @@ export default function InventoryPage() {
                   <Label>Witness Signature/Initials</Label>
                   <Input
                     value={disposalForm.witnessSignature}
-                    onChange={(e) => setDisposalForm({ ...disposalForm, witnessSignature: e.target.value })}
+                    onChange={(e) =>
+                      setDisposalForm({
+                        ...disposalForm,
+                        witnessSignature: e.target.value,
+                      })
+                    }
                     placeholder="Witness initials"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowDisposalRecord(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisposalRecord(false)}>
                   Cancel
                 </Button>
                 <Button onClick={handleRecordDisposal} disabled={isSubmitting}>
@@ -1396,29 +1686,40 @@ export default function InventoryPage() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Adjust Inventory</DialogTitle>
-                <DialogDescription>Record an inventory adjustment for {selectedItem?.batchNumber}</DialogDescription>
+                <DialogDescription>
+                  Record an inventory adjustment for {selectedItem?.batchNumber}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-sm text-yellow-800">
-                    Current stock: {selectedItem?.quantity.toFixed(1)}mL. All adjustments are logged for DEA audit
-                    trail.
+                    Current stock: {selectedItem?.quantity.toFixed(1)}mL. All
+                    adjustments are logged for DEA audit trail.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Adjustment Type</Label>
                   <Select
                     value={adjustForm.adjustmentType}
-                    onValueChange={(value) => setAdjustForm({ ...adjustForm, adjustmentType: value })}
-                  >
+                    onValueChange={(value) =>
+                      setAdjustForm({ ...adjustForm, adjustmentType: value })
+                    }>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="correction">Count Correction</SelectItem>
-                      <SelectItem value="spillage">Spillage/Breakage</SelectItem>
-                      <SelectItem value="theft_loss">Theft/Loss (Form 106)</SelectItem>
-                      <SelectItem value="received">Additional Received</SelectItem>
+                      <SelectItem value="correction">
+                        Count Correction
+                      </SelectItem>
+                      <SelectItem value="spillage">
+                        Spillage/Breakage
+                      </SelectItem>
+                      <SelectItem value="theft_loss">
+                        Theft/Loss (Form 106)
+                      </SelectItem>
+                      <SelectItem value="received">
+                        Additional Received
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1428,22 +1729,30 @@ export default function InventoryPage() {
                     type="number"
                     step="0.1"
                     value={adjustForm.quantity}
-                    onChange={(e) => setAdjustForm({ ...adjustForm, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setAdjustForm({ ...adjustForm, quantity: e.target.value })
+                    }
                     placeholder="Enter positive or negative value"
                   />
-                  <p className="text-xs text-muted-foreground">Use negative for reductions, positive for additions</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use negative for reductions, positive for additions
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Reason</Label>
                   <Textarea
                     value={adjustForm.reason}
-                    onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+                    onChange={(e) =>
+                      setAdjustForm({ ...adjustForm, reason: e.target.value })
+                    }
                     placeholder="Explain the reason for this adjustment"
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowAdjustDialog(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAdjustDialog(false)}>
                   Cancel
                 </Button>
                 <Button onClick={handleAdjustInventory} disabled={isSubmitting}>
@@ -1456,9 +1765,14 @@ export default function InventoryPage() {
           <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{reportData?.title || "Generating Report..."}</DialogTitle>
+                <DialogTitle>
+                  {reportData?.title || "Generating Report..."}
+                </DialogTitle>
                 <DialogDescription>
-                  Generated: {reportData?.generated ? new Date(reportData.generated).toLocaleString() : "..."}
+                  Generated:{" "}
+                  {reportData?.generated
+                    ? new Date(reportData.generated).toLocaleString()
+                    : "..."}
                 </DialogDescription>
               </DialogHeader>
 
@@ -1483,24 +1797,32 @@ export default function InventoryPage() {
                               {Object.keys(reportData.data[0] || {})
                                 .slice(0, 5)
                                 .map((key) => (
-                                  <th key={key} className="px-4 py-2 text-left font-medium">
-                                    {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                  <th
+                                    key={key}
+                                    className="px-4 py-2 text-left font-medium">
+                                    {key
+                                      .replace(/_/g, " ")
+                                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                                   </th>
                                 ))}
                             </tr>
                           </thead>
                           <tbody>
-                            {reportData.data.slice(0, 20).map((row: any, idx: number) => (
-                              <tr key={idx} className="border-t">
-                                {Object.values(row)
-                                  .slice(0, 5)
-                                  .map((val: any, i: number) => (
-                                    <td key={i} className="px-4 py-2">
-                                      {typeof val === "object" ? JSON.stringify(val).slice(0, 50) : String(val || "-")}
-                                    </td>
-                                  ))}
-                              </tr>
-                            ))}
+                            {reportData.data
+                              .slice(0, 20)
+                              .map((row: any, idx: number) => (
+                                <tr key={idx} className="border-t">
+                                  {Object.values(row)
+                                    .slice(0, 5)
+                                    .map((val: any, i: number) => (
+                                      <td key={i} className="px-4 py-2">
+                                        {typeof val === "object"
+                                          ? JSON.stringify(val).slice(0, 50)
+                                          : String(val || "-")}
+                                      </td>
+                                    ))}
+                                </tr>
+                              ))}
                           </tbody>
                         </table>
                         {reportData.data.length > 20 && (
@@ -1512,7 +1834,9 @@ export default function InventoryPage() {
                     )
                   ) : reportData.data ? (
                     <div className="bg-muted p-4 rounded-lg">
-                      <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(reportData.data, null, 2)}</pre>
+                      <pre className="text-sm whitespace-pre-wrap">
+                        {JSON.stringify(reportData.data, null, 2)}
+                      </pre>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -1523,7 +1847,9 @@ export default function InventoryPage() {
               ) : null}
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowReportDialog(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReportDialog(false)}>
                   Close
                 </Button>
                 <Button onClick={handleExportReport} disabled={!reportData}>
@@ -1540,5 +1866,5 @@ export default function InventoryPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

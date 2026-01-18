@@ -37,13 +37,13 @@ import {
   Plus,
   Loader2,
 } from "lucide-react"
-import Link from "next/link"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 interface ComplianceMetric {
   category: string
   score: number
+  status: string
   details: string
 }
 
@@ -84,28 +84,6 @@ interface ProviderPerformance {
   assessments_count: number
 }
 
-// Adding new interfaces for advanced features
-interface ComplianceActionItem {
-  id: string
-  title: string
-  description: string
-  assigned_to: string
-  due_date: string
-  priority: string
-  status: string
-  created_at: string
-}
-
-interface PolicyDocument {
-  id: string
-  title: string
-  category: string
-  version: string
-  effective_date: string
-  review_date: string
-  status: string
-}
-
 export function ComplianceAuditDashboard() {
   const { toast } = useToast()
   const supabase = createBrowserClient()
@@ -121,15 +99,6 @@ export function ComplianceAuditDashboard() {
   const [selectedAudit, setSelectedAudit] = useState<AuditRecord | null>(null)
   const [selectedAlert, setSelectedAlert] = useState<AuditAlert | null>(null)
   const [selectedReportType, setSelectedReportType] = useState("")
-
-  const [actionItems, setActionItems] = useState<ComplianceActionItem[]>([])
-  const [policyDocuments, setPolicyDocuments] = useState<PolicyDocument[]>([])
-  const [complianceTrends, setComplianceTrends] = useState<any[]>([])
-  const [staffTrainingStatus, setStaffTrainingStatus] = useState<any[]>([])
-
-  const [showActionItemDialog, setShowActionItemDialog] = useState(false)
-  const [showPolicyDialog, setShowPolicyDialog] = useState(false)
-  const [selectedActionItem, setSelectedActionItem] = useState<ComplianceActionItem | null>(null)
 
   // Form states
   const [auditForm, setAuditForm] = useState({
@@ -161,10 +130,6 @@ export function ComplianceAuditDashboard() {
         fetchRecentAudits(),
         fetchSecurityEvents(),
         fetchProviderPerformance(),
-        fetchActionItems(),
-        fetchPolicyDocuments(),
-        fetchComplianceTrends(),
-        fetchStaffTrainingStatus(),
       ])
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -396,126 +361,6 @@ export function ComplianceAuditDashboard() {
     }
   }
 
-  const fetchActionItems = async () => {
-    try {
-      // Query clinical protocols and compliance tasks
-      const { data: protocols } = await supabase
-        .from("clinical_protocols")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(10)
-
-      const items: ComplianceActionItem[] = []
-
-      protocols?.forEach((protocol) => {
-        items.push({
-          id: protocol.id,
-          title: protocol.name,
-          description: protocol.description || "Protocol implementation required",
-          assigned_to: "Compliance Team",
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          priority: protocol.category === "critical" ? "high" : "medium",
-          status: "in_progress",
-          created_at: protocol.created_at,
-        })
-      })
-
-      setActionItems(items)
-    } catch (error) {
-      console.error("Error fetching action items:", error)
-    }
-  }
-
-  const fetchPolicyDocuments = async () => {
-    try {
-      const { data: regulatoryUpdates } = await supabase
-        .from("regulatory_updates")
-        .select("*")
-        .eq("is_active", true)
-        .order("effective_date", { ascending: false })
-        .limit(10)
-
-      const policies: PolicyDocument[] = []
-
-      regulatoryUpdates?.forEach((update) => {
-        policies.push({
-          id: update.id,
-          title: update.title,
-          category: update.update_type || "General",
-          version: "1.0",
-          effective_date: update.effective_date || new Date().toISOString().split("T")[0],
-          review_date:
-            update.compliance_deadline || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          status: new Date() < new Date(update.effective_date) ? "pending" : "active",
-        })
-      })
-
-      setPolicyDocuments(policies)
-    } catch (error) {
-      console.error("Error fetching policy documents:", error)
-    }
-  }
-
-  const fetchComplianceTrends = async () => {
-    try {
-      const { data: reports } = await supabase
-        .from("compliance_reports")
-        .select("created_at, report_data")
-        .order("created_at", { ascending: true })
-        .limit(30)
-
-      const trends =
-        reports?.map((report) => ({
-          date: new Date(report.created_at).toLocaleDateString(),
-          score: report.report_data?.score || 0,
-        })) || []
-
-      setComplianceTrends(trends)
-    } catch (error) {
-      console.error("Error fetching compliance trends:", error)
-    }
-  }
-
-  const fetchStaffTrainingStatus = async () => {
-    try {
-      const { data: staff } = await supabase
-        .from("staff")
-        .select("id, first_name, last_name, department")
-        .eq("is_active", true)
-        .limit(10)
-
-      const trainingStatus = []
-
-      for (const member of staff || []) {
-        const { count: completedTraining } = await supabase
-          .from("staff_training_completions")
-          .select("*", { count: "exact", head: true })
-          .eq("staff_id", member.id)
-          .eq("passed", true)
-
-        const { count: totalModules } = await supabase
-          .from("training_modules")
-          .select("*", { count: "exact", head: true })
-          .eq("is_required", true)
-          .eq("is_active", true)
-
-        trainingStatus.push({
-          id: member.id,
-          name: `${member.first_name} ${member.last_name}`,
-          department: member.department,
-          completed: completedTraining || 0,
-          total: totalModules || 0,
-          percentage: totalModules ? Math.round(((completedTraining || 0) / totalModules) * 100) : 0,
-        })
-      }
-
-      setStaffTrainingStatus(trainingStatus)
-    } catch (error) {
-      console.error("Error fetching staff training status:", error)
-    }
-  }
-
   const handleGenerateAudit = async () => {
     if (!auditForm.type) {
       toast({ title: "Error", description: "Please select an audit type", variant: "destructive" })
@@ -731,10 +576,6 @@ export function ComplianceAuditDashboard() {
       recent_audits: recentAudits,
       security_events: securityEvents,
       provider_performance: providerPerformance,
-      action_items: actionItems,
-      policy_documents: policyDocuments,
-      compliance_trends: complianceTrends,
-      staff_training_status: staffTrainingStatus,
     }
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })
@@ -803,107 +644,6 @@ export function ComplianceAuditDashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center">
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Action Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Open</span>
-                <span className="font-bold text-lg">{actionItems.filter((i) => i.status !== "completed").length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Overdue</span>
-                <span className="font-bold text-lg text-red-600">
-                  {actionItems.filter((i) => new Date(i.due_date) < new Date() && i.status !== "completed").length}
-                </span>
-              </div>
-              <Button
-                size="sm"
-                className="w-full mt-2 bg-transparent"
-                variant="outline"
-                onClick={() => setShowActionItemDialog(true)}
-              >
-                <Plus className="mr-2 h-3 w-3" />
-                Add Action Item
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center">
-              <FileText className="mr-2 h-4 w-4" />
-              Policy Documents
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Active</span>
-                <span className="font-bold text-lg">{policyDocuments.filter((p) => p.status === "active").length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Pending Review</span>
-                <span className="font-bold text-lg text-yellow-600">
-                  {
-                    policyDocuments.filter(
-                      (p) => new Date(p.review_date) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    ).length
-                  }
-                </span>
-              </div>
-              <Button
-                size="sm"
-                className="w-full mt-2 bg-transparent"
-                variant="outline"
-                onClick={() => setShowPolicyDialog(true)}
-              >
-                <Eye className="mr-2 h-3 w-3" />
-                View All Policies
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center">
-              <Users className="mr-2 h-4 w-4" />
-              Staff Training
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Compliant</span>
-                <span className="font-bold text-lg text-green-600">
-                  {staffTrainingStatus.filter((s) => s.percentage >= 100).length}/{staffTrainingStatus.length}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Average Completion</span>
-                <span className="font-bold text-lg">
-                  {Math.round(
-                    staffTrainingStatus.reduce((sum, s) => sum + s.percentage, 0) / (staffTrainingStatus.length || 1),
-                  )}
-                  %
-                </span>
-              </div>
-              <Button size="sm" className="w-full mt-2 bg-transparent" variant="outline" asChild>
-                <Link href="/staff">View Training Status</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Active Alerts */}
       <Card>
         <CardHeader>
@@ -965,12 +705,10 @@ export function ComplianceAuditDashboard() {
       </Card>
 
       <Tabs defaultValue="audits" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="audits">Audit History</TabsTrigger>
           <TabsTrigger value="security">Security Logs</TabsTrigger>
           <TabsTrigger value="quality">Quality Metrics</TabsTrigger>
-          <TabsTrigger value="actions">Action Items</TabsTrigger>
-          <TabsTrigger value="trends">Trends & Analytics</TabsTrigger>
           <TabsTrigger value="reports">Compliance Reports</TabsTrigger>
         </TabsList>
 
@@ -1164,157 +902,6 @@ export function ComplianceAuditDashboard() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="actions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Compliance Action Items</CardTitle>
-              <CardDescription>Track and manage compliance tasks and remediation efforts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {actionItems.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-2" />
-                  <p>No action items</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {actionItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <p className="font-medium">{item.title}</p>
-                          <Badge
-                            variant={
-                              item.priority === "high"
-                                ? "destructive"
-                                : item.priority === "medium"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                          >
-                            {item.priority}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                          <span>Assigned to: {item.assigned_to}</span>
-                          <span>Due: {new Date(item.due_date).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={item.status === "completed" ? "default" : "secondary"}>
-                          {item.status.replace("_", " ")}
-                        </Badge>
-                        <Button size="sm" variant="outline">
-                          Mark Complete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="trends" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="mr-2 h-5 w-5" />
-                  Compliance Score Trend
-                </CardTitle>
-                <CardDescription>30-day compliance score history</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {complianceTrends.length > 0 ? (
-                  <div className="space-y-2">
-                    {complianceTrends.slice(-7).map((trend, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm">{trend.date}</span>
-                        <div className="flex items-center space-x-2">
-                          <Progress value={trend.score} className="w-32" />
-                          <span className="text-sm font-medium w-10">{trend.score}%</span>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="pt-4 border-t">
-                      <div className="flex justify-between">
-                        <span className="text-sm font-medium">Average Score:</span>
-                        <span className="text-sm font-bold">
-                          {Math.round(complianceTrends.reduce((sum, t) => sum + t.score, 0) / complianceTrends.length)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">No trend data available</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Staff Training Completion</CardTitle>
-                <CardDescription>Individual compliance training progress</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {staffTrainingStatus.length > 0 ? (
-                  <div className="space-y-4">
-                    {staffTrainingStatus.map((staff) => (
-                      <div key={staff.id}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm truncate max-w-[180px]">{staff.name}</span>
-                          <span className="text-sm font-medium">
-                            {staff.completed}/{staff.total}
-                          </span>
-                        </div>
-                        <Progress value={staff.percentage} className="h-2" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">No training data available</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Policy Review Schedule</CardTitle>
-              <CardDescription>Upcoming policy review deadlines</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {policyDocuments.length > 0 ? (
-                <div className="space-y-3">
-                  {policyDocuments
-                    .filter((p) => new Date(p.review_date) <= new Date(Date.now() + 90 * 24 * 60 * 60 * 1000))
-                    .map((policy) => (
-                      <div key={policy.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{policy.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {policy.category} • Version {policy.version}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">Review Due</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(policy.review_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-4">No policies pending review</p>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4">
@@ -1528,135 +1115,6 @@ export function ComplianceAuditDashboard() {
               <Download className="mr-2 h-4 w-4" />
               Generate & Download
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Action Item Dialog */}
-      <Dialog open={showActionItemDialog} onOpenChange={setShowActionItemDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Action Item</DialogTitle>
-            <DialogDescription>Create a new compliance action item</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="actionItemTitle">Title</Label>
-              <Input id="actionItemTitle" placeholder="e.g., Update privacy policy" />
-            </div>
-            <div>
-              <Label htmlFor="actionItemDescription">Description</Label>
-              <Textarea id="actionItemDescription" placeholder="Provide details about the action item..." />
-            </div>
-            <div>
-              <Label htmlFor="actionItemAssignedTo">Assigned To</Label>
-              <Input id="actionItemAssignedTo" placeholder="e.g., Compliance Team" defaultValue="Compliance Team" />
-            </div>
-            <div>
-              <Label htmlFor="actionItemDueDate">Due Date</Label>
-              <Input id="actionItemDueDate" type="date" />
-            </div>
-            <div>
-              <Label htmlFor="actionItemPriority">Priority</Label>
-              <Select
-                onValueChange={(v) => {
-                  /* handle priority change */
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="actionItemStatus">Status</Label>
-              <Select
-                onValueChange={(v) => {
-                  /* handle status change */
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="to_do">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="blocked">Blocked</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowActionItemDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                /* handle add action item */
-              }}
-            >
-              Add Action Item
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Policy Document Dialog */}
-      <Dialog open={showPolicyDialog} onOpenChange={setShowPolicyDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Policy Documents</DialogTitle>
-            <DialogDescription>View and manage policy documents</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[500px] overflow-y-auto space-y-4 pr-4">
-            {policyDocuments.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No policy documents found.</p>
-            ) : (
-              policyDocuments.map((policy) => (
-                <Card key={policy.id} className="w-full">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex justify-between items-center">
-                      {policy.title}
-                      <Badge
-                        variant={
-                          policy.status === "active" ? "default" : policy.status === "pending" ? "secondary" : "outline"
-                        }
-                      >
-                        {policy.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Category: {policy.category} | Version: {policy.version}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Effective Date: </span>
-                        {new Date(policy.effective_date).toLocaleDateString()}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Review Date: </span>
-                        {new Date(policy.review_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                    {/* Add buttons for view/edit/delete as needed */}
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPolicyDialog(false)}>
-              Close
-            </Button>
-            {/* Add button to add new policy document if needed */}
           </DialogFooter>
         </DialogContent>
       </Dialog>

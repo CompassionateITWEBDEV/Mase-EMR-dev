@@ -84,38 +84,51 @@ ALTER TABLE uds_tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE blood_work_orders ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies (adjust based on your auth setup)
+-- Drop existing policies if they exist to make this script idempotent
+DROP POLICY IF EXISTS "Staff can view all nursing assessments" ON nursing_assessments;
 CREATE POLICY "Staff can view all nursing assessments" ON nursing_assessments
   FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can insert nursing assessments" ON nursing_assessments;
 CREATE POLICY "Staff can insert nursing assessments" ON nursing_assessments
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can update nursing assessments" ON nursing_assessments;
 CREATE POLICY "Staff can update nursing assessments" ON nursing_assessments
   FOR UPDATE USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can view all lab tests" ON lab_tests;
 CREATE POLICY "Staff can view all lab tests" ON lab_tests
   FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can insert lab tests" ON lab_tests;
 CREATE POLICY "Staff can insert lab tests" ON lab_tests
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can update lab tests" ON lab_tests;
 CREATE POLICY "Staff can update lab tests" ON lab_tests
   FOR UPDATE USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can view all UDS tests" ON uds_tests;
 CREATE POLICY "Staff can view all UDS tests" ON uds_tests
   FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can insert UDS tests" ON uds_tests;
 CREATE POLICY "Staff can insert UDS tests" ON uds_tests
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can update UDS tests" ON uds_tests;
 CREATE POLICY "Staff can update UDS tests" ON uds_tests
   FOR UPDATE USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can view all blood work orders" ON blood_work_orders;
 CREATE POLICY "Staff can view all blood work orders" ON blood_work_orders
   FOR SELECT USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can insert blood work orders" ON blood_work_orders;
 CREATE POLICY "Staff can insert blood work orders" ON blood_work_orders
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Staff can update blood work orders" ON blood_work_orders;
 CREATE POLICY "Staff can update blood work orders" ON blood_work_orders
   FOR UPDATE USING (auth.role() = 'authenticated');

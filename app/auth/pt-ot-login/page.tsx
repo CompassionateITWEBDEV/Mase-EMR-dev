@@ -55,7 +55,8 @@ export default function PTOTLoginPage() {
     const user = DEMO_CREDENTIALS.find((cred) => cred.username === username && cred.password === password)
 
     if (user) {
-      localStorage.setItem("ptot_session", JSON.stringify(user))
+      // Store user info in localStorage for the session
+      localStorage.setItem("pt_ot_user", JSON.stringify(user))
       localStorage.setItem("pt_ot_authenticated", "true")
 
       toast({

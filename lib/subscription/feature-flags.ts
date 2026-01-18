@@ -19,6 +19,13 @@ export type FeatureFlag =
   | "ai-assistant"
   | "advanced-analytics"
   | "predictive-insights"
+  | "community-outreach"
+  | "research-dashboard"
+  | "patient-credits"
+  | "facility-inventory"
+  | "county-health"
+  | "chw-encounters"
+  | "pt-ot-dashboard"
 
 export type SubscriptionTier = "basic" | "professional" | "enterprise"
 
@@ -49,6 +56,13 @@ export const featureDefaults: Record<FeatureFlag, FeatureConfig> = {
   "ai-assistant": { tier: "enterprise", monthlyPrice: 199, enabled: false },
   "advanced-analytics": { tier: "enterprise", monthlyPrice: 149, enabled: false },
   "predictive-insights": { tier: "enterprise", monthlyPrice: 249, enabled: false },
+  "community-outreach": { tier: "professional", monthlyPrice: 299, enabled: false },
+  "research-dashboard": { tier: "enterprise", monthlyPrice: 199, enabled: false },
+  "patient-credits": { tier: "professional", monthlyPrice: 49, enabled: false },
+  "facility-inventory": { tier: "professional", monthlyPrice: 39, enabled: false },
+  "county-health": { tier: "enterprise", monthlyPrice: 149, enabled: false },
+  "chw-encounters": { tier: "professional", monthlyPrice: 79, enabled: false },
+  "pt-ot-dashboard": { tier: "professional", monthlyPrice: 99, enabled: false },
 }
 
 // Check if a feature is enabled for the current subscription

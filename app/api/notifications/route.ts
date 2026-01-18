@@ -1,10 +1,9 @@
-import { createClient } from "@supabase/supabase-js"
+import { createServiceClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 export async function GET() {
   try {
+    const supabase = createServiceClient()
     // Fetch notifications from team_notifications table
     const { data: notifications, error } = await supabase
       .from("team_notifications")
@@ -50,11 +49,15 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
 
     if (body.markAllRead) {
       // Mark all notifications as read
-      const { error } = await supabase.from("team_notifications").update({ is_read: true }).eq("is_read", false)
+      const { error } = await supabase
+        .from("team_notifications")
+        .update({ is_read: true })
+        .eq("is_read", false)
 
       if (error) {
         console.error("Error marking all as read:", error)
@@ -88,6 +91,7 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
 
     const { data, error } = await supabase

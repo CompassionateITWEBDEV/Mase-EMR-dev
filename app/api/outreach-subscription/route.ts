@@ -1,26 +1,21 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
+import { createServiceClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-export async function GET() {
-  const cookieStore = await cookies()
-
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
-      },
-    },
-  })
-
+export async function GET(request: NextRequest) {
   try {
-    // Get organization ID (in real app, get from authenticated user)
-    const organizationId = "00000000-0000-0000-0000-000000000001" // Replace with actual org ID
+    const supabase = createServiceClient()
+    const { searchParams } = new URL(request.url)
+    const organization_id = searchParams.get("organization_id")
+
+    if (!organization_id) {
+      return NextResponse.json({ error: "Organization ID required" }, { status: 400 })
+    }
 
     const { data: subscription, error } = await supabase
       .from("community_outreach_subscriptions")
       .select("*")
-      .eq("organization_id", organizationId)
+      .eq("organization_id", organization_id)
       .single()
 
     if (error && error.code !== "PGRST116") {
@@ -28,8 +23,8 @@ export async function GET() {
     }
 
     return NextResponse.json(subscription || null)
-  } catch (error) {
-    console.error("Error fetching outreach subscription:", error)
+  } catch (error: any) {
+    console.error("[Outreach Subscription] Error fetching subscription:", error)
     return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 })
   }
 }

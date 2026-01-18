@@ -45,11 +45,11 @@ export default function RegisterPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -60,8 +60,18 @@ export default function RegisterPage() {
           },
         },
       })
+      
       if (error) throw error
-      router.push("/auth/check-email")
+      
+      // Check if email confirmation is required
+      // In development, Supabase might auto-confirm if email confirmation is disabled
+      if (data.user && data.session) {
+        // User is already confirmed and logged in (development mode)
+        router.push("/")
+      } else {
+        // Email confirmation required
+        router.push("/auth/check-email")
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {

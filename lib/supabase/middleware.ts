@@ -1,6 +1,26 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+/**
+ * Check if auth bypass is enabled via cookie (for server-side middleware)
+ * Only works in development mode
+ */
+function isAuthBypassEnabled(request: NextRequest): boolean {
+  // Only allow in development
+  if (process.env.NODE_ENV !== "development") {
+    return false
+  }
+
+  // Check if dev tools are enabled
+  if (process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS !== "true") {
+    return false
+  }
+
+  // Check for bypass cookie
+  const bypassCookie = request.cookies.get("dev_bypass_auth")
+  return bypassCookie?.value === "true"
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -37,11 +57,19 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user && !request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/") {
+  // Check if auth bypass is enabled (dev mode only)
+  const bypassAuth = isAuthBypassEnabled(request)
+
+  if (!user && !bypassAuth && !request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/") {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
     return NextResponse.redirect(url)
+  }
+
+  // Log warning if bypass is active
+  if (bypassAuth) {
+    console.warn("[DevTools] ⚠️ Auth bypass is ACTIVE in middleware - skipping redirect")
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

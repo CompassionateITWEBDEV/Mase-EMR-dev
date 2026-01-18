@@ -35,8 +35,6 @@ import {
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { CrisisLifeline988 } from "@/components/crisis-lifeline-988"
-import { LiveChatWidget } from "@/components/live-chat-widget"
 
 export default function CommunityOutreachLanding() {
   const { toast } = useToast()
@@ -96,6 +94,16 @@ export default function CommunityOutreachLanding() {
       if (shelterType !== "all") params.append("type", shelterType)
 
       const response = await fetch(`/api/community-outreach/shelters?${params}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON")
+      }
+      
       const data = await response.json()
 
       if (data.shelters && data.shelters.length > 0) {
@@ -105,7 +113,7 @@ export default function CommunityOutreachLanding() {
         setShelters(mockSheltersData)
       }
     } catch (error) {
-      console.error("[v0] Error fetching shelters:", error)
+      console.error("Error fetching shelters:", error)
       // Fallback to mock data on error
       setShelters(mockSheltersData)
     } finally {
@@ -122,6 +130,16 @@ export default function CommunityOutreachLanding() {
       if (foodBankType !== "all") params.append("type", foodBankType)
 
       const response = await fetch(`/api/community-outreach/food-banks?${params}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON")
+      }
+      
       const data = await response.json()
 
       if (data.foodBanks && data.foodBanks.length > 0) {
@@ -131,7 +149,7 @@ export default function CommunityOutreachLanding() {
         setFoodBanks(mockFoodBanksData)
       }
     } catch (error) {
-      console.error("[v0] Error fetching food banks:", error)
+      console.error("Error fetching food banks:", error)
       // Fallback to mock data on error
       setFoodBanks(mockFoodBanksData)
     } finally {
@@ -307,66 +325,66 @@ export default function CommunityOutreachLanding() {
       id: "1",
       name: "Alliance of Coalition - Main Distribution Center",
       type: "distribution_center",
-      address: "123 Recovery Way, Anytown, ST 12345",
-      phone: "(555) 800-9000",
+      address: "2100 Martin Luther King Jr Ave SE, Washington, DC 20020",
+      phone: "(202) 555-0100",
       hours: "Mon-Fri: 8 AM - 6 PM, Sat: 10 AM - 4 PM",
       services: ["free_narcan", "training", "fentanyl_strips", "harm_reduction_supplies", "naloxone_training"],
       walkInsWelcome: true,
       appointmentRequired: false,
-      latitude: 40.7128,
-      longitude: -74.006,
+      latitude: 38.8567,
+      longitude: -76.9896,
     },
     {
       id: "2",
       name: "Community Health Pharmacy",
       type: "pharmacy",
-      address: "456 Main St, Anytown, ST 12345",
-      phone: "(555) 234-7890",
+      address: "1425 K Street NW, Suite 200, Washington, DC 20005",
+      phone: "(202) 555-0234",
       hours: "Mon-Sat: 9 AM - 8 PM, Sun: 10 AM - 6 PM",
       services: ["free_narcan", "prescription_narcan", "consultation", "training"],
       walkInsWelcome: true,
       appointmentRequired: false,
-      latitude: 40.7589,
-      longitude: -73.9851,
+      latitude: 38.9027,
+      longitude: -77.0323,
     },
     {
       id: "3",
       name: "Hope Recovery Center",
       type: "treatment_center",
-      address: "789 Treatment Ave, Anytown, ST 12345",
-      phone: "(555) 345-6789",
+      address: "3000 Connecticut Avenue NW, Washington, DC 20008",
+      phone: "(202) 555-0345",
       hours: "24/7 - Crisis services available",
       services: ["free_narcan", "training", "fentanyl_strips", "overdose_prevention", "peer_support"],
       walkInsWelcome: true,
       appointmentRequired: false,
-      latitude: 40.7411,
-      longitude: -73.9897,
+      latitude: 38.9286,
+      longitude: -77.0532,
     },
     {
       id: "4",
       name: "Public Library - Harm Reduction Station",
       type: "public_access",
-      address: "234 Library Ln, Anytown, ST 12345",
-      phone: "(555) 456-7890",
+      address: "901 G Street NW, Washington, DC 20001",
+      phone: "(202) 555-0456",
       hours: "Tue-Sat: 10 AM - 6 PM",
       services: ["free_narcan", "fentanyl_strips", "harm_reduction_info", "resource_referrals"],
       walkInsWelcome: true,
       appointmentRequired: false,
-      latitude: 40.7306,
-      longitude: -73.9352,
+      latitude: 38.8983,
+      longitude: -77.0228,
     },
     {
       id: "5",
       name: "Fire Department Station 12",
       type: "emergency_services",
-      address: "567 Safety Blvd, Anytown, ST 12345",
-      phone: "(555) 911-1234",
+      address: "1800 Rhode Island Avenue NE, Washington, DC 20018",
+      phone: "(202) 555-0911",
       hours: "24/7",
       services: ["free_narcan", "emergency_response", "training", "community_outreach"],
       walkInsWelcome: true,
       appointmentRequired: false,
-      latitude: 40.7482,
-      longitude: -73.9845,
+      latitude: 38.9196,
+      longitude: -76.9763,
     },
   ]
 
@@ -443,82 +461,69 @@ export default function CommunityOutreachLanding() {
 
   const features = [
     {
-      icon: Syringe,
-      title: "Narcan/Naloxone Locator",
-      description: "Free naloxone distribution sites and overdose prevention resources",
-      link: "#narcan",
-    },
-    {
       icon: Users,
       title: "Anonymous Screening",
       description: "Take confidential mental health assessments",
-      link: "#screening",
-    },
-    {
-      icon: Home,
-      title: "Shelter Locator",
-      description: "Find emergency housing and transitional shelters",
-      link: "#shelters",
-    },
-    {
-      icon: Utensils,
-      title: "Food Bank Locator",
-      description: "Find food pantries, meal programs, and nutrition assistance",
-      link: "#food-banks",
     },
     {
       icon: Stethoscope,
       title: "Crisis Services (24/7)",
       description: "Immediate crisis intervention and stabilization",
-      link: "#resources",
     },
     {
       icon: Heart,
       title: "Mental Health Services",
       description: "Assessment, diagnosis, and evidence-based treatment",
-      link: "#resources",
     },
     {
       icon: Shield,
       title: "Substance Use Treatment",
       description: "Comprehensive SUD services including MAT",
-      link: "#resources",
     },
     {
       icon: Users,
       title: "Case Management",
       description: "Care coordination and recovery support services",
-      link: "#resources",
     },
     {
       icon: FileText,
       title: "Educational Resources",
       description: "Learn about treatment options and recovery",
-      link: "#resources",
     },
     {
       icon: Heart,
       title: "Community Referrals",
       description: "Connect with care coordinators and support",
-      link: "#resources",
     },
     {
       icon: CheckCircle,
       title: "No Wrong Door Policy",
       description: "Access regardless of ability to pay - all welcome",
-      link: "#features",
     },
     {
       icon: Calendar,
       title: "Mobile Check-In",
       description: "Remote check-in and queue management",
-      link: "#features",
+    },
+    {
+      icon: Home,
+      title: "Shelter Locator",
+      description: "Find emergency housing and transitional shelters",
+    },
+    {
+      icon: Utensils,
+      title: "Food Bank Locator",
+      description: "Find food pantries, meal programs, and nutrition assistance",
+    },
+    {
+      icon: Syringe,
+      title: "Narcan/Naloxone Locator",
+      description: "Free naloxone distribution sites and overdose prevention resources",
     },
     {
       icon: Search,
       title: "Community Resources",
       description: "Search nationwide database of social services powered by findhelp.org",
-      link: "#resources",
     },
   ]
 
@@ -575,6 +580,34 @@ export default function CommunityOutreachLanding() {
     }
   }
 
+  const handleDemoLogin = () => {
+    const demoUser = {
+      id: "demo_user_12345",
+      firstName: "Demo",
+      lastName: "User",
+      email: "demo@community.org",
+      phone: "(555) 123-4567",
+      zipCode: "20001",
+      registeredAt: new Date().toISOString(),
+      userType: "community",
+    }
+
+    localStorage.setItem("community_user", JSON.stringify(demoUser))
+    localStorage.setItem("community_authenticated", "true")
+
+    toast({
+      title: "Demo Login Successful!",
+      description: "Welcome Demo User! You now have full access to all community resources.",
+    })
+
+    setShowPublicRegister(false)
+
+    // Scroll to resources section
+    setTimeout(() => {
+      document.getElementById("resources")?.scrollIntoView({ behavior: "smooth" })
+    }, 500)
+  }
+
   const handlePatientLogin = () => {
     window.location.href = "/patient-mobile-checkin"
   }
@@ -601,9 +634,9 @@ export default function CommunityOutreachLanding() {
   const filteredFoodBanks = foodBanks.filter((foodBank) => {
     const matchesSearch =
       foodBankSearch === "" ||
-      foodBank.name.toLowerCase().includes(foodBankSearch.toLowerCase()) ||
-      foodBank.address.toLowerCase().includes(foodBankSearch.toLowerCase())
-    const matchesType = foodBankType === "all" || foodBank.type === foodBankType
+      foodBank.name?.toLowerCase().includes(foodBankSearch.toLowerCase()) ||
+      foodBank.address?.toLowerCase().includes(foodBankSearch.toLowerCase())
+    const matchesType = foodBankType === "all" || (foodBank.type && foodBank.type === foodBankType)
     return matchesSearch && matchesType
   })
 
@@ -663,10 +696,6 @@ export default function CommunityOutreachLanding() {
 
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12">
-        <div className="mb-6">
-          <CrisisLifeline988 variant="banner" />
-        </div>
-
         <div className="text-center mb-12 max-w-3xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
             Community Outreach & Recovery Gateway
@@ -710,282 +739,21 @@ export default function CommunityOutreachLanding() {
           </Card>
         </div>
 
-        {/* Quick Access Features - Clickable Navigation */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-center mb-6">Quick Access to Services</h2>
-          <p className="text-center text-muted-foreground mb-8">Click any service to jump directly to that section</p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12" id="features">
+        {/* Features */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-6 mb-12" id="features">
           {features.map((feature, index) => (
-            <Link
-              key={index}
-              href={feature.link}
-              className="block transition-transform hover:scale-105"
-              onClick={(e) => {
-                e.preventDefault()
-                document.querySelector(feature.link)?.scrollIntoView({ behavior: "smooth" })
-              }}
-            >
-              <Card className="text-center cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-violet-500">
-                <CardHeader>
-                  <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center mx-auto mb-3">
-                    <feature.icon className="h-6 w-6 text-violet-600" />
-                  </div>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                  <ArrowRight className="h-4 w-4 mx-auto mt-3 text-violet-600" />
-                </CardContent>
-              </Card>
-            </Link>
+            <Card key={index} className="text-center">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center mx-auto mb-3">
+                  <feature.icon className="h-6 w-6 text-violet-600" />
+                </div>
+                <CardTitle className="text-lg">{feature.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+              </CardContent>
+            </Card>
           ))}
-        </div>
-
-        {/* Narcan/Naloxone Section - TOP PRIORITY */}
-        <div className="mt-16" id="narcan">
-          <Card className="border-2 border-red-200">
-            <CardHeader className="text-center border-b bg-red-50/50">
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <Syringe className="h-8 w-8 text-red-600" />
-              </div>
-              <CardTitle className="text-3xl">Narcan/Naloxone Locator</CardTitle>
-              <CardDescription className="text-base">
-                Free naloxone distribution sites & overdose prevention resources powered by Alliance of Coalition
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              {/* Life-Saving Alert */}
-              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 mb-6">
-                <div className="flex gap-4">
-                  <AlertCircle className="h-8 w-8 text-red-600 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-bold text-red-900 text-lg mb-2">Overdose Emergency?</h3>
-                    <p className="text-red-800 mb-3">
-                      <strong>Call 911 immediately.</strong> Naloxone (Narcan) can reverse opioid overdoses and save
-                      lives. It's available for free at the locations below - no prescription needed.
-                    </p>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="bg-red-600 hover:bg-red-700">
-                        <Phone className="h-4 w-4 mr-2" />
-                        Call 911
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => window.open("tel:1-800-662-4357", "_blank")}>
-                        SAMHSA Hotline: 1-800-662-HELP
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Alliance of Coalition Map Integration */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <MapPin className="h-8 w-8 text-blue-600 flex-shrink-0 mt-1" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-blue-900 mb-2">View Full Interactive Map</h3>
-                    <p className="text-sm text-blue-800 mb-4">
-                      The Alliance of Coalition provides a comprehensive map of all naloxone distribution sites, harm
-                      reduction programs, and overdose prevention resources in your area.
-                    </p>
-                    <Button
-                      onClick={() =>
-                        window.open(
-                          "https://app.mapline.com/map/map_331d3d5c/PzEUQBEUIg8Ufz8UPz8UP2sURz8Ub0k8VW4UP2cOPz8UPxozdT",
-                          "_blank",
-                        )
-                      }
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Open Alliance of Coalition Map
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Search and Filters */}
-              <div className="space-y-4 mb-6">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor="narcan-search">Search by name or location</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="narcan-search"
-                        placeholder="Enter city, zip code, or site name..."
-                        value={narcanSearch}
-                        onChange={(e) => setNarcanSearch(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="w-56">
-                    <Label htmlFor="narcan-type">Site Type</Label>
-                    <select
-                      id="narcan-type"
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
-                      value={narcanType}
-                      onChange={(e) => setNarcanType(e.target.value)}
-                    >
-                      <option value="all">All Types</option>
-                      <option value="distribution_center">Distribution Centers</option>
-                      <option value="pharmacy">Pharmacies</option>
-                      <option value="treatment_center">Treatment Centers</option>
-                      <option value="public_access">Public Access Points</option>
-                      <option value="emergency_services">Emergency Services</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Narcan Sites Results */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">
-                    {filteredNarcanSites.length} Distribution Site{filteredNarcanSites.length !== 1 ? "s" : ""} Found
-                  </h3>
-                  <Button variant="outline" size="sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Use My Location
-                  </Button>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  {filteredNarcanSites.map((site) => (
-                    <Card
-                      key={site.id}
-                      className={`cursor-pointer transition-all ${
-                        selectedNarcanSite === site.id ? "ring-2 ring-red-500" : ""
-                      }`}
-                      onClick={() => setSelectedNarcanSite(site.id)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl mb-1">{site.name}</CardTitle>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 capitalize">
-                                {site.type.replace(/_/g, " ")}
-                              </span>
-                              {site.walkInsWelcome && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
-                                  Walk-ins Welcome
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-start gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <span>{site.address}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <a
-                            href={`tel:${site.phone}`}
-                            className="text-violet-600 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {site.phone}
-                          </a>
-                        </div>
-                        <div className="flex items-start gap-2 text-sm">
-                          <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
-                          <span>{site.hours}</span>
-                        </div>
-
-                        {/* Services */}
-                        <div className="pt-2 border-t">
-                          <p className="text-xs font-semibold mb-2 text-muted-foreground">Services Available:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {site.services.slice(0, 3).map((service) => (
-                              <span
-                                key={service}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-red-50 text-red-700"
-                              >
-                                {service === "free_narcan" && <Package className="h-3 w-3 mr-1" />}
-                                {getNarcanServiceLabel(service)}
-                              </span>
-                            ))}
-                            {site.services.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-700">
-                                +{site.services.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="flex-1 bg-red-600 hover:bg-red-700"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.location.href = `tel:${site.phone}`
-                            }}
-                          >
-                            <Phone className="h-4 w-4 mr-2" />
-                            Call Now
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 bg-transparent"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              getDirections(site.address)
-                            }}
-                          >
-                            <Navigation className="h-4 w-4 mr-2" />
-                            Directions
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Information Cards */}
-              <div className="mt-6 grid md:grid-cols-3 gap-4">
-                <Card className="bg-purple-50 border-purple-200">
-                  <CardContent className="pt-6">
-                    <Package className="h-8 w-8 text-purple-600 mb-3" />
-                    <h4 className="font-semibold mb-2 text-purple-900">What is Narcan?</h4>
-                    <p className="text-sm text-purple-800">
-                      Naloxone (Narcan) is a life-saving medication that rapidly reverses opioid overdoses. It's safe,
-                      easy to use, and available for free at locations above.
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-orange-50 border-orange-200">
-                  <CardContent className="pt-6">
-                    <AlertCircle className="h-8 w-8 text-orange-600 mb-3" />
-                    <h4 className="font-semibold mb-2 text-orange-900">Signs of Overdose</h4>
-                    <p className="text-sm text-orange-800">
-                      Unresponsive, slow/no breathing, blue lips/nails, pale skin, pinpoint pupils. Call 911 immediately
-                      and administer naloxone if available.
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-green-50 border-green-200">
-                  <CardContent className="pt-6">
-                    <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
-                    <h4 className="font-semibold mb-2 text-green-900">Good Samaritan Laws</h4>
-                    <p className="text-sm text-green-800">
-                      Most states have laws protecting people who seek emergency help for overdoses. You won't be
-                      prosecuted for helping save a life.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Login Section */}
@@ -996,7 +764,7 @@ export default function CommunityOutreachLanding() {
               <CardDescription>Select your access type to continue</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={loginType} onValueChange={(value: any) => setLoginType(value)} className="space-y-6">
+              <Tabs value={loginType} onValueChange={(v) => setLoginType(v as any)} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-6">
                   <TabsTrigger value="public" className="flex items-center gap-2">
                     <UserPlus className="h-4 w-4" />
@@ -1030,6 +798,10 @@ export default function CommunityOutreachLanding() {
                     </p>
                     <Button onClick={() => setShowPublicRegister(true)} className="w-full" size="lg">
                       Register for Free Access
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                    <Button onClick={handleDemoLogin} className="w-full" size="lg" variant="secondary">
+                      Login as Demo User
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                     <div className="grid grid-cols-2 gap-3 mt-4">
@@ -1359,7 +1131,7 @@ export default function CommunityOutreachLanding() {
                               <CardTitle className="text-xl mb-1">{shelter.name}</CardTitle>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-violet-100 text-violet-700 capitalize">
-                                  {shelter.type}
+                                  {shelter.type || "Shelter"}
                                 </span>
                                 {shelter.bedsAvailable > 0 ? (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
@@ -1395,7 +1167,7 @@ export default function CommunityOutreachLanding() {
                           <div className="pt-2 border-t">
                             <p className="text-xs font-semibold mb-2 text-muted-foreground">Services Available:</p>
                             <div className="flex flex-wrap gap-1">
-                              {shelter.amenities.slice(0, 3).map((amenity) => (
+                              {shelter.amenities.slice(0, 3).map((amenity: string) => (
                                 <span
                                   key={amenity}
                                   className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-700"
@@ -1568,9 +1340,9 @@ export default function CommunityOutreachLanding() {
                           </CardTitle>
                           <CardDescription className="mt-1">
                             <span className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
-                              {foodBank.type.replace("_", " ").toUpperCase()}
+                              {foodBank.type ? foodBank.type.replace("_", " ").toUpperCase() : "FOOD BANK"}
                             </span>
-                            <span className="ml-2 text-sm">{foodBank.servesPerMonth} people/month</span>
+                            <span className="ml-2 text-sm">{foodBank.servesPerMonth || 0} people/month</span>
                           </CardDescription>
                         </div>
                         {selectedFoodBank === foodBank.id ? (
@@ -1612,7 +1384,7 @@ export default function CommunityOutreachLanding() {
                             <div>
                               <h4 className="font-semibold text-sm mb-2">Services Offered</h4>
                               <div className="flex flex-wrap gap-2">
-                                {foodBank.services.map((service) => (
+                                {foodBank.services.map((service: string) => (
                                   <span
                                     key={service}
                                     className="inline-block bg-orange-50 text-orange-700 text-xs px-2 py-1 rounded"
@@ -1720,6 +1492,251 @@ export default function CommunityOutreachLanding() {
           </Card>
         </div>
 
+        <div className="mt-16" id="narcan">
+          <Card className="border-2 border-red-200">
+            <CardHeader className="text-center border-b bg-red-50/50">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Syringe className="h-8 w-8 text-red-600" />
+              </div>
+              <CardTitle className="text-3xl">Narcan/Naloxone Locator</CardTitle>
+              <CardDescription className="text-base">
+                Free naloxone distribution sites & overdose prevention resources powered by Alliance of Coalition
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {/* Life-Saving Alert */}
+              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 mb-6">
+                <div className="flex gap-4">
+                  <AlertCircle className="h-8 w-8 text-red-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-bold text-red-900 text-lg mb-2">Overdose Emergency?</h3>
+                    <p className="text-red-800 mb-3">
+                      <strong>Call 911 immediately.</strong> Naloxone (Narcan) can reverse opioid overdoses and save
+                      lives. It's available for free at the locations below - no prescription needed.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="bg-red-600 hover:bg-red-700">
+                        <Phone className="h-4 w-4 mr-2" />
+                        Call 911
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => window.open("tel:1-800-662-4357", "_blank")}>
+                        SAMHSA Hotline: 1-800-662-HELP
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alliance of Coalition Map Integration */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <MapPin className="h-8 w-8 text-blue-600 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-blue-900 mb-2">View Full Interactive Map</h3>
+                    <p className="text-sm text-blue-800 mb-4">
+                      The Alliance of Coalition provides a comprehensive map of all naloxone distribution sites, harm
+                      reduction programs, and overdose prevention resources in your area.
+                    </p>
+                    <Button
+                      onClick={() =>
+                        window.open(
+                          "https://app.mapline.com/map/map_331d3d5c/PzEUQBEUIg8Ufz8UPz8UP2sURz8Ub0k8VW4UP2cOPz8UPxozdT",
+                          "_blank",
+                        )
+                      }
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open Alliance of Coalition Map
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="space-y-4 mb-6">
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="narcan-search">Search by name or location</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="narcan-search"
+                        placeholder="Enter city, zip code, or site name..."
+                        value={narcanSearch}
+                        onChange={(e) => setNarcanSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="w-56">
+                    <Label htmlFor="narcan-type">Site Type</Label>
+                    <select
+                      id="narcan-type"
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
+                      value={narcanType}
+                      onChange={(e) => setNarcanType(e.target.value)}
+                    >
+                      <option value="all">All Types</option>
+                      <option value="distribution_center">Distribution Centers</option>
+                      <option value="pharmacy">Pharmacies</option>
+                      <option value="treatment_center">Treatment Centers</option>
+                      <option value="public_access">Public Access Points</option>
+                      <option value="emergency_services">Emergency Services</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Narcan Sites Results */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">
+                    {filteredNarcanSites.length} Distribution Site{filteredNarcanSites.length !== 1 ? "s" : ""} Found
+                  </h3>
+                  <Button variant="outline" size="sm">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Use My Location
+                  </Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {filteredNarcanSites.map((site) => (
+                    <Card
+                      key={site.id}
+                      className={`cursor-pointer transition-all ${
+                        selectedNarcanSite === site.id ? "ring-2 ring-red-500" : ""
+                      }`}
+                      onClick={() => setSelectedNarcanSite(site.id)}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-xl mb-1">{site.name}</CardTitle>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 capitalize">
+                                {site.type ? site.type.replace(/_/g, " ") : "Resource"}
+                              </span>
+                              {site.walkInsWelcome && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                                  Walk-ins Welcome
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-start gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <span>{site.address}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a
+                            href={`tel:${site.phone}`}
+                            className="text-violet-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {site.phone}
+                          </a>
+                        </div>
+                        <div className="flex items-start gap-2 text-sm">
+                          <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                          <span>{site.hours}</span>
+                        </div>
+
+                        {/* Services */}
+                        <div className="pt-2 border-t">
+                          <p className="text-xs font-semibold mb-2 text-muted-foreground">Services Available:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {site.services.slice(0, 3).map((service) => (
+                              <span
+                                key={service}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-red-50 text-red-700"
+                              >
+                                {service === "free_narcan" && <Package className="h-3 w-3 mr-1" />}
+                                {getNarcanServiceLabel(service)}
+                              </span>
+                            ))}
+                            {site.services.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-700">
+                                +{site.services.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="flex-1 bg-red-600 hover:bg-red-700"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.location.href = `tel:${site.phone}`
+                            }}
+                          >
+                            <Phone className="h-4 w-4 mr-2" />
+                            Call Now
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 bg-transparent"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              getDirections(site.address)
+                            }}
+                          >
+                            <Navigation className="h-4 w-4 mr-2" />
+                            Directions
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Information Cards */}
+              <div className="mt-6 grid md:grid-cols-3 gap-4">
+                <Card className="bg-purple-50 border-purple-200">
+                  <CardContent className="pt-6">
+                    <Package className="h-8 w-8 text-purple-600 mb-3" />
+                    <h4 className="font-semibold mb-2 text-purple-900">What is Narcan?</h4>
+                    <p className="text-sm text-purple-800">
+                      Naloxone (Narcan) is a life-saving medication that rapidly reverses opioid overdoses. It's safe,
+                      easy to use, and available for free at locations above.
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200">
+                  <CardContent className="pt-6">
+                    <AlertCircle className="h-8 w-8 text-orange-600 mb-3" />
+                    <h4 className="font-semibold mb-2 text-orange-900">Signs of Overdose</h4>
+                    <p className="text-sm text-orange-800">
+                      Unresponsive, slow/no breathing, blue lips/nails, pale skin, pinpoint pupils. Call 911 immediately
+                      and administer naloxone if available.
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="pt-6">
+                    <CheckCircle className="h-8 w-8 text-green-600 mb-3" />
+                    <h4 className="font-semibold mb-2 text-green-900">Good Samaritan Laws</h4>
+                    <p className="text-sm text-green-800">
+                      Most states have laws protecting people who seek emergency help for overdoses. You won't be
+                      prosecuted for helping save a life.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Crisis Support */}
         <div className="mt-12 max-w-2xl mx-auto">
           <Card className="bg-red-50 border-red-200">
@@ -1755,17 +1772,16 @@ export default function CommunityOutreachLanding() {
         </div>
       </footer>
 
+      {/* Public Registration Dialog */}
       <Dialog open={showPublicRegister} onOpenChange={setShowPublicRegister}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-6 w-6 text-violet-600" />
-              Register for Community Resources
-            </DialogTitle>
+            <DialogTitle>Free Community Access</DialogTitle>
             <DialogDescription>
-              Create a free account to access shelters, food banks, treatment centers, and support services
+              Register for free access to all community resources. No patient status required.
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1787,8 +1803,9 @@ export default function CommunityOutreachLanding() {
                 />
               </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email Address *</Label>
               <Input
                 id="email"
                 type="email"
@@ -1797,6 +1814,7 @@ export default function CommunityOutreachLanding() {
                 placeholder="john.doe@example.com"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number (Optional)</Label>
               <Input
@@ -1807,18 +1825,18 @@ export default function CommunityOutreachLanding() {
                 placeholder="(555) 123-4567"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="zipCode">ZIP Code (Optional)</Label>
               <Input
                 id="zipCode"
                 value={publicRegisterForm.zipCode}
                 onChange={(e) => setPublicRegisterForm({ ...publicRegisterForm, zipCode: e.target.value })}
-                placeholder="12345"
-                maxLength={5}
+                placeholder="20001"
               />
-              <p className="text-xs text-muted-foreground">Helps us show you resources near you</p>
             </div>
-            <div className="flex items-start gap-2">
+
+            <div className="flex items-start space-x-2">
               <Checkbox
                 id="terms"
                 checked={publicRegisterForm.agreeToTerms}
@@ -1826,40 +1844,38 @@ export default function CommunityOutreachLanding() {
                   setPublicRegisterForm({ ...publicRegisterForm, agreeToTerms: checked as boolean })
                 }
               />
-              <Label htmlFor="terms" className="text-xs leading-relaxed cursor-pointer">
-                I agree to the{" "}
-                <Link href="#" className="text-violet-600 underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="#" className="text-violet-600 underline">
-                  Privacy Policy
-                </Link>
-                . I understand that this is a free public resource and I am not required to be a patient to access these
-                services.
+              <Label htmlFor="terms" className="text-sm leading-tight cursor-pointer">
+                I agree to the terms of service and privacy policy. My information will be used only to provide access
+                to community resources.
               </Label>
             </div>
-            <div className="bg-violet-50 border border-violet-200 rounded-lg p-3">
-              <p className="text-xs text-violet-900">
-                <Shield className="h-3 w-3 inline mr-1" />
-                Your information is confidential and protected under HIPAA and 42 CFR Part 2. We will never share your
-                data without your consent.
+
+            <div className="space-y-3">
+              <Button onClick={handlePublicRegistration} className="w-full">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Register for Free Access
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
+              <Button onClick={handleDemoLogin} variant="outline" className="w-full bg-transparent">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Use Demo Account
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                Try the portal instantly with a pre-configured demo account
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setShowPublicRegister(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={handlePublicRegistration} className="flex-1 bg-violet-600 hover:bg-violet-700">
-              Create Account
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
-
-      {/* Live Chat Widget - Floating in bottom right corner */}
-      <LiveChatWidget />
     </div>
   )
 }

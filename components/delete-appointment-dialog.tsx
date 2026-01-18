@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -41,18 +40,26 @@ export function DeleteAppointmentDialog({
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
-      const { error } = await supabase.from("appointments").delete().eq("id", appointmentId)
+      const data = await response.json()
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete appointment")
+      }
 
-      toast.success("Appointment deleted successfully")
+      toast.success("Appointment cancelled successfully")
       setOpen(false)
       router.refresh()
     } catch (error) {
       console.error("Error deleting appointment:", error)
-      toast.error("Failed to delete appointment")
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete appointment"
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { useToast } from "@/hooks/use-toast"
 import {
   AlertTriangle,
   Shield,
@@ -44,6 +45,7 @@ import {
   Eye,
   FileText,
   RefreshCw,
+  Loader2,
 } from "lucide-react"
 
 interface DosingHold {
@@ -103,16 +105,31 @@ const defaultPrecautionTypes = [
   { id: "custom", label: "Custom Precaution", icon: "FileText", color: "#64748b" },
 ]
 
+interface Patient {
+  id: string
+  first_name: string
+  last_name: string
+  mrn?: string | null
+}
+
 export default function ClinicalAlertsPage() {
+  const { toast } = useToast()
   const [dosingHolds, setDosingHolds] = useState<DosingHold[]>([])
   const [precautions, setPrecautions] = useState<PatientPrecaution[]>([])
   const [facilityAlerts, setFacilityAlerts] = useState<FacilityAlert[]>([])
+  const [patients, setPatients] = useState<Patient[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [isAddHoldOpen, setIsAddHoldOpen] = useState(false)
   const [isAddPrecautionOpen, setIsAddPrecautionOpen] = useState(false)
   const [isAddFacilityAlertOpen, setIsAddFacilityAlertOpen] = useState(false)
+  const [isEditFacilityAlertOpen, setIsEditFacilityAlertOpen] = useState(false)
+  const [editingAlert, setEditingAlert] = useState<FacilityAlert | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingPatients, setLoadingPatients] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDismissing, setIsDismissing] = useState<string | null>(null)
+  const [isCreatingHold, setIsCreatingHold] = useState(false)
 
   // New hold form state
   const [newHold, setNewHold] = useState({
@@ -133,16 +150,123 @@ export default function ClinicalAlertsPage() {
   })
 
   // New facility alert form state
-  const [newFacilityAlert, setNewFacilityAlert] = useState({
+  const [newFacilityAlert, setNewFacilityAlert] = useState<{
+    alert_type: string;
+    message: string;
+    priority: "low" | "medium" | "high" | "critical";
+    affected_areas: string[];
+  }>({
     alert_type: "",
     message: "",
-    priority: "medium" as const,
-    affected_areas: [] as string[],
+    priority: "medium",
+    affected_areas: [],
   })
 
+  // Edit facility alert form state
+  const [editFacilityAlert, setEditFacilityAlert] = useState<{
+    alert_type: string;
+    message: string;
+    priority: "low" | "medium" | "high" | "critical";
+    affected_areas: string[];
+  }>({
+    alert_type: "",
+    message: "",
+    priority: "medium",
+    affected_areas: [],
+  })
+
+  const loadPatients = useCallback(async () => {
+    setLoadingPatients(true)
+    try {
+      const response = await fetch("/api/patients?limit=200")
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Handle both possible response structures
+        const patientsList = data.patients || data || []
+        console.log("[Clinical Alerts] Loaded patients:", patientsList.length, {
+          responseStatus: response.status,
+          hasPatientsKey: !!data.patients,
+          dataKeys: Object.keys(data),
+          firstPatient: patientsList[0],
+        })
+        
+        if (Array.isArray(patientsList)) {
+          setPatients(patientsList)
+        } else {
+          console.error("[Clinical Alerts] Patients data is not an array:", patientsList)
+          setPatients([])
+          toast({
+            title: "Warning",
+            description: "Patient data format is invalid. Please refresh the page.",
+            variant: "destructive",
+          })
+        }
+      } else {
+        // Handle error response
+        const errorMessage = data.error || `HTTP ${response.status}: ${response.statusText}`
+        console.error("[Clinical Alerts] Failed to load patients:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          data,
+        })
+        setPatients([])
+        toast({
+          title: "Warning",
+          description: errorMessage || "Failed to load patient list. Please refresh the page.",
+          variant: "destructive",
+        })
+      }
+    } catch (e: any) {
+      console.error("[Clinical Alerts] Error loading patients:", e)
+      setPatients([])
+      toast({
+        title: "Error",
+        description: e.message || "Failed to load patient list. Please refresh the page.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingPatients(false)
+    }
+  }, [toast])
+
+  // Load data on component mount
   useEffect(() => {
     loadData()
+    loadPatients()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Reload patients when dialogs open to ensure fresh data
+  // Use refs to track previous dialog state to only trigger on open, not close
+  const prevHoldOpenRef = useRef(false)
+  const prevPrecautionOpenRef = useRef(false)
+
+  useEffect(() => {
+    // Only reload when dialog transitions from closed to open (not on every state change)
+    const justOpened = isAddHoldOpen && !prevHoldOpenRef.current
+    if (justOpened) {
+      // loadPatients handles its own loading state, so we don't need to check loadingPatients here
+      loadPatients()
+    }
+    prevHoldOpenRef.current = isAddHoldOpen
+    // Note: Intentionally not including loadPatients in deps to avoid infinite loops
+    // loadPatients is a useCallback that depends on toast, which could change and cause loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddHoldOpen])
+
+  useEffect(() => {
+    // Only reload when dialog transitions from closed to open (not on every state change)
+    const justOpened = isAddPrecautionOpen && !prevPrecautionOpenRef.current
+    if (justOpened) {
+      // loadPatients handles its own loading state, so we don't need to check loadingPatients here
+      loadPatients()
+    }
+    prevPrecautionOpenRef.current = isAddPrecautionOpen
+    // Note: Intentionally not including loadPatients in deps to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddPrecautionOpen])
 
   const loadData = async () => {
     setLoading(true)
@@ -315,83 +439,169 @@ export default function ClinicalAlertsPage() {
   }
 
   const handleCreateHold = async () => {
-    // API call would go here
-    const newHoldEntry: DosingHold = {
-      id: Date.now().toString(),
-      patient_id: newHold.patient_id,
-      patient_name: "New Patient",
-      mrn: "MRN-" + Math.random().toString().slice(2, 8),
-      hold_type: newHold.hold_type,
-      reason: newHold.reason,
-      created_by: "Current User",
-      created_by_role: "Provider",
-      created_at: new Date().toISOString(),
-      requires_clearance_from: newHold.requires_clearance_from,
-      cleared_by: [],
-      status: "active",
-      notes: newHold.notes,
-      severity: newHold.severity,
+    // Validation
+    if (!newHold.patient_id || !newHold.reason) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Patient and Reason).",
+        variant: "destructive",
+      })
+      return
     }
-    setDosingHolds([newHoldEntry, ...dosingHolds])
-    setIsAddHoldOpen(false)
-    setNewHold({
-      patient_id: "",
-      hold_type: "counselor",
-      reason: "",
-      requires_clearance_from: [],
-      notes: "",
-      severity: "medium",
-    })
+
+    setIsCreatingHold(true)
+    try {
+      const response = await fetch("/api/clinical-alerts/holds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: newHold.patient_id,
+          hold_type: newHold.hold_type,
+          reason: newHold.reason,
+          created_by: "Current User",
+          created_by_role: "Provider",
+          requires_clearance_from: newHold.requires_clearance_from,
+          notes: newHold.notes,
+          severity: newHold.severity,
+        }),
+      })
+
+      if (response.ok) {
+        // Reload data to get the properly formatted hold with patient info
+        await loadData()
+        toast({
+          title: "Success",
+          description: "Dosing hold created successfully.",
+        })
+        setIsAddHoldOpen(false)
+        setNewHold({
+          patient_id: "",
+          hold_type: "counselor",
+          reason: "",
+          requires_clearance_from: [],
+          notes: "",
+          severity: "medium",
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create dosing hold")
+      }
+    } catch (e: any) {
+      console.error("Error creating dosing hold:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to create dosing hold. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingHold(false)
+    }
   }
 
   const handleClearHold = async (holdId: string, clearedBy: string) => {
-    setDosingHolds(
-      dosingHolds.map((hold) => {
-        if (hold.id === holdId) {
-          const newClearedBy = [...hold.cleared_by, clearedBy]
-          const allCleared = hold.requires_clearance_from.every((req) =>
-            newClearedBy.some((cleared) => cleared.toLowerCase().includes(req.toLowerCase())),
-          )
-          return {
-            ...hold,
-            cleared_by: newClearedBy,
-            status: allCleared ? "cleared" : "active",
-          }
-        }
-        return hold
-      }),
-    )
+    try {
+      const response = await fetch("/api/clinical-alerts/holds", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: holdId,
+          cleared_by: clearedBy,
+        }),
+      })
+
+      if (response.ok) {
+        // Reload data to get updated hold status
+        await loadData()
+        toast({
+          title: "Success",
+          description: "Hold clearance updated successfully.",
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update hold")
+      }
+    } catch (e: any) {
+      console.error("Error clearing hold:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to update hold clearance. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleCreatePrecaution = async () => {
-    const precautionType = defaultPrecautionTypes.find((t) => t.id === newPrecaution.precaution_type)
-    const newPrecautionEntry: PatientPrecaution = {
-      id: Date.now().toString(),
-      patient_id: newPrecaution.patient_id,
-      patient_name: "New Patient",
-      mrn: "MRN-" + Math.random().toString().slice(2, 8),
-      precaution_type: newPrecaution.precaution_type,
-      custom_text: newPrecaution.custom_text,
-      icon: precautionType?.icon || "FileText",
-      color: precautionType?.color || "#64748b",
-      created_by: "Current User",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      is_active: true,
-      show_on_chart: newPrecaution.show_on_chart,
+    // Validation
+    if (!newPrecaution.patient_id || !newPrecaution.precaution_type) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Patient and Precaution Type).",
+        variant: "destructive",
+      })
+      return
     }
-    setPrecautions([newPrecautionEntry, ...precautions])
-    setIsAddPrecautionOpen(false)
-    setNewPrecaution({
-      patient_id: "",
-      precaution_type: "",
-      custom_text: "",
-      show_on_chart: true,
-    })
+
+    const precautionType = defaultPrecautionTypes.find((t) => t.id === newPrecaution.precaution_type)
+    
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/clinical-alerts/precautions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: newPrecaution.patient_id,
+          precaution_type: newPrecaution.precaution_type,
+          custom_text: newPrecaution.custom_text,
+          icon: precautionType?.icon || "FileText",
+          color: precautionType?.color || "#64748b",
+          created_by: "Current User",
+          show_on_chart: newPrecaution.show_on_chart,
+        }),
+      })
+
+      if (response.ok) {
+        // Reload data to get the properly formatted precaution with patient info
+        await loadData()
+        toast({
+          title: "Success",
+          description: "Patient precaution created successfully.",
+        })
+        setIsAddPrecautionOpen(false)
+        setNewPrecaution({
+          patient_id: "",
+          precaution_type: "",
+          custom_text: "",
+          show_on_chart: true,
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create precaution")
+      }
+    } catch (e: any) {
+      console.error("Error creating precaution:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to create precaution. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // ADDED FUNCTION: handleCreateFacilityAlert
   const handleCreateFacilityAlert = async () => {
+    // Validation
+    if (!newFacilityAlert.alert_type || !newFacilityAlert.message.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Alert Type and Message).",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
     try {
       const response = await fetch("/api/clinical-alerts/facility", {
         method: "POST",
@@ -420,51 +630,148 @@ export default function ClinicalAlertsPage() {
           },
           ...facilityAlerts,
         ])
+        toast({
+          title: "Success",
+          description: "Facility alert created successfully.",
+        })
+        setIsAddFacilityAlertOpen(false)
+        setNewFacilityAlert({
+          alert_type: "",
+          message: "",
+          priority: "medium",
+          affected_areas: [],
+        })
       } else {
-        // Still add locally if API fails
-        setFacilityAlerts([
-          {
-            id: Date.now().toString(),
-            alert_type: newFacilityAlert.alert_type,
-            message: newFacilityAlert.message,
-            created_at: new Date().toISOString(),
-            created_by: "Current User",
-            is_active: true,
-            priority: newFacilityAlert.priority,
-            affected_areas: newFacilityAlert.affected_areas,
-          },
-          ...facilityAlerts,
-        ])
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create alert")
       }
-    } catch (e) {
-      // Add locally on error
-      setFacilityAlerts([
-        {
-          id: Date.now().toString(),
-          alert_type: newFacilityAlert.alert_type,
-          message: newFacilityAlert.message,
-          created_at: new Date().toISOString(),
-          created_by: "Current User",
-          is_active: true,
-          priority: newFacilityAlert.priority,
-          affected_areas: newFacilityAlert.affected_areas,
-        },
-        ...facilityAlerts,
-      ])
+    } catch (e: any) {
+      console.error("Error creating facility alert:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to create facility alert. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setIsAddFacilityAlertOpen(false)
-    setNewFacilityAlert({
-      alert_type: "",
-      message: "",
-      priority: "medium",
-      affected_areas: [],
-    })
   }
 
   // ADDED FUNCTION: handleDismissFacilityAlert
   const handleDismissFacilityAlert = async (alertId: string) => {
-    setFacilityAlerts(facilityAlerts.map((alert) => (alert.id === alertId ? { ...alert, is_active: false } : alert)))
+    setIsDismissing(alertId)
+    try {
+      const response = await fetch(`/api/clinical-alerts/facility/${alertId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dismiss: true, is_active: false }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFacilityAlerts(
+          facilityAlerts.map((alert) => (alert.id === alertId ? { ...alert, is_active: false } : alert))
+        )
+        toast({
+          title: "Success",
+          description: "Facility alert dismissed successfully.",
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to dismiss alert")
+      }
+    } catch (e: any) {
+      console.error("Error dismissing facility alert:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to dismiss facility alert. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDismissing(null)
+    }
+  }
+
+  // NEW FUNCTION: handleEditFacilityAlert
+  const handleEditFacilityAlert = (alert: FacilityAlert) => {
+    setEditingAlert(alert)
+    setEditFacilityAlert({
+      alert_type: alert.alert_type,
+      message: alert.message,
+      priority: alert.priority,
+      affected_areas: alert.affected_areas,
+    })
+    setIsEditFacilityAlertOpen(true)
+  }
+
+  // NEW FUNCTION: handleUpdateFacilityAlert
+  const handleUpdateFacilityAlert = async () => {
+    if (!editingAlert) return
+
+    // Validation
+    if (!editFacilityAlert.alert_type || !editFacilityAlert.message.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Alert Type and Message).",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/clinical-alerts/facility/${editingAlert.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alert_type: editFacilityAlert.alert_type,
+          message: editFacilityAlert.message,
+          priority: editFacilityAlert.priority,
+          affected_areas: editFacilityAlert.affected_areas,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFacilityAlerts(
+          facilityAlerts.map((alert) =>
+            alert.id === editingAlert.id
+              ? {
+                  ...alert,
+                  alert_type: data.alert.alert_type,
+                  message: data.alert.message,
+                  priority: data.alert.priority,
+                  affected_areas: data.alert.affected_areas,
+                }
+              : alert
+          )
+        )
+        toast({
+          title: "Success",
+          description: "Facility alert updated successfully.",
+        })
+        setIsEditFacilityAlertOpen(false)
+        setEditingAlert(null)
+        setEditFacilityAlert({
+          alert_type: "",
+          message: "",
+          priority: "medium",
+          affected_areas: [],
+        })
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update alert")
+      }
+    } catch (e: any) {
+      console.error("Error updating facility alert:", e)
+      toast({
+        title: "Error",
+        description: e.message || "Failed to update facility alert. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getIconComponent = (iconName: string) => {
@@ -648,18 +955,45 @@ export default function ClinicalAlertsPage() {
 
                         <div className="space-y-4">
                           <div>
-                            <Label>Patient</Label>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label>Patient <span style={{ color: "#ef4444" }}>*</span></Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => loadPatients()}
+                                disabled={loadingPatients}
+                                className="h-6 text-xs"
+                              >
+                                <RefreshCw className={`h-3 w-3 mr-1 ${loadingPatients ? "animate-spin" : ""}`} />
+                                Refresh
+                              </Button>
+                            </div>
                             <Select
                               value={newHold.patient_id}
                               onValueChange={(v) => setNewHold({ ...newHold, patient_id: v })}
+                              disabled={loadingPatients}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select patient..." />
+                                <SelectValue placeholder={loadingPatients ? "Loading patients..." : "Select patient..."} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="P001">John Smith (MRN-001234)</SelectItem>
-                                <SelectItem value="P002">Maria Garcia (MRN-001235)</SelectItem>
-                                <SelectItem value="P003">Robert Johnson (MRN-001236)</SelectItem>
+                                {loadingPatients ? (
+                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    Loading patients...
+                                  </div>
+                                ) : patients.length > 0 ? (
+                                  patients.map((patient) => (
+                                    <SelectItem key={patient.id} value={patient.id}>
+                                      {patient.first_name} {patient.last_name}
+                                      {patient.mrn ? ` (MRN: ${patient.mrn})` : ""}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    No patients available. Click Refresh to reload.
+                                  </div>
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -761,11 +1095,26 @@ export default function ClinicalAlertsPage() {
                         </div>
 
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsAddHoldOpen(false)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddHoldOpen(false)}
+                            disabled={isCreatingHold}
+                          >
                             Cancel
                           </Button>
-                          <Button onClick={handleCreateHold} style={{ backgroundColor: "#dc2626", color: "#ffffff" }}>
-                            Create Hold
+                          <Button
+                            onClick={handleCreateHold}
+                            style={{ backgroundColor: "#dc2626", color: "#ffffff" }}
+                            disabled={!newHold.patient_id || !newHold.reason || isCreatingHold}
+                          >
+                            {isCreatingHold ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              "Create Hold"
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -961,18 +1310,45 @@ export default function ClinicalAlertsPage() {
 
                         <div className="space-y-4">
                           <div>
-                            <Label>Patient</Label>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label>Patient <span style={{ color: "#ef4444" }}>*</span></Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => loadPatients()}
+                                disabled={loadingPatients}
+                                className="h-6 text-xs"
+                              >
+                                <RefreshCw className={`h-3 w-3 mr-1 ${loadingPatients ? "animate-spin" : ""}`} />
+                                Refresh
+                              </Button>
+                            </div>
                             <Select
                               value={newPrecaution.patient_id}
                               onValueChange={(v) => setNewPrecaution({ ...newPrecaution, patient_id: v })}
+                              disabled={loadingPatients}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select patient..." />
+                                <SelectValue placeholder={loadingPatients ? "Loading patients..." : "Select patient..."} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="P001">John Smith (MRN-001234)</SelectItem>
-                                <SelectItem value="P002">Maria Garcia (MRN-001235)</SelectItem>
-                                <SelectItem value="P003">Robert Johnson (MRN-001236)</SelectItem>
+                                {loadingPatients ? (
+                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    Loading patients...
+                                  </div>
+                                ) : patients.length > 0 ? (
+                                  patients.map((patient) => (
+                                    <SelectItem key={patient.id} value={patient.id}>
+                                      {patient.first_name} {patient.last_name}
+                                      {patient.mrn ? ` (MRN: ${patient.mrn})` : ""}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    No patients available. Click Refresh to reload.
+                                  </div>
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1022,14 +1398,26 @@ export default function ClinicalAlertsPage() {
                         </div>
 
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsAddPrecautionOpen(false)}>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setIsAddPrecautionOpen(false)}
+                            disabled={isSubmitting}
+                          >
                             Cancel
                           </Button>
                           <Button
                             onClick={handleCreatePrecaution}
                             style={{ backgroundColor: "#7c3aed", color: "#ffffff" }}
+                            disabled={!newPrecaution.patient_id || !newPrecaution.precaution_type || isSubmitting}
                           >
-                            Add Precaution
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              "Add Precaution"
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -1120,7 +1508,7 @@ export default function ClinicalAlertsPage() {
 
                         <div className="space-y-4">
                           <div>
-                            <Label>Alert Type</Label>
+                            <Label>Alert Type <span style={{ color: "#ef4444" }}>*</span></Label>
                             <Select
                               value={newFacilityAlert.alert_type}
                               onValueChange={(v) => setNewFacilityAlert({ ...newFacilityAlert, alert_type: v })}
@@ -1141,7 +1529,7 @@ export default function ClinicalAlertsPage() {
                           </div>
 
                           <div>
-                            <Label>Priority</Label>
+                            <Label>Priority <span style={{ color: "#ef4444" }}>*</span></Label>
                             <Select
                               value={newFacilityAlert.priority}
                               onValueChange={(v: any) => setNewFacilityAlert({ ...newFacilityAlert, priority: v })}
@@ -1159,7 +1547,7 @@ export default function ClinicalAlertsPage() {
                           </div>
 
                           <div>
-                            <Label>Alert Message</Label>
+                            <Label>Alert Message <span style={{ color: "#ef4444" }}>*</span></Label>
                             <Textarea
                               value={newFacilityAlert.message}
                               onChange={(e) => setNewFacilityAlert({ ...newFacilityAlert, message: e.target.value })}
@@ -1207,15 +1595,26 @@ export default function ClinicalAlertsPage() {
                         </div>
 
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsAddFacilityAlertOpen(false)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddFacilityAlertOpen(false)}
+                            disabled={isSubmitting}
+                          >
                             Cancel
                           </Button>
                           <Button
                             onClick={handleCreateFacilityAlert}
                             style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
-                            disabled={!newFacilityAlert.alert_type || !newFacilityAlert.message}
+                            disabled={!newFacilityAlert.alert_type || !newFacilityAlert.message.trim() || isSubmitting}
                           >
-                            Create Alert
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              "Create Alert"
+                            )}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
@@ -1270,15 +1669,29 @@ export default function ClinicalAlertsPage() {
                                     </div>
                                   </div>
                                 </div>
-                                {/* MADE DISMISS BUTTON FUNCTIONAL */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDismissFacilityAlert(alert.id)}
-                                  title="Dismiss Alert"
-                                >
-                                  <XCircle className="h-4 w-4" style={{ color: "#ef4444" }} />
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditFacilityAlert(alert)}
+                                    title="Edit Alert"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDismissFacilityAlert(alert.id)}
+                                    title="Dismiss Alert"
+                                    disabled={isDismissing === alert.id}
+                                  >
+                                    {isDismissing === alert.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#ef4444" }} />
+                                    ) : (
+                                      <XCircle className="h-4 w-4" style={{ color: "#ef4444" }} />
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
                             </CardContent>
                           </Card>
@@ -1300,6 +1713,139 @@ export default function ClinicalAlertsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Edit Facility Alert Dialog */}
+              <Dialog open={isEditFacilityAlertOpen} onOpenChange={setIsEditFacilityAlertOpen}>
+                <DialogContent className="max-w-lg" style={{ backgroundColor: "#ffffff" }}>
+                  <DialogHeader>
+                    <DialogTitle style={{ color: "#1e293b" }}>Edit Facility Alert</DialogTitle>
+                    <DialogDescription>Update the facility-wide alert details</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Alert Type <span style={{ color: "#ef4444" }}>*</span></Label>
+                      <Select
+                        value={editFacilityAlert.alert_type}
+                        onValueChange={(v) => setEditFacilityAlert({ ...editFacilityAlert, alert_type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select alert type..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="maintenance">Maintenance</SelectItem>
+                          <SelectItem value="safety">Safety</SelectItem>
+                          <SelectItem value="weather">Weather</SelectItem>
+                          <SelectItem value="staffing">Staffing</SelectItem>
+                          <SelectItem value="equipment">Equipment</SelectItem>
+                          <SelectItem value="security">Security</SelectItem>
+                          <SelectItem value="general">General Announcement</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Priority <span style={{ color: "#ef4444" }}>*</span></Label>
+                      <Select
+                        value={editFacilityAlert.priority}
+                        onValueChange={(v: any) => setEditFacilityAlert({ ...editFacilityAlert, priority: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low - Informational</SelectItem>
+                          <SelectItem value="medium">Medium - Action Recommended</SelectItem>
+                          <SelectItem value="high">High - Action Required</SelectItem>
+                          <SelectItem value="critical">Critical - Immediate Action</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Alert Message <span style={{ color: "#ef4444" }}>*</span></Label>
+                      <Textarea
+                        value={editFacilityAlert.message}
+                        onChange={(e) => setEditFacilityAlert({ ...editFacilityAlert, message: e.target.value })}
+                        placeholder="Describe the alert in detail..."
+                        className="min-h-[100px]"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Affected Areas</Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {[
+                          "Lobby",
+                          "Waiting Room",
+                          "Dosing Window",
+                          "Counseling Offices",
+                          "Medical Suite",
+                          "Parking Lot",
+                          "Entrance",
+                          "Restrooms",
+                          "All Areas",
+                        ].map((area) => (
+                          <label key={area} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={editFacilityAlert.affected_areas.includes(area)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setEditFacilityAlert({
+                                    ...editFacilityAlert,
+                                    affected_areas: [...editFacilityAlert.affected_areas, area],
+                                  })
+                                } else {
+                                  setEditFacilityAlert({
+                                    ...editFacilityAlert,
+                                    affected_areas: editFacilityAlert.affected_areas.filter((a) => a !== area),
+                                  })
+                                }
+                              }}
+                            />
+                            <span className="text-sm">{area}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditFacilityAlertOpen(false)
+                        setEditingAlert(null)
+                        setEditFacilityAlert({
+                          alert_type: "",
+                          message: "",
+                          priority: "medium",
+                          affected_areas: [],
+                        })
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleUpdateFacilityAlert}
+                      style={{ backgroundColor: "#2563eb", color: "#ffffff" }}
+                      disabled={
+                        !editFacilityAlert.alert_type || !editFacilityAlert.message.trim() || isSubmitting
+                      }
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        "Update Alert"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
           </Tabs>
         </main>

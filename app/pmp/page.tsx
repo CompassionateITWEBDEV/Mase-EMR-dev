@@ -1,17 +1,30 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import useSWR from "swr"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +32,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 import {
   Pill,
   Search,
@@ -39,91 +58,94 @@ import {
   History,
   Key,
   Database,
-} from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
+} from "lucide-react";
+import { createBrowserClient } from "@/lib/supabase/client";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface PMPData {
-  systemStatus: string
-  todayChecks: number
-  yesterdayChecks: number
-  highRiskAlerts: number
+  systemStatus: string;
+  todayChecks: number;
+  yesterdayChecks: number;
+  highRiskAlerts: number;
   recentAlerts: Array<{
-    id: string
-    patientName: string
-    dob: string
-    alertType: string
-    severity: string
-    message: string
-    createdAt: string
-  }>
-  controlledSubstancePatients: number
+    id: string;
+    patientName: string;
+    dob: string;
+    alertType: string;
+    severity: string;
+    message: string;
+    createdAt: string;
+  }>;
+  controlledSubstancePatients: number;
 }
 
 interface Patient {
-  id: string
-  first_name: string
-  last_name: string
-  date_of_birth: string
+  id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
 }
 
 interface PDMPConfig {
-  id: string
-  state_code: string
-  pdmp_username: string
-  pdmp_endpoint: string
-  is_active: boolean
-  auto_check_controlled_rx: boolean
+  id: string;
+  state_code: string;
+  pdmp_username: string;
+  pdmp_endpoint: string;
+  is_active: boolean;
+  auto_check_controlled_rx: boolean;
 }
 
 interface PDMPRequest {
-  id: string
-  patient_id: string
-  request_type: string
-  request_status: string
-  state_requested: string
-  request_date: string
-  response_date: string | null
-  pdmp_report: any
-  alert_level: string | null
-  red_flags: any
-  patients?: Patient
+  id: string;
+  patient_id: string;
+  request_type: string;
+  request_status: string;
+  state_requested: string;
+  request_date: string;
+  response_date: string | null;
+  pdmp_report: any;
+  alert_level: string | null;
+  red_flags: any;
+  patients?: Patient;
 }
 
 interface PDMPPrescription {
-  id: string
-  pdmp_request_id: string
-  medication_name: string
-  fill_date: string
-  quantity: number
-  days_supply: number
-  prescriber_name: string
-  pharmacy_name: string
-  dea_schedule: string
-  morphine_equivalent_dose: number | null
+  id: string;
+  pdmp_request_id: string;
+  medication_name: string;
+  fill_date: string;
+  quantity: number;
+  days_supply: number;
+  prescriber_name: string;
+  pharmacy_name: string;
+  dea_schedule: string;
+  morphine_equivalent_dose: number | null;
 }
 
 export default function PMPPage() {
-  const { data, error, isLoading, mutate } = useSWR<PMPData>("/api/pmp", fetcher)
-  const { data: patientsData } = useSWR("/api/patients?limit=100", fetcher)
-  const { toast } = useToast()
-  const supabase = createBrowserClient()
+  const { data, error, isLoading, mutate } = useSWR<PMPData>(
+    "/api/pmp",
+    fetcher
+  );
+  const { data: patientsData } = useSWR("/api/patients?limit=100", fetcher);
+  const { toast } = useToast();
+  const supabase = createBrowserClient();
 
-  const patients = patientsData?.patients || []
+  const patients = patientsData?.patients || [];
 
   // State for patient search
   const [searchParams, setSearchParams] = useState({
     firstName: "",
     lastName: "",
     dob: "",
-  })
-  const [isSearching, setIsSearching] = useState(false)
-  const [searchResults, setSearchResults] = useState<any>(null)
+  });
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any>(null);
 
   // State for configuration
-  const [pdmpConfig, setPdmpConfig] = useState<PDMPConfig | null>(null)
-  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false)
+  const [pdmpConfig, setPdmpConfig] = useState<PDMPConfig | null>(null);
+  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [configForm, setConfigForm] = useState({
     state_code: "MI",
     pdmp_username: "",
@@ -131,57 +153,81 @@ export default function PMPPage() {
     pdmp_api_key: "",
     pdmp_endpoint: "https://michigan.pmpaware.net/api/v2",
     auto_check_controlled_rx: true,
-  })
-  const [isSavingConfig, setIsSavingConfig] = useState(false)
+  });
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // State for patient selection
-  const [selectedPatient, setSelectedPatient] = useState<string>("")
+  const [selectedPatient, setSelectedPatient] = useState<string>("");
 
   // State for history
-  const [pdmpRequests, setPdmpRequests] = useState<PDMPRequest[]>([])
-  const [selectedRequest, setSelectedRequest] = useState<PDMPRequest | null>(null)
-  const [requestPrescriptions, setRequestPrescriptions] = useState<PDMPPrescription[]>([])
-  const [isViewResultsOpen, setIsViewResultsOpen] = useState(false)
+  const [pdmpRequests, setPdmpRequests] = useState<PDMPRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<PDMPRequest | null>(
+    null
+  );
+  const [requestPrescriptions, setRequestPrescriptions] = useState<
+    PDMPPrescription[]
+  >([]);
+  const [isViewResultsOpen, setIsViewResultsOpen] = useState(false);
 
   // Load configuration and patients on mount
   useEffect(() => {
-    loadConfig()
-    loadPDMPHistory()
-  }, [])
+    loadConfig();
+    loadPDMPHistory();
+  }, []);
 
   const loadConfig = async () => {
-    const { data } = await supabase.from("pdmp_config").select("*").single()
+    try {
+      const { data, error } = await supabase
+        .from("pdmp_config")
+        .select("*")
+        .maybeSingle();
 
-    if (data) {
-      setPdmpConfig(data)
-      setConfigForm({
-        state_code: data.state_code || "MI",
-        pdmp_username: data.pdmp_username || "",
-        pdmp_password: "", // Don't load password
-        pdmp_api_key: data.pdmp_api_key || "",
-        pdmp_endpoint: data.pdmp_endpoint || "https://michigan.pmpaware.net/api/v2",
-        auto_check_controlled_rx: data.auto_check_controlled_rx ?? true,
-      })
+      if (error) {
+        // Only log if it's not a "not found" type error
+        if (error.code !== "PGRST116") {
+          console.warn("[v0] Error loading PDMP config:", error.message);
+        }
+        // If table doesn't exist or no config, continue without error
+        return;
+      }
+
+      if (data) {
+        setPdmpConfig(data);
+        setConfigForm({
+          state_code: data.state_code || "MI",
+          pdmp_username: data.pdmp_username || "",
+          pdmp_password: "", // Don't load password
+          pdmp_api_key: data.pdmp_api_key || "",
+          pdmp_endpoint:
+            data.pdmp_endpoint || "https://michigan.pmpaware.net/api/v2",
+          auto_check_controlled_rx: data.auto_check_controlled_rx ?? true,
+        });
+      }
+    } catch (error) {
+      // Silently handle errors - PMP config is optional
+      // Don't log to avoid console spam
     }
-  }
+  };
 
   const loadPDMPHistory = async () => {
     const { data } = await supabase
       .from("pdmp_requests")
-      .select(`
+      .select(
+        `
         *,
         patients:patient_id (first_name, last_name, date_of_birth)
-      `)
+      `
+      )
       .order("request_date", { ascending: false })
-      .limit(50)
+      .limit(50);
 
     if (data) {
-      setPdmpRequests(data)
+      setPdmpRequests(data);
     }
-  }
+  };
 
   const saveConfig = async () => {
-    setIsSavingConfig(true)
+    setIsSavingConfig(true);
     try {
       const configData: any = {
         state_code: configForm.state_code,
@@ -191,36 +237,46 @@ export default function PMPPage() {
         auto_check_controlled_rx: configForm.auto_check_controlled_rx,
         is_active: true,
         updated_at: new Date().toISOString(),
-      }
+      };
 
       // Only update password if provided
       if (configForm.pdmp_password) {
-        configData.pdmp_password_encrypted = configForm.pdmp_password // In production, encrypt this
+        configData.pdmp_password_encrypted = configForm.pdmp_password; // In production, encrypt this
       }
 
       if (pdmpConfig?.id) {
         // Update existing config
-        const { error } = await supabase.from("pdmp_config").update(configData).eq("id", pdmpConfig.id)
+        const { error } = await supabase
+          .from("pdmp_config")
+          .update(configData)
+          .eq("id", pdmpConfig.id);
 
-        if (error) throw error
+        if (error) throw error;
       } else {
         // Insert new config
-        configData.created_at = new Date().toISOString()
-        const { error } = await supabase.from("pdmp_config").insert(configData)
+        configData.created_at = new Date().toISOString();
+        const { error } = await supabase.from("pdmp_config").insert(configData);
 
-        if (error) throw error
+        if (error) throw error;
       }
 
-      toast({ title: "Success", description: "PMP configuration saved successfully" })
-      setIsConfigDialogOpen(false)
-      loadConfig()
+      toast({
+        title: "Success",
+        description: "PMP configuration saved successfully",
+      });
+      setIsConfigDialogOpen(false);
+      loadConfig();
     } catch (err) {
-      console.error("Error saving config:", err)
-      toast({ title: "Error", description: "Failed to save configuration", variant: "destructive" })
+      console.error("Error saving config:", err);
+      toast({
+        title: "Error",
+        description: "Failed to save configuration",
+        variant: "destructive",
+      });
     } finally {
-      setIsSavingConfig(false)
+      setIsSavingConfig(false);
     }
-  }
+  };
 
   const handleSearch = async () => {
     if (!searchParams.firstName && !searchParams.lastName && !selectedPatient) {
@@ -228,12 +284,12 @@ export default function PMPPage() {
         title: "Error",
         description: "Please enter patient information or select a patient",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSearching(true)
-    setSearchResults(null)
+    setIsSearching(true);
+    setSearchResults(null);
 
     try {
       const patientData = {
@@ -241,15 +297,15 @@ export default function PMPPage() {
         lastName: searchParams.lastName,
         dob: searchParams.dob,
         patientId: selectedPatient || null,
-      }
+      };
 
       // If patient selected from dropdown, get their info
       if (selectedPatient) {
-        const patient = patients.find((p) => p.id === selectedPatient)
+        const patient = patients.find((p: Patient) => p.id === selectedPatient);
         if (patient) {
-          patientData.firstName = patient.first_name
-          patientData.lastName = patient.last_name
-          patientData.dob = patient.date_of_birth
+          patientData.firstName = patient.first_name;
+          patientData.lastName = patient.last_name;
+          patientData.dob = patient.date_of_birth;
         }
       }
 
@@ -257,59 +313,70 @@ export default function PMPPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patientData),
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (result.success) {
-        setSearchResults(result)
-        toast({ title: "PMP Check Complete", description: "Results retrieved from state database" })
-        mutate() // Refresh stats
-        loadPDMPHistory() // Refresh history
+        setSearchResults(result);
+        toast({
+          title: "PMP Check Complete",
+          description: "Results retrieved from state database",
+        });
+        mutate(); // Refresh stats
+        loadPDMPHistory(); // Refresh history
       } else {
-        toast({ title: "Error", description: result.error || "Failed to query PMP", variant: "destructive" })
+        toast({
+          title: "Error",
+          description: result.error || "Failed to query PMP",
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      console.error("Error performing PMP search:", err)
-      toast({ title: "Error", description: "Failed to query PMP database", variant: "destructive" })
+      console.error("Error performing PMP search:", err);
+      toast({
+        title: "Error",
+        description: "Failed to query PMP database",
+        variant: "destructive",
+      });
     } finally {
-      setIsSearching(false)
+      setIsSearching(false);
     }
-  }
+  };
 
   const viewRequestResults = async (request: PDMPRequest) => {
-    setSelectedRequest(request)
+    setSelectedRequest(request);
 
     // Load prescriptions for this request
     const { data } = await supabase
       .from("pdmp_prescriptions")
       .select("*")
       .eq("pdmp_request_id", request.id)
-      .order("fill_date", { ascending: false })
+      .order("fill_date", { ascending: false });
 
     if (data) {
-      setRequestPrescriptions(data)
+      setRequestPrescriptions(data);
     }
 
-    setIsViewResultsOpen(true)
-  }
+    setIsViewResultsOpen(true);
+  };
 
-  const todayDiff = (data?.todayChecks || 0) - (data?.yesterdayChecks || 0)
+  const todayDiff = (data?.todayChecks || 0) - (data?.yesterdayChecks || 0);
 
   const getAlertBadge = (alertLevel: string | null) => {
     switch (alertLevel) {
       case "critical":
-        return <Badge variant="destructive">Critical Risk</Badge>
+        return <Badge variant="destructive">Critical Risk</Badge>;
       case "high":
-        return <Badge className="bg-orange-500">High Risk</Badge>
+        return <Badge className="bg-orange-500">High Risk</Badge>;
       case "medium":
-        return <Badge className="bg-yellow-500">Medium Risk</Badge>
+        return <Badge className="bg-yellow-500">Medium Risk</Badge>;
       case "low":
-        return <Badge className="bg-green-500">Low Risk</Badge>
+        return <Badge className="bg-green-500">Low Risk</Badge>;
       default:
-        return <Badge variant="secondary">No Alerts</Badge>
+        return <Badge variant="secondary">No Alerts</Badge>;
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -319,25 +386,38 @@ export default function PMPPage() {
         <main className="p-4 md:p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">PMP Monitoring Dashboard</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                PMP Monitoring Dashboard
+              </h1>
               <p className="text-muted-foreground">
-                Prescription Monitoring Program Integration - {configForm.state_code || "Michigan"} PDMP
+                Prescription Monitoring Program Integration -{" "}
+                {configForm.state_code || "Michigan"} PDMP
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsConfigDialogOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsConfigDialogOpen(true)}>
                 <Settings className="mr-2 h-4 w-4" />
                 Configure PMP
               </Button>
-              <Button variant="outline" onClick={() => mutate()} disabled={isLoading}>
-                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <Button
+                variant="outline"
+                onClick={() => mutate()}
+                disabled={isLoading}>
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             </div>
           </div>
 
           {/* Connection Status */}
-          <Card className={pdmpConfig?.is_active ? "border-green-500" : "border-yellow-500"}>
+          <Card
+            className={
+              pdmpConfig?.is_active ? "border-green-500" : "border-yellow-500"
+            }>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -347,7 +427,11 @@ export default function PMPPage() {
                     <AlertTriangle className="h-6 w-6 text-yellow-500" />
                   )}
                   <div>
-                    <p className="font-medium">{pdmpConfig?.is_active ? "PMP Connected" : "PMP Not Configured"}</p>
+                    <p className="font-medium">
+                      {pdmpConfig?.is_active
+                        ? "PMP Connected"
+                        : "PMP Not Configured"}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {pdmpConfig?.is_active
                         ? `Connected to ${pdmpConfig.pdmp_endpoint} as ${pdmpConfig.pdmp_username}`
@@ -356,7 +440,9 @@ export default function PMPPage() {
                   </div>
                 </div>
                 {pdmpConfig?.auto_check_controlled_rx && (
-                  <Badge className="bg-blue-500">Auto-Check at Intake Enabled</Badge>
+                  <Badge className="bg-blue-500">
+                    Auto-Check at Intake Enabled
+                  </Badge>
                 )}
               </div>
             </CardContent>
@@ -366,18 +452,25 @@ export default function PMPPage() {
           <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">System Status</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  System Status
+                </CardTitle>
                 <div
-                  className={`w-3 h-3 rounded-full ${pdmpConfig?.is_active ? "bg-green-500" : "bg-yellow-500"}`}
-                ></div>
+                  className={`w-3 h-3 rounded-full ${
+                    pdmpConfig?.is_active ? "bg-green-500" : "bg-yellow-500"
+                  }`}></div>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
                   <Skeleton className="h-8 w-20" />
                 ) : (
                   <>
-                    <div className="text-2xl font-bold capitalize">{pdmpConfig?.is_active ? "Online" : "Offline"}</div>
-                    <p className="text-xs text-muted-foreground">{configForm.state_code} PMP Database</p>
+                    <div className="text-2xl font-bold capitalize">
+                      {pdmpConfig?.is_active ? "Online" : "Offline"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {configForm.state_code} PMP Database
+                    </p>
                   </>
                 )}
               </CardContent>
@@ -385,7 +478,9 @@ export default function PMPPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{"Today's Checks"}</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {"Today's Checks"}
+                </CardTitle>
                 <Search className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -393,9 +488,14 @@ export default function PMPPage() {
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   <>
-                    <div className="text-2xl font-bold">{data?.todayChecks || 0}</div>
+                    <div className="text-2xl font-bold">
+                      {data?.todayChecks || 0}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      <span className={todayDiff >= 0 ? "text-green-600" : "text-red-600"}>
+                      <span
+                        className={
+                          todayDiff >= 0 ? "text-green-600" : "text-red-600"
+                        }>
                         {todayDiff >= 0 ? "+" : ""}
                         {todayDiff}
                       </span>{" "}
@@ -408,7 +508,9 @@ export default function PMPPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">High Risk Alerts</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  High Risk Alerts
+                </CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -416,10 +518,15 @@ export default function PMPPage() {
                   <Skeleton className="h-8 w-12" />
                 ) : (
                   <>
-                    <div className={`text-2xl font-bold ${(data?.highRiskAlerts || 0) > 0 ? "text-red-600" : ""}`}>
+                    <div
+                      className={`text-2xl font-bold ${
+                        (data?.highRiskAlerts || 0) > 0 ? "text-red-600" : ""
+                      }`}>
                       {data?.highRiskAlerts || 0}
                     </div>
-                    <p className="text-xs text-muted-foreground">Require immediate review</p>
+                    <p className="text-xs text-muted-foreground">
+                      Require immediate review
+                    </p>
                   </>
                 )}
               </CardContent>
@@ -427,7 +534,9 @@ export default function PMPPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Controlled Substance Patients</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Controlled Substance Patients
+                </CardTitle>
                 <Pill className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -435,8 +544,12 @@ export default function PMPPage() {
                   <Skeleton className="h-8 w-12" />
                 ) : (
                   <>
-                    <div className="text-2xl font-bold">{data?.controlledSubstancePatients || 0}</div>
-                    <p className="text-xs text-muted-foreground">Active monitoring</p>
+                    <div className="text-2xl font-bold">
+                      {data?.controlledSubstancePatients || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Active monitoring
+                    </p>
                   </>
                 )}
               </CardContent>
@@ -460,28 +573,34 @@ export default function PMPPage() {
                     Patient PMP Lookup
                   </CardTitle>
                   <CardDescription>
-                    Search the state Prescription Monitoring Program database for patient prescription history
+                    Search the state Prescription Monitoring Program database
+                    for patient prescription history
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <Label>Select Existing Patient</Label>
-                      <Select value={selectedPatient} onValueChange={setSelectedPatient}>
+                      <Select
+                        value={selectedPatient}
+                        onValueChange={setSelectedPatient}>
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a patient..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {patients.map((patient) => (
+                          {patients.map((patient: Patient) => (
                             <SelectItem key={patient.id} value={patient.id}>
-                              {patient.last_name}, {patient.first_name} (DOB: {patient.date_of_birth})
+                              {patient.last_name}, {patient.first_name} (DOB:{" "}
+                              {patient.date_of_birth})
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-end">
-                      <p className="text-sm text-muted-foreground">— OR enter patient info manually below —</p>
+                      <p className="text-sm text-muted-foreground">
+                        — OR enter patient info manually below —
+                      </p>
                     </div>
                   </div>
 
@@ -492,7 +611,12 @@ export default function PMPPage() {
                         id="firstName"
                         placeholder="Enter first name"
                         value={searchParams.firstName}
-                        onChange={(e) => setSearchParams({ ...searchParams, firstName: e.target.value })}
+                        onChange={(e) =>
+                          setSearchParams({
+                            ...searchParams,
+                            firstName: e.target.value,
+                          })
+                        }
                         disabled={!!selectedPatient}
                       />
                     </div>
@@ -502,7 +626,12 @@ export default function PMPPage() {
                         id="lastName"
                         placeholder="Enter last name"
                         value={searchParams.lastName}
-                        onChange={(e) => setSearchParams({ ...searchParams, lastName: e.target.value })}
+                        onChange={(e) =>
+                          setSearchParams({
+                            ...searchParams,
+                            lastName: e.target.value,
+                          })
+                        }
                         disabled={!!selectedPatient}
                       />
                     </div>
@@ -512,7 +641,12 @@ export default function PMPPage() {
                         id="dob"
                         type="date"
                         value={searchParams.dob}
-                        onChange={(e) => setSearchParams({ ...searchParams, dob: e.target.value })}
+                        onChange={(e) =>
+                          setSearchParams({
+                            ...searchParams,
+                            dob: e.target.value,
+                          })
+                        }
                         disabled={!!selectedPatient}
                       />
                     </div>
@@ -523,28 +657,34 @@ export default function PMPPage() {
                       className="bg-primary hover:bg-primary/90"
                       onClick={handleSearch}
                       disabled={
-                        isSearching || (!selectedPatient && (!searchParams.firstName || !searchParams.lastName))
-                      }
-                    >
+                        isSearching ||
+                        (!selectedPatient &&
+                          (!searchParams.firstName || !searchParams.lastName))
+                      }>
                       <Search className="mr-2 h-4 w-4" />
                       {isSearching ? "Querying PMP..." : "Search PMP Database"}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => {
-                        setSelectedPatient("")
-                        setSearchParams({ firstName: "", lastName: "", dob: "" })
-                        setSearchResults(null)
-                      }}
-                    >
+                        setSelectedPatient("");
+                        setSearchParams({
+                          firstName: "",
+                          lastName: "",
+                          dob: "",
+                        });
+                        setSearchResults(null);
+                      }}>
                       Clear
                     </Button>
                     <Button variant="outline" asChild>
                       <a
-                        href={configForm.pdmp_endpoint || "https://michigan.pmpaware.net"}
+                        href={
+                          configForm.pdmp_endpoint ||
+                          "https://michigan.pmpaware.net"
+                        }
                         target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                        rel="noopener noreferrer">
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Open State PMP Portal
                       </a>
@@ -562,7 +702,8 @@ export default function PMPPage() {
                       PMP Search Results
                     </CardTitle>
                     <CardDescription>
-                      Results for {searchResults.searchParams?.firstName} {searchResults.searchParams?.lastName}
+                      Results for {searchResults.searchParams?.firstName}{" "}
+                      {searchResults.searchParams?.lastName}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -570,60 +711,74 @@ export default function PMPPage() {
                       <div className="flex items-center gap-4">
                         {getAlertBadge(searchResults.alertLevel)}
                         <span className="text-sm text-muted-foreground">
-                          {searchResults.prescriptionCount || 0} controlled substance prescriptions found in the last 12
-                          months
+                          {searchResults.prescriptionCount || 0} controlled
+                          substance prescriptions found in the last 12 months
                         </span>
                       </div>
 
-                      {searchResults.redFlags && searchResults.redFlags.length > 0 && (
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                          <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4" />
-                            Red Flags Detected
-                          </h4>
-                          <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                            {searchResults.redFlags.map((flag: string, i: number) => (
-                              <li key={i}>{flag}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                      {searchResults.redFlags &&
+                        searchResults.redFlags.length > 0 && (
+                          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
+                              <AlertTriangle className="h-4 w-4" />
+                              Red Flags Detected
+                            </h4>
+                            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                              {searchResults.redFlags.map(
+                                (flag: string, i: number) => (
+                                  <li key={i}>{flag}</li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
 
-                      {searchResults.prescriptions && searchResults.prescriptions.length > 0 && (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Medication</TableHead>
-                              <TableHead>Schedule</TableHead>
-                              <TableHead>Fill Date</TableHead>
-                              <TableHead>Qty</TableHead>
-                              <TableHead>Days Supply</TableHead>
-                              <TableHead>Prescriber</TableHead>
-                              <TableHead>Pharmacy</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {searchResults.prescriptions.map((rx: any, i: number) => (
-                              <TableRow key={i}>
-                                <TableCell className="font-medium">{rx.medication_name}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">{rx.dea_schedule}</Badge>
-                                </TableCell>
-                                <TableCell>{rx.fill_date}</TableCell>
-                                <TableCell>{rx.quantity}</TableCell>
-                                <TableCell>{rx.days_supply}</TableCell>
-                                <TableCell>{rx.prescriber_name}</TableCell>
-                                <TableCell>{rx.pharmacy_name}</TableCell>
+                      {searchResults.prescriptions &&
+                        searchResults.prescriptions.length > 0 && (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Medication</TableHead>
+                                <TableHead>Schedule</TableHead>
+                                <TableHead>Fill Date</TableHead>
+                                <TableHead>Qty</TableHead>
+                                <TableHead>Days Supply</TableHead>
+                                <TableHead>Prescriber</TableHead>
+                                <TableHead>Pharmacy</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      )}
+                            </TableHeader>
+                            <TableBody>
+                              {searchResults.prescriptions.map(
+                                (rx: any, i: number) => (
+                                  <TableRow key={i}>
+                                    <TableCell className="font-medium">
+                                      {rx.medication_name}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline">
+                                        {rx.dea_schedule}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>{rx.fill_date}</TableCell>
+                                    <TableCell>{rx.quantity}</TableCell>
+                                    <TableCell>{rx.days_supply}</TableCell>
+                                    <TableCell>{rx.prescriber_name}</TableCell>
+                                    <TableCell>{rx.pharmacy_name}</TableCell>
+                                  </TableRow>
+                                )
+                              )}
+                            </TableBody>
+                          </Table>
+                        )}
 
-                      {(!searchResults.prescriptions || searchResults.prescriptions.length === 0) && (
+                      {(!searchResults.prescriptions ||
+                        searchResults.prescriptions.length === 0) && (
                         <div className="text-center py-8 text-muted-foreground">
                           <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                          <p>No controlled substance prescriptions found in the monitoring period</p>
+                          <p>
+                            No controlled substance prescriptions found in the
+                            monitoring period
+                          </p>
                         </div>
                       )}
                     </div>
@@ -640,7 +795,9 @@ export default function PMPPage() {
                     <History className="h-5 w-5" />
                     PMP Query History
                   </CardTitle>
-                  <CardDescription>Recent PMP queries and results</CardDescription>
+                  <CardDescription>
+                    Recent PMP queries and results
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {pdmpRequests.length === 0 ? (
@@ -669,15 +826,27 @@ export default function PMPPage() {
                                 : "Unknown"}
                             </TableCell>
                             <TableCell>{request.state_requested}</TableCell>
-                            <TableCell>{new Date(request.request_date).toLocaleString()}</TableCell>
                             <TableCell>
-                              <Badge variant={request.request_status === "completed" ? "default" : "secondary"}>
+                              {new Date(request.request_date).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  request.request_status === "completed"
+                                    ? "default"
+                                    : "secondary"
+                                }>
                                 {request.request_status}
                               </Badge>
                             </TableCell>
-                            <TableCell>{getAlertBadge(request.alert_level)}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="outline" onClick={() => viewRequestResults(request)}>
+                              {getAlertBadge(request.alert_level)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => viewRequestResults(request)}>
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
                               </Button>
@@ -696,7 +865,9 @@ export default function PMPPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Active High-Risk Alerts</CardTitle>
-                  <CardDescription>Patients requiring immediate clinical attention</CardDescription>
+                  <CardDescription>
+                    Patients requiring immediate clinical attention
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
@@ -709,7 +880,9 @@ export default function PMPPage() {
                     <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
                       <p>No high-risk alerts at this time</p>
-                      <p className="text-sm">All patients are within normal monitoring parameters</p>
+                      <p className="text-sm">
+                        All patients are within normal monitoring parameters
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -720,8 +893,7 @@ export default function PMPPage() {
                             alert.severity === "critical"
                               ? "bg-red-50 border-red-200"
                               : "bg-yellow-50 border-yellow-200"
-                          }`}
-                        >
+                          }`}>
                           <div className="flex items-start gap-3">
                             {alert.severity === "critical" ? (
                               <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
@@ -730,17 +902,28 @@ export default function PMPPage() {
                             )}
                             <div>
                               <p className="font-medium">
-                                {alert.patientName} {alert.dob && `(DOB: ${alert.dob})`}
+                                {alert.patientName}{" "}
+                                {alert.dob && `(DOB: ${alert.dob})`}
                               </p>
-                              <p className="text-sm text-muted-foreground">{alert.message}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {alert.message}
+                              </p>
                               <p className="text-xs text-muted-foreground">
-                                Alert: {new Date(alert.createdAt).toLocaleString()}
+                                Alert:{" "}
+                                {new Date(alert.createdAt).toLocaleString()}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={alert.severity === "critical" ? "destructive" : "secondary"}>
-                              {alert.severity === "critical" ? "Critical" : "Medium Risk"}
+                            <Badge
+                              variant={
+                                alert.severity === "critical"
+                                  ? "destructive"
+                                  : "secondary"
+                              }>
+                              {alert.severity === "critical"
+                                ? "Critical"
+                                : "Medium Risk"}
                             </Badge>
                             <Button size="sm" variant="outline">
                               <FileText className="mr-2 h-4 w-4" />
@@ -764,15 +947,18 @@ export default function PMPPage() {
                       <Key className="h-5 w-5" />
                       PMP Credentials
                     </CardTitle>
-                    <CardDescription>Configure your state PMP login credentials</CardDescription>
+                    <CardDescription>
+                      Configure your state PMP login credentials
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label>State</Label>
                       <Select
                         value={configForm.state_code}
-                        onValueChange={(v) => setConfigForm({ ...configForm, state_code: v })}
-                      >
+                        onValueChange={(v) =>
+                          setConfigForm({ ...configForm, state_code: v })
+                        }>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -790,7 +976,12 @@ export default function PMPPage() {
                       <Label>PMP Username/User ID</Label>
                       <Input
                         value={configForm.pdmp_username}
-                        onChange={(e) => setConfigForm({ ...configForm, pdmp_username: e.target.value })}
+                        onChange={(e) =>
+                          setConfigForm({
+                            ...configForm,
+                            pdmp_username: e.target.value,
+                          })
+                        }
                         placeholder="Enter your PMP username"
                       />
                     </div>
@@ -800,8 +991,17 @@ export default function PMPPage() {
                       <Input
                         type="password"
                         value={configForm.pdmp_password}
-                        onChange={(e) => setConfigForm({ ...configForm, pdmp_password: e.target.value })}
-                        placeholder={pdmpConfig?.pdmp_username ? "••••••••" : "Enter your PMP password"}
+                        onChange={(e) =>
+                          setConfigForm({
+                            ...configForm,
+                            pdmp_password: e.target.value,
+                          })
+                        }
+                        placeholder={
+                          pdmpConfig?.pdmp_username
+                            ? "••••••••"
+                            : "Enter your PMP password"
+                        }
                       />
                       <p className="text-xs text-muted-foreground">
                         {pdmpConfig?.pdmp_username
@@ -814,7 +1014,12 @@ export default function PMPPage() {
                       <Label>API Key (if applicable)</Label>
                       <Input
                         value={configForm.pdmp_api_key}
-                        onChange={(e) => setConfigForm({ ...configForm, pdmp_api_key: e.target.value })}
+                        onChange={(e) =>
+                          setConfigForm({
+                            ...configForm,
+                            pdmp_api_key: e.target.value,
+                          })
+                        }
                         placeholder="Enter API key if required by your state"
                       />
                     </div>
@@ -823,12 +1028,20 @@ export default function PMPPage() {
                       <Label>PMP Endpoint URL</Label>
                       <Input
                         value={configForm.pdmp_endpoint}
-                        onChange={(e) => setConfigForm({ ...configForm, pdmp_endpoint: e.target.value })}
+                        onChange={(e) =>
+                          setConfigForm({
+                            ...configForm,
+                            pdmp_endpoint: e.target.value,
+                          })
+                        }
                         placeholder="https://..."
                       />
                     </div>
 
-                    <Button onClick={saveConfig} disabled={isSavingConfig} className="w-full">
+                    <Button
+                      onClick={saveConfig}
+                      disabled={isSavingConfig}
+                      className="w-full">
                       {isSavingConfig ? "Saving..." : "Save Credentials"}
                     </Button>
                   </CardContent>
@@ -840,7 +1053,9 @@ export default function PMPPage() {
                       <Settings className="h-5 w-5" />
                       Automation Settings
                     </CardTitle>
-                    <CardDescription>Configure automatic PMP checking behavior</CardDescription>
+                    <CardDescription>
+                      Configure automatic PMP checking behavior
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -853,7 +1068,10 @@ export default function PMPPage() {
                       <Switch
                         checked={configForm.auto_check_controlled_rx}
                         onCheckedChange={(checked) =>
-                          setConfigForm({ ...configForm, auto_check_controlled_rx: checked })
+                          setConfigForm({
+                            ...configForm,
+                            auto_check_controlled_rx: checked,
+                          })
                         }
                       />
                     </div>
@@ -864,9 +1082,10 @@ export default function PMPPage() {
                         Intake Integration
                       </h4>
                       <p className="text-sm text-blue-700">
-                        When enabled, the system will automatically query the state PMP database during patient intake
-                        and admission. Results will be stored in the patient's chart and any red flags will generate
-                        clinical alerts.
+                        When enabled, the system will automatically query the
+                        state PMP database during patient intake and admission.
+                        Results will be stored in the patient's chart and any
+                        red flags will generate clinical alerts.
                       </p>
                     </div>
 
@@ -883,15 +1102,22 @@ export default function PMPPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Red flag detection (multiple prescribers, early refills, etc.)</span>
+                          <span>
+                            Red flag detection (multiple prescribers, early
+                            refills, etc.)
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Morphine Milligram Equivalent (MME) calculation</span>
+                          <span>
+                            Morphine Milligram Equivalent (MME) calculation
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span>Clinical alert generation for high-risk patients</span>
+                          <span>
+                            Clinical alert generation for high-risk patients
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
@@ -900,7 +1126,10 @@ export default function PMPPage() {
                       </div>
                     </div>
 
-                    <Button onClick={saveConfig} disabled={isSavingConfig} className="w-full">
+                    <Button
+                      onClick={saveConfig}
+                      disabled={isSavingConfig}
+                      className="w-full">
                       {isSavingConfig ? "Saving..." : "Save Settings"}
                     </Button>
                   </CardContent>
@@ -917,7 +1146,8 @@ export default function PMPPage() {
           <DialogHeader>
             <DialogTitle>Configure PMP Integration</DialogTitle>
             <DialogDescription>
-              Enter your state PMP credentials to enable automatic prescription monitoring
+              Enter your state PMP credentials to enable automatic prescription
+              monitoring
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -925,8 +1155,9 @@ export default function PMPPage() {
               <Label>State</Label>
               <Select
                 value={configForm.state_code}
-                onValueChange={(v) => setConfigForm({ ...configForm, state_code: v })}
-              >
+                onValueChange={(v) =>
+                  setConfigForm({ ...configForm, state_code: v })
+                }>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -943,7 +1174,12 @@ export default function PMPPage() {
               <Label>Username/User ID</Label>
               <Input
                 value={configForm.pdmp_username}
-                onChange={(e) => setConfigForm({ ...configForm, pdmp_username: e.target.value })}
+                onChange={(e) =>
+                  setConfigForm({
+                    ...configForm,
+                    pdmp_username: e.target.value,
+                  })
+                }
                 placeholder="Your PMP login username"
               />
             </div>
@@ -952,23 +1188,37 @@ export default function PMPPage() {
               <Input
                 type="password"
                 value={configForm.pdmp_password}
-                onChange={(e) => setConfigForm({ ...configForm, pdmp_password: e.target.value })}
+                onChange={(e) =>
+                  setConfigForm({
+                    ...configForm,
+                    pdmp_password: e.target.value,
+                  })
+                }
                 placeholder="Your PMP login password"
               />
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Auto-Check at Intake</Label>
-                <p className="text-xs text-muted-foreground">Query PMP automatically for new patients</p>
+                <p className="text-xs text-muted-foreground">
+                  Query PMP automatically for new patients
+                </p>
               </div>
               <Switch
                 checked={configForm.auto_check_controlled_rx}
-                onCheckedChange={(checked) => setConfigForm({ ...configForm, auto_check_controlled_rx: checked })}
+                onCheckedChange={(checked) =>
+                  setConfigForm({
+                    ...configForm,
+                    auto_check_controlled_rx: checked,
+                  })
+                }
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsConfigDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={saveConfig} disabled={isSavingConfig}>
@@ -992,25 +1242,30 @@ export default function PMPPage() {
             <div className="flex items-center gap-4">
               {getAlertBadge(selectedRequest?.alert_level || null)}
               <span className="text-sm text-muted-foreground">
-                Query Date: {selectedRequest && new Date(selectedRequest.request_date).toLocaleString()}
+                Query Date:{" "}
+                {selectedRequest &&
+                  new Date(selectedRequest.request_date).toLocaleString()}
               </span>
             </div>
 
-            {selectedRequest?.red_flags && Object.keys(selectedRequest.red_flags).length > 0 && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Red Flags Detected
-                </h4>
-                <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                  {Object.entries(selectedRequest.red_flags).map(([key, value]: [string, any]) => (
-                    <li key={key}>
-                      {key}: {String(value)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {selectedRequest?.red_flags &&
+              Object.keys(selectedRequest.red_flags).length > 0 && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Red Flags Detected
+                  </h4>
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {Object.entries(selectedRequest.red_flags).map(
+                      ([key, value]: [string, any]) => (
+                        <li key={key}>
+                          {key}: {String(value)}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
 
             {requestPrescriptions.length > 0 ? (
               <Table>
@@ -1029,14 +1284,18 @@ export default function PMPPage() {
                 <TableBody>
                   {requestPrescriptions.map((rx) => (
                     <TableRow key={rx.id}>
-                      <TableCell className="font-medium">{rx.medication_name}</TableCell>
+                      <TableCell className="font-medium">
+                        {rx.medication_name}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{rx.dea_schedule}</Badge>
                       </TableCell>
                       <TableCell>{rx.fill_date}</TableCell>
                       <TableCell>{rx.quantity}</TableCell>
                       <TableCell>{rx.days_supply}</TableCell>
-                      <TableCell>{rx.morphine_equivalent_dose || "-"}</TableCell>
+                      <TableCell>
+                        {rx.morphine_equivalent_dose || "-"}
+                      </TableCell>
                       <TableCell>{rx.prescriber_name}</TableCell>
                       <TableCell>{rx.pharmacy_name}</TableCell>
                     </TableRow>
@@ -1051,7 +1310,9 @@ export default function PMPPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewResultsOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewResultsOpen(false)}>
               Close
             </Button>
             <Button>
@@ -1062,5 +1323,5 @@ export default function PMPPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

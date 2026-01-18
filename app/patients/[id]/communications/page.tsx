@@ -65,7 +65,7 @@ export default async function PatientCommunicationsPage({
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <DashboardHeader />
         <main className="p-6 space-y-6">
           <div className="flex justify-between items-center">

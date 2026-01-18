@@ -930,7 +930,7 @@ export default function EncountersPage() {
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <main className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -1033,32 +1033,38 @@ export default function EncountersPage() {
                     const Icon = template.icon
                     const isFavorite = favoriteTemplates.includes(template.id)
                     return (
-                      <Button
+                      <div
                         key={template.id}
-                        variant={isFavorite ? "default" : "outline"}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => {
-                          setShowNewEncounter(true)
-                          // Pre-fill template
-                        }}
+                        className="inline-flex items-center gap-2"
                       >
-                        <Icon className="h-4 w-4" />
-                        {template.name}
-                        <button
+                        <Button
+                          variant={isFavorite ? "default" : "outline"}
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => {
+                            setShowNewEncounter(true)
+                            // Pre-fill template
+                          }}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {template.name}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation()
                             toggleFavorite(template.id)
                           }}
-                          className="ml-1"
                         >
                           {isFavorite ? (
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           ) : (
                             <StarOff className="h-3 w-3" />
                           )}
-                        </button>
-                      </Button>
+                        </Button>
+                      </div>
                     )
                   })}
               </div>

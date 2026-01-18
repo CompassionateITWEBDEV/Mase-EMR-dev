@@ -2,8 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -20,21 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-
-interface Patient {
-  id: string
-  first_name: string
-  last_name: string
-  phone?: string
-  email?: string
-}
-
-interface Provider {
-  id: string
-  first_name: string
-  last_name: string
-  title?: string
-}
+import type { Patient, Provider } from "@/types/patient"
 
 interface CreateAppointmentDialogProps {
   children: React.ReactNode
@@ -53,6 +38,14 @@ export function CreateAppointmentDialog({
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
+  // Debug: Log providers when dialog opens
+  useEffect(() => {
+    if (open) {
+      console.log("[CreateAppointmentDialog] Dialog opened with providers:", providers.length, providers);
+      console.log("[CreateAppointmentDialog] Current provider ID:", currentProviderId);
+    }
+  }, [open, providers, currentProviderId]);
+
   const [formData, setFormData] = useState({
     patientId: "",
     providerId: currentProviderId,
@@ -65,6 +58,49 @@ export function CreateAppointmentDialog({
     notes: "",
   })
 
+  // Update providerId when currentProviderId or providers change (only if not manually set by user)
+  useEffect(() => {
+    // Only auto-update if we don't have a provider selected
+    // This prevents overwriting user selections
+    if (currentProviderId) {
+      setFormData((prev) => {
+        // Only update if the current value is empty
+        // This means it was auto-set, not manually selected
+        if (!prev.providerId) {
+          return { ...prev, providerId: currentProviderId };
+        }
+        return prev;
+      });
+    } else if (providers.length > 0) {
+      // If no currentProviderId but providers are available, use first provider
+      setFormData((prev) => {
+        if (!prev.providerId) {
+          return { ...prev, providerId: providers[0].id };
+        }
+        return prev;
+      });
+    }
+  }, [currentProviderId, providers]);
+
+  // Reset and initialize form when dialog opens
+  useEffect(() => {
+    if (open) {
+      // When dialog opens, ensure provider is set to currentProviderId or first available
+      const providerToUse = currentProviderId || (providers.length > 0 ? providers[0].id : "");
+      setFormData({
+        patientId: "",
+        providerId: providerToUse,
+        appointmentDate: "",
+        appointmentTime: "",
+        durationMinutes: "50",
+        appointmentType: "",
+        mode: "in_person",
+        status: "scheduled",
+        notes: "",
+      });
+    }
+  }, [open, currentProviderId, providers]);
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -74,40 +110,41 @@ export function CreateAppointmentDialog({
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
+      // Combine date and time into ISO string
+      const appointmentDateTime = formData.appointmentDate && formData.appointmentTime
+        ? `${formData.appointmentDate}T${formData.appointmentTime}:00`
+        : formData.appointmentDate || null;
 
-      const { error } = await supabase.from("appointments").insert({
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
         patient_id: formData.patientId,
-        provider_id: formData.providerId,
-        appointment_date: formData.appointmentDate,
-        appointment_time: formData.appointmentTime,
-        duration_minutes: Number.parseInt(formData.durationMinutes),
+          provider_id: formData.providerId || null,
+          appointment_date: appointmentDateTime,
+          duration_minutes: Number.parseInt(formData.durationMinutes) || 60,
         appointment_type: formData.appointmentType,
-        mode: formData.mode,
-        status: formData.status,
+          status: formData.status || "scheduled",
         notes: formData.notes || null,
-      })
+        }),
+      });
 
-      if (error) throw error
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create appointment");
+      }
 
       toast.success("Appointment created successfully")
       setOpen(false)
-      // Reset form
-      setFormData({
-        patientId: "",
-        providerId: currentProviderId,
-        appointmentDate: "",
-        appointmentTime: "",
-        durationMinutes: "50",
-        appointmentType: "",
-        mode: "in_person",
-        status: "scheduled",
-        notes: "",
-      })
+      // Form will be reset by the useEffect when dialog closes
       router.refresh()
-    } catch (error) {
-      console.error("Error creating appointment:", error)
-      toast.error("Failed to create appointment")
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+      console.error("Error creating appointment:", err)
+      toast.error(err.message || "Failed to create appointment")
     } finally {
       setIsLoading(false)
     }
@@ -145,22 +182,35 @@ export function CreateAppointmentDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="provider">Provider *</Label>
-              <Select
-                value={formData.providerId}
-                onValueChange={(value) => handleInputChange("providerId", value)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {providers.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
-                      {provider.first_name} {provider.last_name} {provider.title && `(${provider.title})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {providers.length > 0 ? (
+                <Select
+                  value={formData.providerId || ""}
+                  onValueChange={(value) => handleInputChange("providerId", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {provider.first_name} {provider.last_name} {provider.specialization && `(${provider.specialization})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="space-y-1">
+                  <Input
+                    disabled
+                    placeholder="Loading providers..."
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Loading providers or no providers found. Please check your connection.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

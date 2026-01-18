@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -57,6 +56,8 @@ import {
   Stethoscope,
   Upload,
 } from "lucide-react"
+import Link from "next/link"
+import { toast } from "sonner"
 
 interface ConsentForm {
   id: string
@@ -188,28 +189,7 @@ I understand that drug screen results:
 • Will be reviewed by my treatment team
 • May affect my treatment plan, including take-home medication privileges
 • Will NOT be shared with law enforcement without my consent or court order
-• Are protected under 42 CFR Part 2 confidentiality regulations
-
-4. CONSEQUENCES
-I understand that:
-• Positive results for illicit substances may result in treatment modifications
-• Tampering with or refusing to provide a sample may be treated as a positive result
-• Repeated positive results may affect my phase level and privileges
-• Results are used therapeutically, not punitively
-
-5. CHAIN OF CUSTODY
-For confirmation testing, I understand that:
-• A chain of custody form will be completed
-• I may be asked to initial the sample seal
-• The laboratory will follow strict handling procedures
-• I may request a split sample for independent testing
-
-6. MY RIGHTS
-I have the right to:
-• Receive an explanation of my results
-• Request confirmation testing
-• Discuss any concerns about testing procedures
-• Know what substances are being tested`,
+• Are protected under 42 CFR Part 2 confidentiality regulations`,
       acknowledgments: [
         "I consent to random and scheduled urine drug screening",
         "I understand testing may be directly observed",
@@ -297,31 +277,40 @@ I understand that this authorization is voluntary and that I may revoke it at an
 2. INFORMATION TO BE DISCLOSED
 I authorize the release of the following information:
 * Brief summary of current treatment plan
-* Current medication-assisted treatment (MAT) regimen and dosage
-* Recent urine drug screen (UDS) results (if applicable)
-* Diagnosis related to Opioid Use Disorder
-* Any specific information mutually agreed upon by the patient and provider for treatment coordination
+* Medication names and dosages
+* Appointment dates and attendance
+* Drug screening results (if applicable)
+* Emergency contact information (if needed for medical emergencies)
 
-3. RECIPIENT INFORMATION
-* Provider Name: [To be filled by patient/staff]
-* Facility Name: [To be filled by patient/staff]
-* Address: [To be filled by patient/staff]
-* Phone Number: [To be filled by patient/staff]
-* Fax Number: [To be filled by patient/staff]
+3. PURPOSE OF DISCLOSURE
+This information will be used for:
+* Coordinating care with other healthcare providers
+* Ensuring medication safety and avoiding drug interactions
+* Facilitating referrals to specialists
+* Emergency medical situations
 
-4. PURPOSE OF DISCLOSURE
-Continuity of care and treatment coordination with the designated healthcare provider.
+4. RECIPIENTS
+Information may be disclosed to:
+* Primary care physicians
+* Specialists (as needed for my care)
+* Emergency departments (in emergency situations)
+* Pharmacies (for medication verification)
 
 5. EXPIRATION
-This authorization will expire automatically upon the completion of my treatment at MASE Access, or upon written revocation, whichever occurs first.
+This authorization will expire one year from the date of signature, unless I revoke it earlier in writing.
 
-6. CONFIDENTIALITY NOTICE
-I understand that information disclosed under this authorization may be subject to re-disclosure by the recipient and may no longer be protected by federal privacy laws (HIPAA, 42 CFR Part 2).`,
+6. MY RIGHTS
+I understand that:
+* I have the right to revoke this authorization at any time
+* I have the right to request a copy of this authorization
+* I have the right to refuse to sign this authorization
+* Refusal to sign may affect coordination of care but will not affect my treatment at MASE Access`,
       acknowledgments: [
-        "I have read and understand this Release of Information form",
+        "I understand this authorization is voluntary",
+        "I understand what information will be disclosed",
+        "I understand the purpose of disclosure",
         "I understand my right to revoke this authorization",
-        "I authorize the release of the specified information",
-        "I understand that the disclosed information may no longer be protected by federal law after disclosure",
+        "I authorize the release of information as described above",
       ],
     },
   ]
@@ -377,42 +366,7 @@ I understand that information disclosed under this authorization may be subject 
       contact_method: "phone",
       contact_info: "(555) 987-****",
       concerns: ["overdose_history", "homeless"],
-      treatment_goals: ["housing", "recovery"],
-      assigned_to: "Sarah Johnson, LCSW",
-    },
-    {
-      id: "OL-003",
-      created_at: "2025-01-07T14:45:00Z",
-      source: "community_referral",
-      referral_type: "Court/Probation",
-      urgency: "medium",
-      status: "scheduled",
-      contact_info: "(555) 456-****",
-      concerns: ["legal_requirement"],
-      treatment_goals: ["compliance", "recovery"],
-      assigned_to: "Mike Chen, Intake Coordinator",
-    },
-    {
-      id: "OL-004",
-      created_at: "2025-01-07T11:20:00Z",
-      source: "anonymous_screening",
-      referral_type: "Self",
-      urgency: "low",
-      status: "converted",
-      concerns: ["family_pressure", "health_concerns"],
-      treatment_goals: ["family_relationships", "health"],
-    },
-    {
-      id: "OL-005",
-      created_at: "2025-01-06T16:00:00Z",
-      source: "community_referral",
-      referral_type: "Family",
-      urgency: "high",
-      status: "new",
-      contact_method: "email",
-      contact_info: "family***@email.com",
-      concerns: ["loved_one_struggling"],
-      treatment_goals: ["get_help_for_family"],
+      treatment_goals: ["housing", "stability"],
     },
   ])
 
@@ -453,78 +407,115 @@ I understand that information disclosed under this authorization may be subject 
     )
   }
 
-  const handleScreeningSubmit = () => {
-    // In production, this would submit to API
-    alert("Thank you for completing the screening. If you requested contact, our team will reach out within 24 hours.")
-    setScreeningStep(1)
-    setScreeningData({
-      readinessLevel: "",
-      primaryConcern: "",
-      substanceHistory: [],
-      treatmentGoals: [],
-      specialNeeds: [],
-      contactRequested: false,
-      contactMethod: "",
-      contactInfo: "",
-      preferredTime: "",
-      additionalNotes: "",
-    })
-    setActiveTab("home")
-  }
+  const handleScreeningSubmit = async () => {
+    try {
+      const response = await fetch("/api/community-outreach/screening", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          screening_type: "general",
+          responses: screeningData,
+          total_score: 0,
+          severity_level: "moderate",
+          recommendations: [],
+          resources_provided: [],
+          follow_up_requested: screeningData.contactRequested,
+          follow_up_email: screeningData.contactMethod === "email" ? screeningData.contactInfo : undefined,
+          follow_up_phone: screeningData.contactMethod === "phone" ? screeningData.contactInfo : undefined,
+        }),
+      })
 
-  const handleReferralSubmit = () => {
-    alert("Thank you for your referral. Our team will follow up within 24-48 hours.")
-    setReferralData({
-      referralType: "",
-      organizationName: "",
-      referrerName: "",
-      referrerContact: "",
-      urgencyLevel: "",
-      generalConcern: "",
-      additionalInfo: "",
-    })
-    setActiveTab("home")
-  }
+      if (!response.ok) throw new Error("Failed to submit screening")
 
-  // Added handler for signing consent forms
-  const handleConsentSign = (formId: string) => {
-    if (!consentSignature || !consentDate || !patientInitials) {
-      alert("Please complete all required fields: signature, date, and initials")
-      return
+      toast.success("Screening submitted successfully. If you requested contact, our team will reach out within 24 hours.")
+      setScreeningStep(1)
+      setScreeningData({
+        readinessLevel: "",
+        primaryConcern: "",
+        substanceHistory: [],
+        treatmentGoals: [],
+        specialNeeds: [],
+        contactRequested: false,
+        contactMethod: "",
+        contactInfo: "",
+        preferredTime: "",
+        additionalNotes: "",
+      })
+      setActiveTab("home")
+    } catch (error: any) {
+      console.error("[MASE Access] Error submitting screening:", error)
+      toast.error("Failed to submit screening. Please try again.")
     }
-    // In a real app, you'd want to validate acknowledgments too.
-    setSignedConsents((prev) => ({ ...prev, [formId]: true }))
   }
 
-  // Added helper to calculate consent progress
   const getConsentProgress = () => {
     const requiredForms = consentForms.filter((f) => f.required)
     const signedRequired = requiredForms.filter((f) => signedConsents[f.id])
-    if (requiredForms.length === 0) return 100 // Avoid division by zero if no required forms
+    if (requiredForms.length === 0) return 100
     return Math.round((signedRequired.length / requiredForms.length) * 100)
   }
 
-  // Added helper to check if all required forms are signed
   const allRequiredSigned = () => {
     return consentForms.filter((f) => f.required).every((f) => signedConsents[f.id])
+  }
+
+  const handleConsentSign = (formId: string) => {
+    if (!consentSignature || !consentDate || !patientInitials) {
+      toast.error("Please complete all required fields: signature, date, and initials")
+      return
+    }
+    setSignedConsents((prev) => ({ ...prev, [formId]: true }))
+    toast.success("Consent form signed successfully")
+  }
+
+  const handleReferralSubmit = async () => {
+    try {
+      const response = await fetch("/api/community-outreach/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referral_type: referralData.referralType,
+          referrer_organization: referralData.organizationName,
+          referrer_name: referralData.referrerName,
+          referrer_phone: referralData.referrerContact,
+          urgency_level: referralData.urgencyLevel,
+          primary_concerns: [referralData.generalConcern],
+          additional_concerns: referralData.additionalInfo,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to submit referral")
+
+      toast.success("Referral submitted successfully. Our team will follow up within 24-48 hours.")
+      setReferralData({
+        referralType: "",
+        organizationName: "",
+        referrerName: "",
+        referrerContact: "",
+        urgencyLevel: "",
+        generalConcern: "",
+        additionalInfo: "",
+      })
+      setActiveTab("home")
+    } catch (error: any) {
+      console.error("[MASE Access] Error submitting referral:", error)
+      toast.error("Failed to submit referral. Please try again.")
+    }
   }
 
   // Admin Dashboard View
   if (showAdminDashboard) {
     return (
-      <div className="min-h-screen p-6" style={{ backgroundColor: "#f8fafc" }}>
+      <div className="min-h-screen p-6 bg-background">
         <div className="max-w-7xl mx-auto">
-          {/* Admin Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <Button variant="ghost" onClick={() => setShowAdminDashboard(false)} className="mb-2">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Public View
               </Button>
-              <h1 className="text-2xl font-bold" style={{ color: "#0f172a" }}>
-                MASE Access - Outreach Dashboard
-              </h1>
-              <p style={{ color: "#64748b" }}>Manage incoming outreach leads and referrals</p>
+              <h1 className="text-2xl font-bold text-foreground">MASE Access - Outreach Dashboard</h1>
+              <p className="text-muted-foreground">Manage incoming outreach leads and referrals</p>
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="text-lg px-4 py-2">
@@ -545,7 +536,7 @@ I understand that information disclosed under this authorization may be subject 
               <Card key={stat.label}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <span style={{ color: "#64748b" }}>{stat.label}</span>
+                    <span className="text-muted-foreground">{stat.label}</span>
                     <span className="text-2xl font-bold" style={{ color: stat.color }}>
                       {stat.count}
                     </span>
@@ -560,7 +551,7 @@ I understand that information disclosed under this authorization may be subject 
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" style={{ color: "#64748b" }} />
+                  <Filter className="h-4 w-4 text-muted-foreground" />
                   <Select value={leadFilter} onValueChange={setLeadFilter}>
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Filter by status" />
@@ -576,7 +567,7 @@ I understand that information disclosed under this authorization may be subject 
                 </div>
                 <div className="flex-1 max-w-sm">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "#64748b" }} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search by ID..."
                       className="pl-9"
@@ -628,7 +619,7 @@ I understand that information disclosed under this authorization may be subject 
                       <TableCell>{lead.referral_type}</TableCell>
                       <TableCell>{getUrgencyBadge(lead.urgency)}</TableCell>
                       <TableCell>{getStatusBadge(lead.status)}</TableCell>
-                      <TableCell>{lead.assigned_to || <span style={{ color: "#9ca3af" }}>Unassigned</span>}</TableCell>
+                      <TableCell>{lead.assigned_to || <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Dialog>
@@ -705,9 +696,7 @@ I understand that information disclosed under this authorization may be subject 
                                 {lead.notes && (
                                   <div>
                                     <Label>Notes</Label>
-                                    <p className="text-sm mt-1" style={{ color: "#64748b" }}>
-                                      {lead.notes}
-                                    </p>
+                                    <p className="text-sm mt-1 text-muted-foreground">{lead.notes}</p>
                                   </div>
                                 )}
                                 <div>
@@ -721,7 +710,7 @@ I understand that information disclosed under this authorization may be subject 
                                   </Button>
                                   <div className="flex gap-2">
                                     <Button variant="outline">Save Changes</Button>
-                                    <Button style={{ backgroundColor: "#0891b2" }}>
+                                    <Button className="bg-teal-600 hover:bg-teal-700">
                                       <UserPlus className="h-4 w-4 mr-2" />
                                       Convert to Intake
                                     </Button>
@@ -750,31 +739,26 @@ I understand that information disclosed under this authorization may be subject 
 
   // Public-Facing View
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
+      <header className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "#0891b2" }}
-              >
-                <Heart className="h-6 w-6" style={{ color: "#ffffff" }} />
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-teal-600">
+                <Heart className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold" style={{ color: "#0f172a" }}>
-                  MASE Access
-                </h1>
-                <p className="text-sm" style={{ color: "#64748b" }}>
-                  Community Outreach & Recovery Gateway
-                </p>
+                <h1 className="text-xl font-bold text-foreground">MASE Access</h1>
+                <p className="text-sm text-muted-foreground">Community Outreach & Recovery Gateway</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
-                <Phone className="h-4 w-4 mr-2" />
-                1-800-RECOVERY
+              <Button variant="outline" size="sm" asChild>
+                <a href="tel:18007326837">
+                  <Phone className="h-4 w-4 mr-2" />
+                  1-800-RECOVERY
+                </a>
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setShowAdminDashboard(true)}>
                 Staff Login
@@ -786,9 +770,8 @@ I understand that information disclosed under this authorization may be subject 
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Changed TabsList to include consent-forms and provider-portal tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="max-w-6xl mx-auto px-4 py-6">
-          <TabsList className="grid w-full grid-cols-7 mb-6" style={{ backgroundColor: "#f1f5f9" }}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-7 mb-6">
             <TabsTrigger value="home">
               <Home className="h-4 w-4 mr-2" />
               Home
@@ -819,18 +802,18 @@ I understand that information disclosed under this authorization may be subject 
             </TabsTrigger>
           </TabsList>
 
-          {/* HOME TAB */}
+          {/* Home Tab */}
           <TabsContent value="home">
             {/* Hero Section */}
             <div className="text-center mb-12">
-              <Badge className="mb-4" style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}>
+              <Badge className="mb-4 bg-green-100 text-green-700">
                 <Shield className="h-3 w-3 mr-1" />
                 100% Confidential
               </Badge>
-              <h2 className="text-4xl font-bold mb-4" style={{ color: "#0f172a" }}>
+              <h2 className="text-4xl font-bold mb-4 text-foreground">
                 Confidential Access to Opioid Recovery Support
               </h2>
-              <p className="text-xl max-w-2xl mx-auto" style={{ color: "#64748b" }}>
+              <p className="text-xl max-w-2xl mx-auto text-muted-foreground">
                 Take the first step toward recovery. Learn about treatment options, check your eligibility anonymously,
                 or connect someone you care about with help. Your privacy is protected.
               </p>
@@ -843,16 +826,11 @@ I understand that information disclosed under this authorization may be subject 
                 onClick={() => setActiveTab("education")}
               >
                 <CardContent className="p-6 text-center">
-                  <div
-                    className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                    style={{ backgroundColor: "#dbeafe" }}
-                  >
-                    <BookOpen className="h-8 w-8" style={{ color: "#3b82f6" }} />
+                  <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center bg-blue-100">
+                    <BookOpen className="h-8 w-8 text-blue-600" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2" style={{ color: "#0f172a" }}>
-                    Learn About Treatment
-                  </h3>
-                  <p className="text-sm" style={{ color: "#64748b" }}>
+                  <h3 className="text-lg font-semibold mb-2">Learn About Treatment</h3>
+                  <p className="text-sm text-muted-foreground">
                     Understand your options. Get facts about medication-assisted treatment, what to expect, and your
                     rights.
                   </p>
@@ -864,25 +842,19 @@ I understand that information disclosed under this authorization may be subject 
               </Card>
 
               <Card
-                className="hover:shadow-lg transition-shadow cursor-pointer border-2"
-                style={{ borderColor: "#0891b2" }}
+                className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-teal-600"
                 onClick={() => setActiveTab("screening")}
               >
                 <CardContent className="p-6 text-center">
-                  <div
-                    className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                    style={{ backgroundColor: "#cffafe" }}
-                  >
-                    <CheckCircle2 className="h-8 w-8" style={{ color: "#0891b2" }} />
+                  <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center bg-teal-100">
+                    <CheckCircle2 className="h-8 w-8 text-teal-600" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2" style={{ color: "#0f172a" }}>
-                    Check Eligibility Anonymously
-                  </h3>
-                  <p className="text-sm" style={{ color: "#64748b" }}>
+                  <h3 className="text-lg font-semibold mb-2">Check Eligibility Anonymously</h3>
+                  <p className="text-sm text-muted-foreground">
                     Complete a brief, private screening to see if treatment might be right for you. No personal info
                     required.
                   </p>
-                  <Button className="mt-4" style={{ backgroundColor: "#0891b2" }}>
+                  <Button className="mt-4 bg-teal-600 hover:bg-teal-700">
                     Start Screening
                     <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -894,16 +866,11 @@ I understand that information disclosed under this authorization may be subject 
                 onClick={() => setActiveTab("referral")}
               >
                 <CardContent className="p-6 text-center">
-                  <div
-                    className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                    style={{ backgroundColor: "#fce7f3" }}
-                  >
-                    <Users className="h-8 w-8" style={{ color: "#ec4899" }} />
+                  <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center bg-pink-100">
+                    <Users className="h-8 w-8 text-pink-600" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2" style={{ color: "#0f172a" }}>
-                    Refer Someone for Help
-                  </h3>
-                  <p className="text-sm" style={{ color: "#64748b" }}>
+                  <h3 className="text-lg font-semibold mb-2">Refer Someone for Help</h3>
+                  <p className="text-sm text-muted-foreground">
                     Healthcare providers, family members, or community partners can submit confidential referrals.
                   </p>
                   <Button variant="ghost" className="mt-4">
@@ -922,59 +889,45 @@ I understand that information disclosed under this authorization may be subject 
                 { icon: Clock, label: "24/7 Support", desc: "Help when you need it" },
                 { icon: Heart, label: "Judgment-Free", desc: "We're here to help" },
               ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3 p-4 rounded-lg"
-                  style={{ backgroundColor: "#ffffff" }}
-                >
-                  <item.icon className="h-8 w-8" style={{ color: "#0891b2" }} />
+                <div key={item.label} className="flex items-center gap-3 p-4 rounded-lg bg-card">
+                  <item.icon className="h-8 w-8 text-teal-600" />
                   <div>
-                    <p className="font-medium" style={{ color: "#0f172a" }}>
-                      {item.label}
-                    </p>
-                    <p className="text-sm" style={{ color: "#64748b" }}>
-                      {item.desc}
-                    </p>
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Quick Stats */}
-            <Card style={{ backgroundColor: "#0f172a" }}>
+            <Card className="bg-slate-900 text-white">
               <CardContent className="p-8">
                 <div className="grid md:grid-cols-3 gap-8 text-center">
                   <div>
-                    <p className="text-4xl font-bold" style={{ color: "#22d3ee" }}>
-                      15,000+
-                    </p>
-                    <p style={{ color: "#94a3b8" }}>Lives Changed Through Treatment</p>
+                    <p className="text-4xl font-bold text-teal-400">15,000+</p>
+                    <p className="text-slate-300">Lives Changed Through Treatment</p>
                   </div>
                   <div>
-                    <p className="text-4xl font-bold" style={{ color: "#22d3ee" }}>
-                      270+
-                    </p>
-                    <p style={{ color: "#94a3b8" }}>Partner Clinics Nationwide</p>
+                    <p className="text-4xl font-bold text-teal-400">270+</p>
+                    <p className="text-slate-300">Partner Clinics Nationwide</p>
                   </div>
                   <div>
-                    <p className="text-4xl font-bold" style={{ color: "#22d3ee" }}>
-                      98%
-                    </p>
-                    <p style={{ color: "#94a3b8" }}>Patient Satisfaction Rate</p>
+                    <p className="text-4xl font-bold text-teal-400">98%</p>
+                    <p className="text-slate-300">Patient Satisfaction Rate</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* SCREENING TAB */}
+          {/* Screening Tab */}
           <TabsContent value="screening">
             <div className="max-w-2xl mx-auto">
               <Card>
                 <CardHeader className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-2">
-                    <Lock className="h-5 w-5" style={{ color: "#16a34a" }} />
-                    <Badge style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}>Anonymous & Confidential</Badge>
+                    <Lock className="h-5 w-5 text-green-600" />
+                    <Badge className="bg-green-100 text-green-700">Anonymous & Confidential</Badge>
                   </div>
                   <CardTitle>Anonymous Pre-Intake Screening</CardTitle>
                   <CardDescription>
@@ -986,16 +939,15 @@ I understand that information disclosed under this authorization may be subject 
                   {/* Progress Indicator */}
                   <div className="mb-8">
                     <div className="flex justify-between text-sm mb-2">
-                      <span style={{ color: "#64748b" }}>Step {screeningStep} of 4</span>
-                      <span style={{ color: "#64748b" }}>{screeningStep * 25}% Complete</span>
+                      <span className="text-muted-foreground">Step {screeningStep} of 4</span>
+                      <span className="text-muted-foreground">{screeningStep * 25}% Complete</span>
                     </div>
                     <Progress value={screeningStep * 25} className="h-2" />
                     <div className="flex justify-between mt-2">
                       {["Readiness", "Concerns", "Goals", "Contact"].map((step, idx) => (
                         <span
                           key={step}
-                          className="text-xs"
-                          style={{ color: idx + 1 <= screeningStep ? "#0891b2" : "#94a3b8" }}
+                          className={`text-xs ${idx + 1 <= screeningStep ? "text-teal-600" : "text-muted-foreground"}`}
                         >
                           {step}
                         </span>
@@ -1008,7 +960,7 @@ I understand that information disclosed under this authorization may be subject 
                     <div className="space-y-6">
                       <div>
                         <Label className="text-base">How would you describe your current situation?</Label>
-                        <p className="text-sm mb-3" style={{ color: "#64748b" }}>
+                        <p className="text-sm mb-3 text-muted-foreground">
                           There are no wrong answers. This helps us understand how we might help.
                         </p>
                         <div className="space-y-3">
@@ -1022,7 +974,7 @@ I understand that information disclosed under this authorization may be subject 
                               key={option.value}
                               className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                                 screeningData.readinessLevel === option.value
-                                  ? "border-cyan-600 bg-cyan-50"
+                                  ? "border-teal-600 bg-teal-50"
                                   : "border-gray-200 hover:border-gray-300"
                               }`}
                               onClick={() => setScreeningData({ ...screeningData, readinessLevel: option.value })}
@@ -1031,12 +983,12 @@ I understand that information disclosed under this authorization may be subject 
                                 <div
                                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                                     screeningData.readinessLevel === option.value
-                                      ? "border-cyan-600"
+                                      ? "border-teal-600"
                                       : "border-gray-300"
                                   }`}
                                 >
                                   {screeningData.readinessLevel === option.value && (
-                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#0891b2" }} />
+                                    <div className="w-3 h-3 rounded-full bg-teal-600" />
                                   )}
                                 </div>
                                 <span>{option.label}</span>
@@ -1053,7 +1005,7 @@ I understand that information disclosed under this authorization may be subject 
                     <div className="space-y-6">
                       <div>
                         <Label className="text-base">What concerns bring you here today?</Label>
-                        <p className="text-sm mb-3" style={{ color: "#64748b" }}>
+                        <p className="text-sm mb-3 text-muted-foreground">
                           Select all that apply. This information is not diagnostic.
                         </p>
                         <div className="grid grid-cols-2 gap-3">
@@ -1071,7 +1023,7 @@ I understand that information disclosed under this authorization may be subject 
                               key={option.value}
                               className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                                 screeningData.substanceHistory.includes(option.value)
-                                  ? "border-cyan-600 bg-cyan-50"
+                                  ? "border-teal-600 bg-teal-50"
                                   : "border-gray-200 hover:border-gray-300"
                               }`}
                               onClick={() => {
@@ -1097,7 +1049,7 @@ I understand that information disclosed under this authorization may be subject 
                     <div className="space-y-6">
                       <div>
                         <Label className="text-base">What are your goals for treatment?</Label>
-                        <p className="text-sm mb-3" style={{ color: "#64748b" }}>
+                        <p className="text-sm mb-3 text-muted-foreground">
                           Select what's most important to you. Treatment is individualized to your needs.
                         </p>
                         <div className="grid grid-cols-2 gap-3">
@@ -1115,7 +1067,7 @@ I understand that information disclosed under this authorization may be subject 
                               key={option.value}
                               className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                                 screeningData.treatmentGoals.includes(option.value)
-                                  ? "border-cyan-600 bg-cyan-50"
+                                  ? "border-teal-600 bg-teal-50"
                                   : "border-gray-200 hover:border-gray-300"
                               }`}
                               onClick={() => {
@@ -1126,7 +1078,7 @@ I understand that information disclosed under this authorization may be subject 
                               }}
                             >
                               <div className="flex items-center gap-2">
-                                <option.icon className="h-4 w-4" style={{ color: "#0891b2" }} />
+                                <option.icon className="h-4 w-4 text-teal-600" />
                                 <span className="text-sm">{option.label}</span>
                               </div>
                             </div>
@@ -1136,7 +1088,7 @@ I understand that information disclosed under this authorization may be subject 
 
                       <div>
                         <Label className="text-base">Do you have any special needs?</Label>
-                        <p className="text-sm mb-3" style={{ color: "#64748b" }}>
+                        <p className="text-sm mb-3 text-muted-foreground">
                           Optional - helps us prepare for your visit
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -1169,14 +1121,14 @@ I understand that information disclosed under this authorization may be subject 
                   {/* Step 4: Contact (Optional) */}
                   {screeningStep === 4 && (
                     <div className="space-y-6">
-                      <div className="p-4 rounded-lg" style={{ backgroundColor: "#f0fdf4" }}>
+                      <div className="p-4 rounded-lg bg-green-50">
                         <div className="flex items-start gap-3">
-                          <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: "#16a34a" }} />
+                          <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-600" />
                           <div>
-                            <p className="font-medium" style={{ color: "#166534" }}>
+                            <p className="font-medium text-green-900">
                               Based on your answers, treatment may be a good option for you.
                             </p>
-                            <p className="text-sm" style={{ color: "#166534" }}>
+                            <p className="text-sm text-green-700">
                               Would you like us to reach out to discuss next steps?
                             </p>
                           </div>
@@ -1185,21 +1137,21 @@ I understand that information disclosed under this authorization may be subject 
 
                       <div>
                         <Label className="text-base">Would you like us to contact you?</Label>
-                        <p className="text-sm mb-3" style={{ color: "#64748b" }}>
+                        <p className="text-sm mb-3 text-muted-foreground">
                           Completely optional. Your screening is already saved anonymously.
                         </p>
                         <div className="space-y-3">
                           <div
                             className={`p-4 rounded-lg border-2 cursor-pointer ${
-                              screeningData.contactRequested ? "border-cyan-600 bg-cyan-50" : "border-gray-200"
+                              screeningData.contactRequested ? "border-teal-600 bg-teal-50" : "border-gray-200"
                             }`}
                             onClick={() => setScreeningData({ ...screeningData, contactRequested: true })}
                           >
                             <div className="flex items-center gap-3">
-                              <Phone className="h-5 w-5" style={{ color: "#0891b2" }} />
+                              <Phone className="h-5 w-5 text-teal-600" />
                               <div>
                                 <p className="font-medium">Yes, please contact me</p>
-                                <p className="text-sm" style={{ color: "#64748b" }}>
+                                <p className="text-sm text-muted-foreground">
                                   A caring staff member will reach out within 24 hours
                                 </p>
                               </div>
@@ -1207,15 +1159,15 @@ I understand that information disclosed under this authorization may be subject 
                           </div>
                           <div
                             className={`p-4 rounded-lg border-2 cursor-pointer ${
-                              !screeningData.contactRequested ? "border-cyan-600 bg-cyan-50" : "border-gray-200"
+                              !screeningData.contactRequested ? "border-teal-600 bg-teal-50" : "border-gray-200"
                             }`}
                             onClick={() => setScreeningData({ ...screeningData, contactRequested: false })}
                           >
                             <div className="flex items-center gap-3">
-                              <Shield className="h-5 w-5" style={{ color: "#64748b" }} />
+                              <Shield className="h-5 w-5 text-muted-foreground" />
                               <div>
                                 <p className="font-medium">No thanks, keep it anonymous</p>
-                                <p className="text-sm" style={{ color: "#64748b" }}>
+                                <p className="text-sm text-muted-foreground">
                                   You can always call us when you're ready
                                 </p>
                               </div>
@@ -1225,7 +1177,7 @@ I understand that information disclosed under this authorization may be subject 
                       </div>
 
                       {screeningData.contactRequested && (
-                        <div className="space-y-4 p-4 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
+                        <div className="space-y-4 p-4 rounded-lg bg-muted">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label>How should we contact you?</Label>
@@ -1270,7 +1222,7 @@ I understand that information disclosed under this authorization may be subject 
                               value={screeningData.contactInfo}
                               onChange={(e) => setScreeningData({ ...screeningData, contactInfo: e.target.value })}
                             />
-                            <p className="text-xs mt-1" style={{ color: "#64748b" }}>
+                            <p className="text-xs mt-1 text-muted-foreground">
                               This information is protected by federal privacy laws (42 CFR Part 2)
                             </p>
                           </div>
@@ -1300,13 +1252,13 @@ I understand that information disclosed under this authorization may be subject 
                     {screeningStep < 4 ? (
                       <Button
                         onClick={() => setScreeningStep(screeningStep + 1)}
-                        style={{ backgroundColor: "#0891b2" }}
+                        className="bg-teal-600 hover:bg-teal-700"
                       >
                         Continue
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleScreeningSubmit} style={{ backgroundColor: "#16a34a" }}>
+                      <Button onClick={handleScreeningSubmit} className="bg-green-600 hover:bg-green-700">
                         <CheckCircle2 className="h-4 w-4 mr-2" />
                         Complete Screening
                       </Button>
@@ -1317,222 +1269,7 @@ I understand that information disclosed under this authorization may be subject 
             </div>
           </TabsContent>
 
-          {/* EDUCATION TAB */}
-          <TabsContent value="education">
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2" style={{ color: "#0f172a" }}>
-                  Education Center
-                </h2>
-                <p style={{ color: "#64748b" }}>
-                  Get the facts about medication-assisted treatment. Knowledge is power on the path to recovery.
-                </p>
-              </div>
-
-              <Accordion type="single" collapsible className="space-y-3">
-                <AccordionItem value="what-is-mat" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <Pill className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>What Is Medication-Assisted Treatment (MAT)?</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-3">
-                    <p>
-                      Medication-Assisted Treatment (MAT) combines FDA-approved medications with counseling and
-                      behavioral therapies to treat opioid use disorders. It's the gold standard for opioid addiction
-                      treatment, recommended by major health organizations including SAMHSA and the American Society of
-                      Addiction Medicine.
-                    </p>
-                    <p>
-                      <strong>Common medications include:</strong>
-                    </p>
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li>
-                        <strong>Methadone:</strong> Reduces cravings and withdrawal symptoms, taken daily at a clinic
-                      </li>
-                      <li>
-                        <strong>Buprenorphine (Suboxone):</strong> Can be prescribed by certified providers
-                      </li>
-                      <li>
-                        <strong>Naltrexone (Vivitrol):</strong> Blocks the effects of opioids, given as monthly
-                        injection
-                      </li>
-                    </ul>
-                    <p>
-                      MAT has been shown to decrease opioid use, reduce overdose deaths, decrease criminal activity, and
-                      improve social functioning.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="myths" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <HelpCircle className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>Myths vs. Facts About Treatment</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-4">
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#fef2f2" }}>
-                      <p className="font-medium" style={{ color: "#dc2626" }}>
-                        MYTH: "You're just trading one addiction for another"
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#f0fdf4" }}>
-                      <p className="font-medium" style={{ color: "#16a34a" }}>
-                        FACT: MAT medications stabilize brain chemistry, allowing people to function normally, work, and
-                        maintain relationships. Unlike illicit opioid use, MAT is controlled, legal, and part of
-                        comprehensive treatment.
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#fef2f2" }}>
-                      <p className="font-medium" style={{ color: "#dc2626" }}>
-                        MYTH: "Methadone treatment is forever"
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#f0fdf4" }}>
-                      <p className="font-medium" style={{ color: "#16a34a" }}>
-                        FACT: Treatment duration varies by individual. Some people taper off medications successfully,
-                        while others benefit from longer-term treatment. There's no "one size fits all" - you and your
-                        treatment team determine what's best for you.
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#fef2f2" }}>
-                      <p className="font-medium" style={{ color: "#dc2626" }}>
-                        MYTH: "Everyone will know I'm in treatment"
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ backgroundColor: "#f0fdf4" }}>
-                      <p className="font-medium" style={{ color: "#16a34a" }}>
-                        FACT: Your treatment is protected by the strictest federal privacy laws (42 CFR Part 2). Your
-                        employer, insurance company, and even family cannot access your records without your explicit
-                        consent.
-                      </p>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="working" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <Briefcase className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>Working While in Treatment</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-3">
-                    <p>
-                      Thousands of people successfully maintain employment while in MAT. In fact, employment outcomes
-                      are one of the best indicators of successful recovery.
-                    </p>
-                    <p>
-                      <strong>What you should know:</strong>
-                    </p>
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li>Your treatment is confidential and employers cannot require disclosure</li>
-                      <li>MAT medications don't impair cognitive function when taken as prescribed</li>
-                      <li>Clinics offer flexible hours including early morning dosing for workers</li>
-                      <li>Take-home privileges reduce the frequency of clinic visits over time</li>
-                      <li>The Americans with Disabilities Act protects people in MAT from discrimination</li>
-                    </ul>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="pregnancy" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <Baby className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>Pregnancy & Opioid Treatment</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-3">
-                    <div className="p-4 rounded-lg" style={{ backgroundColor: "#fef3c7" }}>
-                      <p className="font-medium" style={{ color: "#92400e" }}>
-                        If you are pregnant and using opioids, getting treatment is the safest choice for you and your
-                        baby.
-                      </p>
-                    </div>
-                    <p>
-                      Medication-assisted treatment during pregnancy is the standard of care recommended by major
-                      medical organizations including ACOG (American College of Obstetricians and Gynecologists).
-                    </p>
-                    <p>
-                      <strong>Key facts:</strong>
-                    </p>
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li>Methadone and buprenorphine are safe and effective during pregnancy</li>
-                      <li>Treatment reduces risk of preterm birth, low birth weight, and stillbirth</li>
-                      <li>Babies may need monitoring for Neonatal Abstinence Syndrome (NAS), which is treatable</li>
-                      <li>You will NOT lose custody simply for being in treatment</li>
-                      <li>Our clinics provide specialized prenatal coordination</li>
-                    </ul>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="takehome" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <Home className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>Take-Home Dosing Explained</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-3">
-                    <p>
-                      As you progress in treatment, you may earn the privilege of take-home doses, reducing your
-                      required clinic visits from daily to weekly or even monthly.
-                    </p>
-                    <p>
-                      <strong>How it works:</strong>
-                    </p>
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li>Initial phase: Daily observed dosing at the clinic</li>
-                      <li>After demonstrating stability: Earn 1-2 take-home doses per week</li>
-                      <li>Continued progress: Up to 2 weeks of take-homes at a time</li>
-                      <li>Take-homes come in secure, labeled bottles with QR codes</li>
-                      <li>Our mobile app helps you track your doses and stay compliant</li>
-                    </ul>
-                    <p>
-                      Take-home privileges are based on time in treatment, negative drug screens, counseling attendance,
-                      and overall stability. Your counselor will work with you on your individual plan.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="privacy" className="bg-white rounded-lg border px-4">
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5" style={{ color: "#0891b2" }} />
-                      <span>Privacy, HIPAA, and 42 CFR Part 2</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600 space-y-3">
-                    <p>
-                      Your privacy is protected by federal law. Substance use treatment records have even stronger
-                      protections than regular medical records.
-                    </p>
-                    <p>
-                      <strong>42 CFR Part 2 provides:</strong>
-                    </p>
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li>Your records cannot be shared without your written consent</li>
-                      <li>Information cannot be used against you in legal proceedings (with limited exceptions)</li>
-                      <li>Your employer cannot access your treatment information</li>
-                      <li>Insurance companies have strict limitations on which they can see</li>
-                      <li>Even if subpoenaed, the clinic cannot release your records without your consent</li>
-                    </ul>
-                    <p>
-                      <strong>You control who knows about your treatment.</strong> We take your privacy seriously and
-                      will explain your rights during the intake process.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          </TabsContent>
-
-          {/* REFERRAL TAB */}
+          {/* Referral Tab */}
           <TabsContent value="referral">
             <div className="max-w-2xl mx-auto">
               <Card>
@@ -1558,13 +1295,13 @@ I understand that information disclosed under this authorization may be subject 
                           key={type.value}
                           className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                             referralData.referralType === type.value
-                              ? "border-cyan-600 bg-cyan-50"
+                              ? "border-teal-600 bg-teal-50"
                               : "border-gray-200 hover:border-gray-300"
                           }`}
                           onClick={() => setReferralData({ ...referralData, referralType: type.value })}
                         >
                           <div className="flex items-center gap-3">
-                            <type.icon className="h-5 w-5" style={{ color: "#0891b2" }} />
+                            <type.icon className="h-5 w-5 text-teal-600" />
                             <span>{type.label}</span>
                           </div>
                         </div>
@@ -1575,27 +1312,27 @@ I understand that information disclosed under this authorization may be subject 
                   {referralData.referralType && referralData.referralType !== "self" && (
                     <>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Organization Name (Optional)</Label>
+                        <div className="space-y-2">
+                          <Label>Organization Name*</Label>
                           <Input
-                            placeholder="e.g., City General Hospital"
+                            placeholder="e.g., ABC Medical Center"
                             value={referralData.organizationName}
                             onChange={(e) => setReferralData({ ...referralData, organizationName: e.target.value })}
                           />
                         </div>
-                        <div>
-                          <Label>Your Name (Optional)</Label>
+                        <div className="space-y-2">
+                          <Label>Your Name*</Label>
                           <Input
-                            placeholder="For follow-up questions"
+                            placeholder="Your full name"
                             value={referralData.referrerName}
                             onChange={(e) => setReferralData({ ...referralData, referrerName: e.target.value })}
                           />
                         </div>
                       </div>
-                      <div>
-                        <Label>Contact Information (Optional)</Label>
+                      <div className="space-y-2">
+                        <Label>Contact Information*</Label>
                         <Input
-                          placeholder="Phone or email for follow-up"
+                          placeholder="Phone or email"
                           value={referralData.referrerContact}
                           onChange={(e) => setReferralData({ ...referralData, referrerContact: e.target.value })}
                         />
@@ -1603,61 +1340,47 @@ I understand that information disclosed under this authorization may be subject 
                     </>
                   )}
 
-                  <div>
-                    <Label>Urgency Level</Label>
+                  <div className="space-y-2">
+                    <Label>Urgency Level*</Label>
                     <Select
                       value={referralData.urgencyLevel}
                       onValueChange={(v) => setReferralData({ ...referralData, urgencyLevel: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select urgency" />
+                        <SelectValue placeholder="Select urgency level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="urgent">Urgent - Immediate need (overdose risk, withdrawal)</SelectItem>
+                        <SelectItem value="urgent">Urgent - Immediate attention needed</SelectItem>
                         <SelectItem value="high">High - Within 24-48 hours</SelectItem>
-                        <SelectItem value="medium">Medium - Within 1 week</SelectItem>
-                        <SelectItem value="low">Low - Information/planning stage</SelectItem>
+                        <SelectItem value="medium">Medium - Within a week</SelectItem>
+                        <SelectItem value="low">Low - Routine referral</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div>
-                    <Label>General Concern</Label>
-                    <p className="text-sm mb-2" style={{ color: "#64748b" }}>
-                      No patient name needed. Describe the situation in general terms.
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Primary Concern*</Label>
                     <Textarea
-                      placeholder="e.g., Individual presenting at ER with opioid withdrawal symptoms, expressed interest in treatment..."
-                      rows={4}
+                      placeholder="Brief description of the primary concern or reason for referral..."
                       value={referralData.generalConcern}
                       onChange={(e) => setReferralData({ ...referralData, generalConcern: e.target.value })}
+                      rows={3}
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <Label>Additional Information (Optional)</Label>
                     <Textarea
-                      placeholder="Any other relevant details..."
-                      rows={2}
+                      placeholder="Any additional details that would help us assist this person..."
                       value={referralData.additionalInfo}
                       onChange={(e) => setReferralData({ ...referralData, additionalInfo: e.target.value })}
+                      rows={3}
                     />
-                  </div>
-
-                  <div className="p-4 rounded-lg" style={{ backgroundColor: "#f0fdf4" }}>
-                    <div className="flex items-start gap-3">
-                      <Shield className="h-5 w-5 mt-0.5" style={{ color: "#16a34a" }} />
-                      <p className="text-sm" style={{ color: "#166534" }}>
-                        This referral is confidential. No patient chart will be created until the individual contacts us
-                        directly and provides consent. We comply with HIPAA and 42 CFR Part 2.
-                      </p>
-                    </div>
                   </div>
 
                   <Button
-                    className="w-full"
-                    style={{ backgroundColor: "#0891b2" }}
                     onClick={handleReferralSubmit}
+                    className="w-full bg-teal-600 hover:bg-teal-700"
                     disabled={!referralData.referralType || !referralData.urgencyLevel || !referralData.generalConcern}
                   >
                     <Send className="h-4 w-4 mr-2" />
@@ -1668,14 +1391,13 @@ I understand that information disclosed under this authorization may be subject 
             </div>
           </TabsContent>
 
-          {/* CONSENT FORMS TAB */}
+          {/* Consent Forms Tab */}
           <TabsContent value="consent-forms" className="space-y-6 mt-6">
-            {/* Consent Forms Section */}
-            <Card className="border-l-4" style={{ borderLeftColor: "#10b981" }}>
+            <Card className="border-l-4 border-l-green-600">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: "#d1fae5" }}>
-                    <FileText className="h-5 w-5" style={{ color: "#059669" }} />
+                  <div className="p-2 rounded-lg bg-green-100">
+                    <FileText className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
                     <CardTitle>Required Consent Forms</CardTitle>
@@ -1686,24 +1408,19 @@ I understand that information disclosed under this authorization may be subject 
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Progress Indicator */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span style={{ color: "#64748b" }}>Consent Progress</span>
-                    <span className="font-semibold" style={{ color: "#0f172a" }}>
-                      {getConsentProgress()}%
-                    </span>
+                    <span className="text-muted-foreground">Consent Progress</span>
+                    <span className="font-semibold">{getConsentProgress()}%</span>
                   </div>
                   <Progress value={getConsentProgress()} className="h-2" />
                 </div>
 
-                {/* Consent Forms List */}
                 <div className="space-y-4">
                   {consentForms.map((form) => (
                     <Card
                       key={form.id}
-                      className="border-2"
-                      style={{ borderColor: signedConsents[form.id] ? "#10b981" : "#e2e8f0" }}
+                      className={`border-2 ${signedConsents[form.id] ? "border-green-500" : "border-gray-200"}`}
                     >
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -1712,32 +1429,21 @@ I understand that information disclosed under this authorization may be subject 
                               className={`p-2 rounded-lg ${signedConsents[form.id] ? "bg-green-100" : "bg-gray-100"}`}
                             >
                               {form.category === "treatment" && (
-                                <Heart
-                                  className="h-5 w-5"
-                                  style={{ color: signedConsents[form.id] ? "#059669" : "#64748b" }}
-                                />
+                                <Heart className={`h-5 w-5 ${signedConsents[form.id] ? "text-green-600" : "text-gray-600"}`} />
                               )}
                               {form.category === "testing" && (
-                                <TestTube
-                                  className="h-5 w-5"
-                                  style={{ color: signedConsents[form.id] ? "#059669" : "#64748b" }}
-                                />
+                                <TestTube className={`h-5 w-5 ${signedConsents[form.id] ? "text-green-600" : "text-gray-600"}`} />
                               )}
                               {form.category === "privacy" && (
-                                <Lock
-                                  className="h-5 w-5"
-                                  style={{ color: signedConsents[form.id] ? "#059669" : "#64748b" }}
-                                />
+                                <Lock className={`h-5 w-5 ${signedConsents[form.id] ? "text-green-600" : "text-gray-600"}`} />
                               )}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
                                 <CardTitle className="text-base">{form.title}</CardTitle>
-                                {form.required && (
-                                  <Badge style={{ backgroundColor: "#fef3c7", color: "#d97706" }}>Required</Badge>
-                                )}
+                                {form.required && <Badge className="bg-yellow-100 text-yellow-700">Required</Badge>}
                                 {signedConsents[form.id] && (
-                                  <Badge style={{ backgroundColor: "#dcfce7", color: "#16a34a" }}>Signed</Badge>
+                                  <Badge className="bg-green-100 text-green-700">Signed</Badge>
                                 )}
                               </div>
                               <CardDescription>{form.description}</CardDescription>
@@ -1755,36 +1461,22 @@ I understand that information disclosed under this authorization may be subject 
                                 <DialogDescription>{form.description}</DialogDescription>
                               </DialogHeader>
 
-                              {/* Consent Content */}
                               <div className="space-y-6 mt-4">
-                                <div className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: "#f8fafc" }}>
-                                  <pre
-                                    className="whitespace-pre-wrap text-sm"
-                                    style={{ fontFamily: "inherit", color: "#334155" }}
-                                  >
-                                    {form.content}
-                                  </pre>
+                                <div className="p-4 rounded-lg border bg-muted">
+                                  <pre className="whitespace-pre-wrap text-sm font-sans">{form.content}</pre>
                                 </div>
 
-                                {/* Acknowledgments */}
                                 <div className="space-y-3">
                                   <Label className="text-base font-semibold">Patient Acknowledgments:</Label>
                                   {form.acknowledgments.map((ack, index) => (
-                                    <div
-                                      key={index}
-                                      className="flex items-start gap-3 p-3 rounded-lg border"
-                                      style={{ backgroundColor: "#f8fafc" }}
-                                    >
+                                    <div key={index} className="flex items-start gap-3 p-3 rounded-lg border bg-muted">
                                       <Checkbox
                                         id={`${form.id}-ack-${index}`}
                                         className="mt-1"
                                         disabled={signedConsents[form.id]}
                                         defaultChecked={signedConsents[form.id]}
                                       />
-                                      <Label
-                                        htmlFor={`${form.id}-ack-${index}`}
-                                        className="text-sm leading-relaxed cursor-pointer"
-                                      >
+                                      <Label htmlFor={`${form.id}-ack-${index}`} className="text-sm leading-relaxed cursor-pointer">
                                         {ack}
                                       </Label>
                                     </div>
@@ -1793,7 +1485,6 @@ I understand that information disclosed under this authorization may be subject 
 
                                 {!signedConsents[form.id] && (
                                   <>
-                                    {/* Signature Fields */}
                                     <div className="grid grid-cols-2 gap-4">
                                       <div className="space-y-2">
                                         <Label htmlFor={`${form.id}-initials`}>Patient Initials*</Label>
@@ -1823,11 +1514,9 @@ I understand that information disclosed under this authorization may be subject 
                                         value={consentSignature}
                                         onChange={(e) => setConsentSignature(e.target.value)}
                                         className="text-lg"
-                                        style={{ fontFamily: "'Brush Script MT', cursive" }}
                                       />
-                                      <p className="text-xs" style={{ color: "#64748b" }}>
-                                        By typing your name, you agree that this constitutes a legal electronic
-                                        signature.
+                                      <p className="text-xs text-muted-foreground">
+                                        By typing your name, you agree that this constitutes a legal electronic signature.
                                       </p>
                                     </div>
 
@@ -1843,11 +1532,7 @@ I understand that information disclosed under this authorization may be subject 
                                       </div>
                                     )}
 
-                                    <Button
-                                      onClick={() => handleConsentSign(form.id)}
-                                      className="w-full"
-                                      style={{ backgroundColor: "#10b981" }}
-                                    >
+                                    <Button onClick={() => handleConsentSign(form.id)} className="w-full bg-green-600 hover:bg-green-700">
                                       <Fingerprint className="h-4 w-4 mr-2" />
                                       Sign Consent Form
                                     </Button>
@@ -1855,10 +1540,7 @@ I understand that information disclosed under this authorization may be subject 
                                 )}
 
                                 {signedConsents[form.id] && (
-                                  <div
-                                    className="p-4 rounded-lg border"
-                                    style={{ backgroundColor: "#d1fae5", borderColor: "#10b981" }}
-                                  >
+                                  <div className="p-4 rounded-lg border bg-green-50 border-green-200">
                                     <div className="flex items-center gap-2 text-green-700">
                                       <CheckCircle2 className="h-5 w-5" />
                                       <span className="font-semibold">Consent form signed successfully</span>
@@ -1876,12 +1558,8 @@ I understand that information disclosed under this authorization may be subject 
                   ))}
                 </div>
 
-                {/* Submit Button */}
                 {allRequiredSigned() && (
-                  <div
-                    className="p-6 rounded-lg border-2"
-                    style={{ backgroundColor: "#d1fae5", borderColor: "#10b981" }}
-                  >
+                  <div className="p-6 rounded-lg border-2 bg-green-50 border-green-200">
                     <div className="flex items-start gap-4">
                       <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0" />
                       <div className="flex-1">
@@ -1889,7 +1567,7 @@ I understand that information disclosed under this authorization may be subject 
                         <p className="text-sm text-green-700 mt-1">
                           You have completed all required consent forms. You may now proceed with the intake process.
                         </p>
-                        <Button className="mt-4" style={{ backgroundColor: "#10b981" }}>
+                        <Button className="mt-4 bg-green-600 hover:bg-green-700">
                           Proceed to Intake
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
@@ -1901,14 +1579,108 @@ I understand that information disclosed under this authorization may be subject 
             </Card>
           </TabsContent>
 
-          {/* PROVIDER PORTAL TAB */}
+          {/* Education Tab */}
+          <TabsContent value="education">
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold mb-2">Education Center</h2>
+                <p className="text-muted-foreground">
+                  Get the facts about medication-assisted treatment. Knowledge is power on the path to recovery.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <Pill className="h-5 w-5 text-teal-600" />
+                      What Is Medication-Assisted Treatment (MAT)?
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground space-y-3">
+                    <p>
+                      Medication-Assisted Treatment (MAT) combines FDA-approved medications with counseling and
+                      behavioral therapies to treat opioid use disorders. It's the gold standard for opioid addiction
+                      treatment, recommended by major health organizations including SAMHSA and the American Society of
+                      Addiction Medicine.
+                    </p>
+                    <p>
+                      <strong>Common medications include:</strong>
+                    </p>
+                    <ul className="list-disc pl-6 space-y-1">
+                      <li>
+                        <strong>Methadone:</strong> Reduces cravings and withdrawal symptoms, taken daily at a clinic
+                      </li>
+                      <li>
+                        <strong>Buprenorphine (Suboxone):</strong> Can be prescribed by certified providers
+                      </li>
+                      <li>
+                        <strong>Naltrexone (Vivitrol):</strong> Blocks the effects of opioids, given as monthly
+                        injection
+                      </li>
+                    </ul>
+                    <p>
+                      MAT has been shown to decrease opioid use, reduce overdose deaths, decrease criminal activity, and
+                      improve social functioning.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <HelpCircle className="h-5 w-5 text-teal-600" />
+                      Myths vs. Facts About Treatment
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground space-y-4">
+                    <div className="p-3 rounded-lg bg-red-50">
+                      <p className="font-medium text-red-700">MYTH: "You're just trading one addiction for another"</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-green-50">
+                      <p className="font-medium text-green-700">
+                        FACT: MAT medications stabilize brain chemistry, allowing people to function normally, work, and
+                        maintain relationships. Unlike illicit opioid use, MAT is controlled, legal, and part of
+                        comprehensive treatment.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-teal-600" />
+                      Privacy, HIPAA, and 42 CFR Part 2
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground space-y-3">
+                    <p>
+                      Your privacy is protected by federal law. Substance use treatment records have even stronger
+                      protections than regular medical records.
+                    </p>
+                    <p>
+                      <strong>42 CFR Part 2 provides:</strong>
+                    </p>
+                    <ul className="list-disc pl-6 space-y-1">
+                      <li>Your records cannot be shared without your written consent</li>
+                      <li>Information cannot be used against you in legal proceedings (with limited exceptions)</li>
+                      <li>Your employer cannot access your treatment information</li>
+                      <li>Insurance companies have strict limitations on which they can see</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Provider Portal Tab */}
           <TabsContent value="provider-portal" className="space-y-6 mt-6">
-            {/* Provider Portal Section */}
-            <Card className="border-l-4" style={{ borderLeftColor: "#3b82f6" }}>
+            <Card className="border-l-4 border-l-blue-600">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: "#dbeafe" }}>
-                    <Building2 className="h-5 w-5" style={{ color: "#2563eb" }} />
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <Building2 className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
                     <CardTitle>External Provider Transfer Portal</CardTitle>
@@ -1919,15 +1691,12 @@ I understand that information disclosed under this authorization may be subject 
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Instructions */}
-                <div className="p-4 rounded-lg border" style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe" }}>
+                <div className="p-4 rounded-lg border bg-blue-50">
                   <div className="flex items-start gap-3">
-                    <HelpCircle className="h-5 w-5 flex-shrink-0" style={{ color: "#2563eb" }} />
+                    <HelpCircle className="h-5 w-5 flex-shrink-0 text-blue-600" />
                     <div className="space-y-2">
-                      <h4 className="font-semibold" style={{ color: "#1e40af" }}>
-                        For Healthcare Providers
-                      </h4>
-                      <p className="text-sm" style={{ color: "#1e3a8a" }}>
+                      <h4 className="font-semibold text-blue-900">For Healthcare Providers</h4>
+                      <p className="text-sm text-blue-700">
                         If you are a healthcare provider transferring a patient to our facility, please complete the
                         form below. Your secure submission helps ensure seamless care transitions.
                       </p>
@@ -1935,7 +1704,6 @@ I understand that information disclosed under this authorization may be subject 
                   </div>
                 </div>
 
-                {/* Provider Transfer Submission Form */}
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1959,120 +1727,36 @@ I understand that information disclosed under this authorization may be subject 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="provider-phone">Contact Phone*</Label>
-                      <Input id="provider-phone" type="tel" placeholder="(555) 123-4567" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="provider-email">Contact Email*</Label>
-                      <Input id="provider-email" type="email" placeholder="provider@facility.com" />
-                    </div>
-                  </div>
-
-                  <div className="h-px" style={{ backgroundColor: "#e2e8f0" }} />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="patient-name-transfer">Patient Full Name*</Label>
-                      <Input id="patient-name-transfer" placeholder="John Doe" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="patient-dob-transfer">Patient Date of Birth*</Label>
-                      <Input id="patient-dob-transfer" type="date" />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="transfer-reason">Reason for Transfer*</Label>
-                    <Textarea
-                      id="transfer-reason"
-                      placeholder="Brief clinical summary and reason for transfer..."
-                      rows={3}
-                    />
+                    <Textarea id="transfer-reason" placeholder="Brief clinical summary and reason for transfer..." rows={3} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="current-medications">Current Medications*</Label>
-                    <Textarea
-                      id="current-medications"
-                      placeholder="List current medications, including MAT dosing if applicable..."
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="current-dose">Current MAT Dose (if applicable)</Label>
-                      <Input id="current-dose" placeholder="e.g., 80mg Methadone daily" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last-dose-date">Last Dose Date</Label>
-                      <Input id="last-dose-date" type="date" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="additional-info">Additional Clinical Information</Label>
-                    <Textarea
-                      id="additional-info"
-                      placeholder="Lab results, UDS results, recent assessments, etc..."
-                      rows={3}
-                    />
-                  </div>
-
-                  {/* Document Upload */}
                   <div className="space-y-2">
                     <Label>Attach Transfer Documents*</Label>
-                    <div
-                      className="border-2 border-dashed rounded-lg p-6 text-center"
-                      style={{ borderColor: "#cbd5e1", backgroundColor: "#f8fafc" }}
-                    >
-                      <Upload className="h-8 w-8 mx-auto mb-2" style={{ color: "#94a3b8" }} />
-                      <p className="text-sm font-medium" style={{ color: "#334155" }}>
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs mt-1" style={{ color: "#64748b" }}>
+                    <div className="border-2 border-dashed rounded-lg p-6 text-center bg-muted">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm font-medium">Click to upload or drag and drop</p>
+                      <p className="text-xs mt-1 text-muted-foreground">
                         Treatment summary, medication orders, UDS results, discharge summary
                       </p>
-                      <Button variant="outline" className="mt-3 bg-transparent">
+                      <Button variant="outline" className="mt-3">
                         Select Files
                       </Button>
                     </div>
                   </div>
 
-                  {/* HIPAA Acknowledgment */}
-                  <div
-                    className="p-4 rounded-lg border space-y-3"
-                    style={{ backgroundColor: "#fef3c7", borderColor: "#fcd34d" }}
-                  >
+                  <div className="p-4 rounded-lg border bg-yellow-50 space-y-3">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: "#d97706" }} />
+                      <AlertTriangle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
                       <div className="space-y-3 flex-1">
-                        <h4 className="font-semibold" style={{ color: "#92400e" }}>
-                          HIPAA & 42 CFR Part 2 Compliance
-                        </h4>
+                        <h4 className="font-semibold text-yellow-900">HIPAA & 42 CFR Part 2 Compliance</h4>
                         <div className="space-y-2">
                           <div className="flex items-start gap-2">
                             <Checkbox id="provider-hipaa" />
-                            <Label
-                              htmlFor="provider-hipaa"
-                              className="text-sm leading-relaxed cursor-pointer"
-                              style={{ color: "#78350f" }}
-                            >
+                            <Label htmlFor="provider-hipaa" className="text-sm leading-relaxed cursor-pointer text-yellow-900">
                               I confirm that I have obtained valid patient consent to disclose this protected health
                               information under HIPAA and 42 CFR Part 2 regulations
-                            </Label>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <Checkbox id="provider-verification" />
-                            <Label
-                              htmlFor="provider-verification"
-                              className="text-sm leading-relaxed cursor-pointer"
-                              style={{ color: "#78350f" }}
-                            >
-                              I am an authorized representative of the facility listed above and all information
-                              provided is accurate to the best of my knowledge
                             </Label>
                           </div>
                         </div>
@@ -2080,7 +1764,7 @@ I understand that information disclosed under this authorization may be subject 
                     </div>
                   </div>
 
-                  <Button className="w-full" size="lg" style={{ backgroundColor: "#3b82f6" }}>
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
                     <Send className="h-4 w-4 mr-2" />
                     Submit Transfer Documents Securely
                   </Button>
@@ -2089,24 +1773,21 @@ I understand that information disclosed under this authorization may be subject 
             </Card>
           </TabsContent>
 
-          {/* EVENTS TAB */}
+          {/* Events Tab */}
           <TabsContent value="events">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2" style={{ color: "#0f172a" }}>
-                  Community Events & Narcan Access
-                </h2>
-                <p style={{ color: "#64748b" }}>
+                <h2 className="text-2xl font-bold mb-2">Community Events & Narcan Access</h2>
+                <p className="text-muted-foreground">
                   Free community events, Narcan distribution, and overdose prevention resources
                 </p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6 mb-8">
-                {/* Upcoming Events */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" style={{ color: "#0891b2" }} />
+                      <Calendar className="h-5 w-5 text-teal-600" />
                       Upcoming Events
                     </CardTitle>
                   </CardHeader>
@@ -2126,35 +1807,26 @@ I understand that information disclosed under this authorization may be subject 
                         location: "Public Library - Main Branch",
                         type: "narcan",
                       },
-                      {
-                        title: "Family Support Group",
-                        date: "January 20, 2025",
-                        time: "6:00 PM - 7:30 PM",
-                        location: "MASE Clinic - Conference Room",
-                        type: "support",
-                      },
                     ].map((event, idx) => (
                       <div key={idx} className="p-4 rounded-lg border">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="font-medium" style={{ color: "#0f172a" }}>
-                              {event.title}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1" style={{ color: "#64748b" }}>
+                            <h4 className="font-medium">{event.title}</h4>
+                            <div className="flex items-center gap-2 mt-1 text-muted-foreground">
                               <Calendar className="h-3.5 w-3.5" />
                               <span className="text-sm">{event.date}</span>
                             </div>
-                            <div className="flex items-center gap-2" style={{ color: "#64748b" }}>
+                            <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="h-3.5 w-3.5" />
                               <span className="text-sm">{event.time}</span>
                             </div>
-                            <div className="flex items-center gap-2" style={{ color: "#64748b" }}>
+                            <div className="flex items-center gap-2 text-muted-foreground">
                               <MapPin className="h-3.5 w-3.5" />
                               <span className="text-sm">{event.location}</span>
                             </div>
                           </div>
                           <Badge variant={event.type === "narcan" ? "destructive" : "secondary"}>
-                            {event.type === "narcan" ? "Narcan" : event.type === "support" ? "Support" : "Education"}
+                            {event.type === "narcan" ? "Narcan" : "Education"}
                           </Badge>
                         </div>
                       </div>
@@ -2162,40 +1834,33 @@ I understand that information disclosed under this authorization may be subject 
                   </CardContent>
                 </Card>
 
-                {/* Narcan Access */}
-                <Card style={{ backgroundColor: "#fef2f2", borderColor: "#fecaca" }}>
+                <Card className="bg-red-50 border-red-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2" style={{ color: "#dc2626" }}>
+                    <CardTitle className="flex items-center gap-2 text-red-700">
                       <AlertTriangle className="h-5 w-5" />
                       Narcan (Naloxone) Saves Lives
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p style={{ color: "#7f1d1d" }}>
+                    <p className="text-red-900">
                       Narcan is a life-saving medication that can reverse an opioid overdose. It's safe, easy to use,
                       and available free at many locations.
                     </p>
 
-                    <div className="p-4 rounded-lg" style={{ backgroundColor: "#ffffff" }}>
-                      <h4 className="font-medium mb-2" style={{ color: "#0f172a" }}>
-                        Get Free Narcan:
-                      </h4>
+                    <div className="p-4 rounded-lg bg-white">
+                      <h4 className="font-medium mb-2">Get Free Narcan:</h4>
                       <ul className="space-y-2 text-sm">
                         <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4" style={{ color: "#16a34a" }} />
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
                           Any MASE clinic during business hours
                         </li>
                         <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4" style={{ color: "#16a34a" }} />
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
                           Local pharmacies (no prescription needed)
                         </li>
                         <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4" style={{ color: "#16a34a" }} />
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
                           Community distribution events
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4" style={{ color: "#16a34a" }} />
-                          Health department offices
                         </li>
                       </ul>
                     </div>
@@ -2208,30 +1873,27 @@ I understand that information disclosed under this authorization may be subject 
                 </Card>
               </div>
 
-              {/* QR Code Section */}
               <Card className="text-center">
                 <CardContent className="py-8">
-                  <h3 className="text-xl font-semibold mb-4" style={{ color: "#0f172a" }}>
-                    Scan for Help
-                  </h3>
-                  <p className="mb-6" style={{ color: "#64748b" }}>
+                  <h3 className="text-xl font-semibold mb-4">Scan for Help</h3>
+                  <p className="mb-6 text-muted-foreground">
                     Print and share these QR codes in your community. They link directly to our confidential screening.
                   </p>
                   <div className="flex justify-center gap-8">
                     <div className="text-center">
                       <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                        <QrCode className="h-24 w-24" style={{ color: "#0891b2" }} />
+                        <QrCode className="h-24 w-24 text-teal-600" />
                       </div>
                       <p className="text-sm font-medium">Get Help Now</p>
                     </div>
                     <div className="text-center">
                       <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                        <QrCode className="h-24 w-24" style={{ color: "#dc2626" }} />
+                        <QrCode className="h-24 w-24 text-red-600" />
                       </div>
                       <p className="text-sm font-medium">Find Narcan</p>
                     </div>
                   </div>
-                  <Button variant="outline" className="mt-6 bg-transparent">
+                  <Button variant="outline" className="mt-6">
                     <Download className="h-4 w-4 mr-2" />
                     Download Printable Materials
                   </Button>
@@ -2243,64 +1905,51 @@ I understand that information disclosed under this authorization may be subject 
       </main>
 
       {/* Footer */}
-      <footer className="border-t mt-12 py-8" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
+      <footer className="border-t mt-12 py-8 bg-card">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h4 className="font-semibold mb-3" style={{ color: "#0f172a" }}>
-                MASE Access
-              </h4>
-              <p className="text-sm" style={{ color: "#64748b" }}>
+              <h4 className="font-semibold mb-3">MASE Access</h4>
+              <p className="text-sm text-muted-foreground">
                 Community Outreach & Recovery Gateway. Part of the MASE EMR ecosystem.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-3" style={{ color: "#0f172a" }}>
-                Crisis Resources
-              </h4>
-              <ul className="space-y-2 text-sm" style={{ color: "#64748b" }}>
+              <h4 className="font-semibold mb-3">Crisis Resources</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>National Helpline: 1-800-662-4357</li>
                 <li>Crisis Text Line: Text HOME to 741741</li>
                 <li>Suicide Prevention: 988</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-3" style={{ color: "#0f172a" }}>
-                Quick Links
-              </h4>
-              <ul className="space-y-2 text-sm" style={{ color: "#64748b" }}>
+              <h4 className="font-semibold mb-3">Quick Links</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <a href="#" className="hover:underline">
+                  <Link href="#" className="hover:underline">
                     Find a Clinic
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="#" className="hover:underline">
+                  <Link href="#" className="hover:underline">
                     Treatment FAQ
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="#" className="hover:underline">
+                  <Link href="#" className="hover:underline">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-3" style={{ color: "#0f172a" }}>
-                Contact
-              </h4>
-              <ul className="space-y-2 text-sm" style={{ color: "#64748b" }}>
-                <li>24/7 Hotline: 1-800-RECOVERY</li>
-                <li>Email: access@mase-emr.com</li>
+              <h4 className="font-semibold mb-3">Contact</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>Phone: 1-800-RECOVERY</li>
+                <li>Email: access@mase.com</li>
+                <li>24/7 Crisis Line: 988</li>
               </ul>
             </div>
-          </div>
-          <div className="border-t mt-8 pt-8 text-center text-sm" style={{ color: "#94a3b8", borderColor: "#e2e8f0" }}>
-            <p>
-              © 2025 MASE Access. Protected by HIPAA and 42 CFR Part 2. This is an education-first, non-promotional
-              resource.
-            </p>
           </div>
         </div>
       </footer>

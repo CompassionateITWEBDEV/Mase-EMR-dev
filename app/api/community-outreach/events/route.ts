@@ -1,79 +1,45 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { createServiceClient } from "@/lib/supabase/service-role"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const searchParams = request.nextUrl.searchParams
     const eventType = searchParams.get("type")
     const featured = searchParams.get("featured")
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
 
-    const sql = neon(process.env.NEON_DATABASE_URL!)
-
-    let query = `
-      SELECT 
-        id,
-        event_title,
-        event_description,
-        event_type,
-        event_date,
-        start_time,
-        end_time,
-        location_name,
-        location_address,
-        location_city,
-        location_state,
-        location_zip,
-        location_type,
-        virtual_link,
-        latitude,
-        longitude,
-        requires_registration,
-        max_attendees,
-        current_attendees,
-        registration_deadline,
-        contact_email,
-        contact_phone,
-        target_audience,
-        services_provided,
-        accessibility_features,
-        cost,
-        event_image_url,
-        is_featured,
-        created_at
-      FROM community_events
-      WHERE status = 'published' AND is_public = true
-    `
-
-    const params: any[] = []
+    let query = supabase
+      .from("community_events")
+      .select("*")
+      .eq("status", "published")
+      .eq("is_public", true)
+      .order("event_date", { ascending: true })
 
     if (eventType) {
-      query += ` AND event_type = $${params.length + 1}`
-      params.push(eventType)
+      query = query.eq("event_type", eventType)
     }
 
     if (featured === "true") {
-      query += ` AND is_featured = true`
+      query = query.eq("is_featured", true)
     }
 
     if (startDate) {
-      query += ` AND event_date >= $${params.length + 1}`
-      params.push(startDate)
+      query = query.gte("event_date", startDate)
     }
 
     if (endDate) {
-      query += ` AND event_date <= $${params.length + 1}`
-      params.push(endDate)
+      query = query.lte("event_date", endDate)
     }
 
-    query += ` ORDER BY event_date ASC, start_time ASC`
+    const { data: events, error } = await query
 
-    const events = await sql(query, params)
+    if (error) throw error
 
-    return NextResponse.json({ events })
+    return NextResponse.json({ events: events || [] })
   } catch (error: any) {
-    console.error("[v0] Error fetching events:", error)
+    console.error("[Community Outreach] Error fetching events:", error)
 
     // Return mock data if database query fails
     const mockEvents = [
@@ -180,67 +146,45 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
-    const sql = neon(process.env.NEON_DATABASE_URL!)
 
-    const result = await sql`
-      INSERT INTO community_events (
-        event_title,
-        event_description,
-        event_type,
-        event_date,
-        start_time,
-        end_time,
-        location_name,
-        location_address,
-        location_city,
-        location_state,
-        location_zip,
-        location_type,
-        virtual_link,
-        requires_registration,
-        max_attendees,
-        contact_email,
-        contact_phone,
-        target_audience,
-        services_provided,
-        accessibility_features,
-        cost,
-        is_public,
-        is_featured,
-        status
-      ) VALUES (
-        ${body.event_title},
-        ${body.event_description},
-        ${body.event_type},
-        ${body.event_date},
-        ${body.start_time},
-        ${body.end_time},
-        ${body.location_name},
-        ${body.location_address},
-        ${body.location_city},
-        ${body.location_state},
-        ${body.location_zip},
-        ${body.location_type},
-        ${body.virtual_link},
-        ${body.requires_registration || false},
-        ${body.max_attendees},
-        ${body.contact_email},
-        ${body.contact_phone},
-        ${JSON.stringify(body.target_audience || [])},
-        ${JSON.stringify(body.services_provided || [])},
-        ${JSON.stringify(body.accessibility_features || [])},
-        ${body.cost || 0},
-        ${body.is_public !== false},
-        ${body.is_featured || false},
-        ${body.status || "published"}
-      )
-      RETURNING *
-    `
+    const { data, error } = await supabase
+      .from("community_events")
+      .insert({
+        event_title: body.event_title,
+        event_description: body.event_description,
+        event_type: body.event_type,
+        event_date: body.event_date,
+        start_time: body.start_time,
+        end_time: body.end_time,
+        location_name: body.location_name,
+        location_address: body.location_address,
+        location_city: body.location_city,
+        location_state: body.location_state,
+        location_zip: body.location_zip,
+        location_type: body.location_type,
+        virtual_link: body.virtual_link,
+        requires_registration: body.requires_registration || false,
+        max_attendees: body.max_attendees,
+        contact_email: body.contact_email,
+        contact_phone: body.contact_phone,
+        target_audience: body.target_audience || [],
+        services_provided: body.services_provided || [],
+        accessibility_features: body.accessibility_features || [],
+        cost: body.cost || 0,
+        is_public: body.is_public !== false,
+        is_featured: body.is_featured || false,
+        status: body.status || "published",
+      })
+      .select()
+      .single()
 
-    return NextResponse.json({ event: result[0] })
+    if (error) throw error
+
+    return NextResponse.json({ event: data })
   } catch (error: any) {
-    console.error("[v0] Error creating event:", error)
+    console.error("[Community Outreach] Error creating event:", error)
     return NextResponse.json({ error: "Failed to create event" }, { status: 500 })
   }
 }
