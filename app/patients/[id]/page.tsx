@@ -9,73 +9,141 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle, Calendar, FileText, Phone, CreditCard, Pill, Brain, Plus, Edit, X } from "lucide-react"
+import { headers } from "next/headers"
 
-// Mock patient data - in real app this would come from database
-const patientData = {
-  id: "PT-2024-001",
-  name: "Sarah Johnson",
-  age: 34,
-  dateOfBirth: "1989-03-15",
-  gender: "Female",
-  phone: "(555) 123-4567",
-  email: "sarah.johnson@email.com",
-  address: "123 Main St, Rochester, NY 14604",
-  emergencyContact: {
-    name: "John Johnson",
-    relationship: "Spouse",
-    phone: "(555) 123-4568",
-  },
-  insurance: {
-    primary: "Medicaid",
-    memberId: "MCD123456789",
-    groupNumber: "GRP001",
-    effectiveDate: "2024-01-01",
-    copay: "$0",
-  },
-  program: {
-    type: "Methadone",
-    startDate: "2023-06-15",
-    currentDose: "80mg",
-    frequency: "Daily",
-    provider: "Dr. Smith",
-    pharmacy: "MASE Pharmacy",
-  },
-  asam: {
-    currentLevel: "2.1",
-    assessmentDate: "2024-01-01",
-    nextAssessment: "2024-07-01",
-    criteria: {
-      dimension1: "Moderate",
-      dimension2: "Low",
-      dimension3: "Moderate",
-      dimension4: "Low",
-      dimension5: "Moderate",
-      dimension6: "Low",
-    },
-  },
-  riskLevel: "Low",
-  status: "Active",
-  alerts: ["Appointment Due"],
-  tags: ["Stable", "Compliant"],
-  customFields: [
-    { label: "Housing Status", value: "Stable Housing" },
-    { label: "Employment", value: "Part-time" },
-    { label: "Transportation", value: "Own Vehicle" },
-  ],
+type PatientRecord = {
+  id: string
+  first_name: string
+  last_name: string
+  date_of_birth: string
+  gender?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
+  insurance_provider?: string | null
+  insurance_id?: string | null
+  status?: string | null
+  risk_level?: string | null
+  program_type?: string | null
 }
 
-export default function PatientChartPage({ params }: { params: { id: string } }) {
+type PatientInsuranceRecord = {
+  id: string
+  policy_number: string
+  group_number?: string | null
+  effective_date?: string | null
+  termination_date?: string | null
+  copay_amount?: number | null
+  is_primary?: boolean | null
+  status?: string | null
+  coverage_level?: string | null
+  payer?: {
+    payer_name?: string | null
+    payer_id?: string | null
+  } | null
+}
+
+type PatientMedicationRecord = {
+  id: string
+  medication_name: string
+  dosage: string
+  frequency: string
+  route?: string | null
+  start_date: string
+  end_date?: string | null
+  status?: string | null
+}
+
+type PatientApiResponse = {
+  patient: PatientRecord | null
+  insurance: PatientInsuranceRecord[]
+  medications: PatientMedicationRecord[]
+  error?: string
+}
+
+const formatDate = (value?: string | null) => {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toLocaleDateString()
+}
+
+const formatCurrency = (value?: number | null) => {
+  if (value === null || value === undefined) return ""
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value)
+}
+
+const calculateAge = (dateOfBirth?: string | null) => {
+  if (!dateOfBirth) return null
+  const dob = new Date(dateOfBirth)
+  if (Number.isNaN(dob.getTime())) return null
+  const diffMs = Date.now() - dob.getTime()
+  const ageDate = new Date(diffMs)
+  return Math.abs(ageDate.getUTCFullYear() - 1970)
+}
+
+const fetchPatientData = async (id: string): Promise<PatientApiResponse> => {
+  const headerList = headers()
+  const protocol = headerList.get("x-forwarded-proto") ?? "http"
+  const host = headerList.get("host")
+  const baseUrl = host ? `${protocol}://${host}` : ""
+
+  try {
+    const response = await fetch(`${baseUrl}/api/patients/${id}`, { cache: "no-store" })
+    if (!response.ok) {
+      const message = response.status === 404 ? "Patient not found" : "Unable to load patient data"
+      return { patient: null, insurance: [], medications: [], error: message }
+    }
+    const data = (await response.json()) as PatientApiResponse
+    return {
+      patient: data.patient ?? null,
+      insurance: data.insurance ?? [],
+      medications: data.medications ?? [],
+      error: data.error,
+    }
+  } catch (error) {
+    console.error("Failed to fetch patient data:", error)
+    return { patient: null, insurance: [], medications: [], error: "Unable to load patient data" }
+  }
+}
+
+export default async function PatientChartPage({ params }: { params: { id: string } }) {
+  const { patient, insurance, medications, error } = await fetchPatientData(params.id)
+  const patientName = patient ? `${patient.first_name} ${patient.last_name}`.trim() : "Unknown Patient"
+  const patientAge = calculateAge(patient?.date_of_birth)
+  const primaryInsurance = insurance.find((entry) => entry.is_primary) ?? insurance[0]
+  const alerts: string[] = []
+  const tags: string[] = []
+  const customFields: Array<{ label: string; value: string }> = []
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
       <div className="pl-64">
         <DashboardHeader />
         <main className="p-6 space-y-6">
-          <div className="flex justify-between items-start">
+          {error || !patient ? (
+            <Card className="border-destructive/40">
+              <CardHeader>
+                <CardTitle>Patient Chart</CardTitle>
+                <CardDescription>
+                  {error ? "We could not load this patient record." : "No patient record found for this ID."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center gap-3 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <p className="text-sm">{error ?? "Try returning to the patient list and selecting another record."}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex justify-between items-start">
             <div className="flex items-start space-x-4">
               <Avatar className="h-16 w-16">
                 <AvatarFallback className="text-lg">
-                  {patientData.name
+                  {patientName
                     .split(" ")
                     .map((n) => n[0])
                     .join("")}
@@ -83,27 +151,23 @@ export default function PatientChartPage({ params }: { params: { id: string } })
               </Avatar>
               <div>
                 <h1 className="text-3xl font-bold text-foreground font-[family-name:var(--font-work-sans)]">
-                  {patientData.name}
+                  {patientName}
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline">{patientData.id}</Badge>
-                  <Badge
-                    variant={
-                      patientData.riskLevel === "High"
-                        ? "destructive"
-                        : patientData.riskLevel === "Medium"
-                          ? "secondary"
-                          : "outline"
-                    }
-                  >
-                    {patientData.riskLevel} Risk
-                  </Badge>
-                  <Badge variant={patientData.status === "Active" ? "default" : "secondary"}>
-                    {patientData.status}
-                  </Badge>
+                  <Badge variant="outline">{patient.id}</Badge>
+                  {patient.risk_level && (
+                    <Badge variant={patient.risk_level === "High" ? "destructive" : "outline"}>
+                      {patient.risk_level} Risk
+                    </Badge>
+                  )}
+                  {patient.status && (
+                    <Badge variant={patient.status === "Active" ? "default" : "secondary"}>{patient.status}</Badge>
+                  )}
                 </div>
                 <p className="text-muted-foreground mt-1">
-                  {patientData.age}y • {patientData.gender} • {patientData.program.type} Program
+                  {patientAge !== null ? `${patientAge}y` : "Age unavailable"} •{" "}
+                  {patient.gender || "Gender not specified"} •{" "}
+                  {patient.program_type ? `${patient.program_type} Program` : "Program not specified"}
                 </p>
               </div>
             </div>
@@ -121,17 +185,17 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                 New Note
               </Button>
             </div>
-          </div>
+              </div>
 
           {/* Alerts Section */}
-          {patientData.alerts.length > 0 && (
+          {alerts.length > 0 && (
             <Card className="border-destructive bg-destructive/5">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-destructive" />
                   <span className="font-medium text-destructive">Active Alerts</span>
                   <div className="flex gap-1 ml-2">
-                    {patientData.alerts.map((alert, index) => (
+                    {alerts.map((alert, index) => (
                       <Badge key={index} variant="destructive" className="text-xs">
                         {alert}
                       </Badge>
@@ -171,32 +235,32 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Full Name</Label>
-                        <Input value={patientData.name} readOnly />
+                        <Input value={patientName} readOnly />
                       </div>
                       <div className="space-y-2">
                         <Label>Date of Birth</Label>
-                        <Input value={patientData.dateOfBirth} readOnly />
+                        <Input value={formatDate(patient.date_of_birth)} readOnly />
                       </div>
                       <div className="space-y-2">
                         <Label>Gender</Label>
-                        <Input value={patientData.gender} readOnly />
+                        <Input value={patient.gender || ""} readOnly />
                       </div>
                       <div className="space-y-2">
                         <Label>Age</Label>
-                        <Input value={`${patientData.age} years`} readOnly />
+                        <Input value={patientAge !== null ? `${patientAge} years` : ""} readOnly />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Phone Number</Label>
-                      <Input value={patientData.phone} readOnly />
+                      <Input value={patient.phone || ""} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Email Address</Label>
-                      <Input value={patientData.email} readOnly />
+                      <Input value={patient.email || ""} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Address</Label>
-                      <Input value={patientData.address} readOnly />
+                      <Input value={patient.address || ""} readOnly />
                     </div>
                   </CardContent>
                 </Card>
@@ -208,15 +272,15 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label>Contact Name</Label>
-                      <Input value={patientData.emergencyContact.name} readOnly />
+                      <Input value={patient.emergency_contact_name || ""} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Relationship</Label>
-                      <Input value={patientData.emergencyContact.relationship} readOnly />
+                      <Input value="Not provided" readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Phone Number</Label>
-                      <Input value={patientData.emergencyContact.phone} readOnly />
+                      <Input value={patient.emergency_contact_phone || ""} readOnly />
                     </div>
                   </CardContent>
                 </Card>
@@ -233,19 +297,23 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {patientData.customFields.map((field, index) => (
-                      <div key={index} className="space-y-2">
-                        <Label>{field.label}</Label>
-                        <div className="flex gap-2">
-                          <Input value={field.value} readOnly className="flex-1" />
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                  {customFields.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {customFields.map((field, index) => (
+                        <div key={index} className="space-y-2">
+                          <Label>{field.label}</Label>
+                          <div className="flex gap-2">
+                            <Input value={field.value} readOnly className="flex-1" />
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No custom fields recorded.</p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -265,23 +333,26 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Primary Insurance</Label>
-                      <Input value={patientData.insurance.primary} readOnly />
+                      <Input
+                        value={primaryInsurance?.payer?.payer_name || patient.insurance_provider || ""}
+                        readOnly
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Member ID</Label>
-                      <Input value={patientData.insurance.memberId} readOnly />
+                      <Input value={primaryInsurance?.policy_number || patient.insurance_id || ""} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Group Number</Label>
-                      <Input value={patientData.insurance.groupNumber} readOnly />
+                      <Input value={primaryInsurance?.group_number || ""} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Effective Date</Label>
-                      <Input value={patientData.insurance.effectiveDate} readOnly />
+                      <Input value={formatDate(primaryInsurance?.effective_date)} readOnly />
                     </div>
                     <div className="space-y-2">
                       <Label>Copay</Label>
-                      <Input value={patientData.insurance.copay} readOnly />
+                      <Input value={formatCurrency(primaryInsurance?.copay_amount)} readOnly />
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4">
@@ -302,7 +373,7 @@ export default function PatientChartPage({ params }: { params: { id: string } })
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span>Current Medication Program</span>
+                    <span>Current Medications</span>
                     <Button variant="outline" size="sm">
                       <Edit className="mr-2 h-4 w-4" />
                       Adjust Dose
@@ -310,32 +381,32 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Program Type</Label>
-                      <Input value={patientData.program.type} readOnly />
+                  {medications.length > 0 ? (
+                    <div className="space-y-3">
+                      {medications.map((medication) => (
+                        <div
+                          key={medication.id}
+                          className="flex flex-col gap-2 rounded-lg border border-border p-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-medium">{medication.medication_name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {medication.dosage} • {medication.frequency} • {medication.route || "Route N/A"}
+                              </p>
+                            </div>
+                            {medication.status && <Badge variant="outline">{medication.status}</Badge>}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Started {formatDate(medication.start_date)}
+                            {medication.end_date ? ` • Ends ${formatDate(medication.end_date)}` : ""}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <Label>Start Date</Label>
-                      <Input value={patientData.program.startDate} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Current Dose</Label>
-                      <Input value={patientData.program.currentDose} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Frequency</Label>
-                      <Input value={patientData.program.frequency} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Prescribing Provider</Label>
-                      <Input value={patientData.program.provider} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Dispensing Pharmacy</Label>
-                      <Input value={patientData.program.pharmacy} readOnly />
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No active medications on record.</p>
+                  )}
                   <div className="flex gap-2 mt-4">
                     <Button variant="outline" size="sm">
                       <Pill className="mr-2 h-4 w-4" />
@@ -362,50 +433,7 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Current ASAM Level</Label>
-                      <Input value={patientData.asam.currentLevel} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Assessment Date</Label>
-                      <Input value={patientData.asam.assessmentDate} readOnly />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Next Assessment Due</Label>
-                      <Input value={patientData.asam.nextAssessment} readOnly />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 mt-6">
-                    <h4 className="font-medium">ASAM Dimensions</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 1: Acute Intoxication</span>
-                        <Badge variant="secondary">{patientData.asam.criteria.dimension1}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 2: Biomedical Conditions</span>
-                        <Badge variant="outline">{patientData.asam.criteria.dimension2}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 3: Emotional/Behavioral</span>
-                        <Badge variant="secondary">{patientData.asam.criteria.dimension3}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 4: Readiness to Change</span>
-                        <Badge variant="outline">{patientData.asam.criteria.dimension4}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 5: Relapse Potential</span>
-                        <Badge variant="secondary">{patientData.asam.criteria.dimension5}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 border border-border rounded-lg">
-                        <span className="text-sm">Dimension 6: Recovery Environment</span>
-                        <Badge variant="outline">{patientData.asam.criteria.dimension6}</Badge>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">No ASAM assessments have been recorded yet.</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -423,20 +451,24 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {patientData.alerts.map((alert, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg"
-                      >
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-destructive" />
-                          <span className="text-sm">{alert}</span>
+                    {alerts.length > 0 ? (
+                      alerts.map((alert, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border border-border rounded-lg"
+                        >
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-destructive" />
+                            <span className="text-sm">{alert}</span>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No active alerts on record.</p>
+                    )}
 
                     <div className="space-y-2 mt-4">
                       <Label>Add New Alert</Label>
@@ -469,22 +501,16 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {patientData.tags.map((tag, index) => (
-                        <Badge
-                          key={index}
-                          variant={
-                            tag.includes("Risk") || tag === "Crisis"
-                              ? "destructive"
-                              : tag === "Stable" || tag === "Compliant"
-                                ? "default"
-                                : "secondary"
-                          }
-                          className="flex items-center gap-1"
-                        >
-                          {tag}
-                          <X className="h-3 w-3 cursor-pointer" />
-                        </Badge>
-                      ))}
+                      {tags.length > 0 ? (
+                        tags.map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            {tag}
+                            <X className="h-3 w-3 cursor-pointer" />
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No tags assigned.</p>
+                      )}
                     </div>
 
                     <div className="space-y-2 mt-4">
@@ -552,56 +578,7 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                   <CardDescription>Required consent forms for OTP treatment program</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {[
-                    { name: "Informed Consent for MAT", status: "Completed", date: "2024-01-15", required: true },
-                    { name: "HIPAA Authorization", status: "Completed", date: "2024-01-15", required: true },
-                    { name: "Methadone Treatment Consent", status: "Completed", date: "2024-01-15", required: true },
-                    { name: "Urine Testing Consent", status: "Completed", date: "2024-01-15", required: true },
-                    { name: "Take-Home Medication Agreement", status: "Pending", date: null, required: true },
-                    { name: "Photography/Recording Consent", status: "Declined", date: "2024-01-15", required: false },
-                    { name: "Research Participation", status: "Not Started", date: null, required: false },
-                  ].map((consent, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            consent.status === "Completed"
-                              ? "bg-green-500"
-                              : consent.status === "Pending"
-                                ? "bg-yellow-500"
-                                : consent.status === "Declined"
-                                  ? "bg-red-500"
-                                  : "bg-gray-300"
-                          }`}
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{consent.name}</span>
-                            {consent.required && (
-                              <Badge variant="destructive" className="text-xs">
-                                Required
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Status: {consent.status} {consent.date && `• Signed: ${consent.date}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <FileText className="mr-2 h-4 w-4" />
-                          View
-                        </Button>
-                        {consent.status !== "Completed" && (
-                          <Button size="sm">
-                            <Edit className="mr-2 h-4 w-4" />
-                            {consent.status === "Not Started" ? "Start" : "Complete"}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  <p className="text-sm text-muted-foreground">No consent forms on record yet.</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -619,35 +596,7 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {[
-                      { name: "Driver License", type: "ID", date: "2024-01-15", size: "2.1 MB" },
-                      { name: "Court Order - Treatment", type: "Legal", date: "2024-01-10", size: "1.8 MB" },
-                      { name: "Previous Treatment Records", type: "Medical", date: "2024-01-08", size: "5.2 MB" },
-                      { name: "Insurance Card", type: "Insurance", date: "2024-01-15", size: "0.8 MB" },
-                    ].map((doc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{doc.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {doc.type} • {doc.date} • {doc.size}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            View
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Download
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                    <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
                   </CardContent>
                 </Card>
 
@@ -656,34 +605,7 @@ export default function PatientChartPage({ params }: { params: { id: string } })
                     <CardTitle>Dose History Documents</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {[
-                      { name: "Dose Adjustment Log - Q1 2024", date: "2024-03-31", size: "1.2 MB" },
-                      { name: "Take-Home Schedule", date: "2024-01-15", size: "0.5 MB" },
-                      { name: "Medication Administration Record", date: "2024-01-01", size: "3.1 MB" },
-                    ].map((doc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Pill className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{doc.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {doc.date} • {doc.size}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            View
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Download
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                    <p className="text-sm text-muted-foreground">No dose history documents uploaded yet.</p>
                   </CardContent>
                 </Card>
               </div>
@@ -750,6 +672,8 @@ export default function PatientChartPage({ params }: { params: { id: string } })
               </Card>
             </TabsContent>
           </Tabs>
+          </div>
+          )}
         </main>
       </div>
     </div>
