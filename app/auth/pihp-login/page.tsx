@@ -27,43 +27,40 @@ export default function PIHPLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
     try {
-      // Verify PIHP user credentials
-      const { data: pihpUser, error: pihpError } = await supabase
-        .from("pihp_users")
-        .select("*, pihp_organizations(*)")
-        .eq("email", formData.email)
-        .eq("is_active", true)
-        .single()
+      console.log("[v0] Attempting PIHP login for:", formData.email)
 
-      if (pihpError || !pihpUser) {
-        throw new Error("Invalid PIHP credentials or account is inactive")
-      }
-
-      // Simple password verification (in production, use proper hashing)
-      // This is a placeholder - implement proper authentication
-      if (formData.password !== "pihp-demo-password") {
-        throw new Error("Invalid password")
-      }
-
-      // Log the access
-      await supabase.from("pihp_audit_log").insert({
-        pihp_user_id: pihpUser.id,
-        action: "login",
-        resource_type: "system",
-        action_details: `Login from PIHP: ${pihpUser.pihp_organizations.pihp_name}`,
+      // Call the proper authentication API with bcrypt password verification
+      const response = await fetch("/api/auth/pihp/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
       })
 
-      // Store session info (implement proper session management)
-      sessionStorage.setItem("pihp_user", JSON.stringify(pihpUser))
+      const data = await response.json()
 
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Invalid credentials")
+      }
+
+      console.log("[v0] PIHP login successful for:", data.user.email)
+
+      // Store session info (in production, use secure session management)
+      sessionStorage.setItem("pihp_user", JSON.stringify(data.user))
+
+      // Redirect to PIHP dashboard
       router.push("/pihp-portal/dashboard")
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      console.error("[v0] PIHP login failed:", error)
+      setError(error instanceof Error ? error.message : "An error occurred during login")
     } finally {
       setIsLoading(false)
     }
