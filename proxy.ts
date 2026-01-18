@@ -1,11 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
-  // return await updateSession(request)
-
-  // Allow all requests to pass through without authentication
-  return NextResponse.next();
+  return await updateSession(request);
 }
 
 export const config = {
