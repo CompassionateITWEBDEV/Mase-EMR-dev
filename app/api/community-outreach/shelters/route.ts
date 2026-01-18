@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+export const dynamic = 'force-dynamic'
+
 const MOCK_SHELTERS = [
   {
     id: "1",
