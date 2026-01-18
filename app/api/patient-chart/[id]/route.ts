@@ -37,10 +37,11 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
           .order("measurement_date", { ascending: false })
           .limit(30),
         supabase
-          .from("medications")
-          .select("*")
+          .from("patient_medications")
+          .select("id, medication_name, dosage, frequency, start_date, status")
           .eq("patient_id", patientId)
-          .order("created_at", { ascending: false }),
+          .eq("status", "active")
+          .order("start_date", { ascending: false }),
         supabase
           .from("assessments")
           .select("*")
