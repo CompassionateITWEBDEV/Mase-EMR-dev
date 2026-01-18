@@ -112,7 +112,7 @@ export default function DischargeSummaryDetailPage({ params }: { params: { id: s
     return (
       <div className="min-h-screen bg-background">
         <DashboardSidebar />
-        <div className="pl-64">
+        <div className="lg:pl-64">
           <DashboardHeader />
           <main className="p-6">
             <div className="text-center py-12">Loading discharge summary...</div>
@@ -126,7 +126,7 @@ export default function DischargeSummaryDetailPage({ params }: { params: { id: s
     return (
       <div className="min-h-screen bg-background">
         <DashboardSidebar />
-        <div className="pl-64">
+        <div className="lg:pl-64">
           <DashboardHeader />
           <main className="p-6">
             <div className="text-center py-12">
@@ -146,7 +146,7 @@ export default function DischargeSummaryDetailPage({ params }: { params: { id: s
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <DashboardHeader />
         <main className="p-6 space-y-6">
           {/* Header with Actions */}

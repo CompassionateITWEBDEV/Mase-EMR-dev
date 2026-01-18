@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -103,6 +103,11 @@ export default function PrescriptionsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showInteractionWarning, setShowInteractionWarning] = useState(false)
+  const [pendingInteractions, setPendingInteractions] = useState<any[]>([])
+  const [realtimeInteractions, setRealtimeInteractions] = useState<any[]>([])
+  const [isCheckingInteractions, setIsCheckingInteractions] = useState(false)
+  const interactionCheckTimeout = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
 
   const { data, error, isLoading, mutate } = useSWR<{
@@ -111,31 +116,16 @@ export default function PrescriptionsPage() {
     providers: Provider[]
   }>("/api/prescriptions", fetcher, { refreshInterval: 30000 })
 
+  // Fetch pharmacies from API
+  const { data: pharmacyData, mutate: mutatePharmacies } = useSWR<{ pharmacies: Pharmacy[] }>(
+    "/api/pharmacies?is_active=true",
+    fetcher
+  )
+
   const prescriptions = data?.prescriptions || []
   const patients = data?.patients || []
   const providers = data?.providers || []
-
-  // Local pharmacy state
-  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([
-    {
-      id: "pharm-001",
-      name: "CVS Pharmacy",
-      address: "123 Main St, Rochester, NY 14604",
-      phone: "(555) 123-4567",
-      npi: "1234567890",
-      fax: "(555) 123-4568",
-      email: "pharmacy@cvs.com",
-      is_preferred: true,
-    },
-    {
-      id: "pharm-002",
-      name: "Walgreens",
-      address: "456 Oak Ave, Rochester, NY 14605",
-      phone: "(555) 987-6543",
-      npi: "0987654321",
-      is_preferred: true,
-    },
-  ])
+  const pharmacies = pharmacyData?.pharmacies || []
 
   const [newPrescription, setNewPrescription] = useState({
     patient_id: "",
@@ -162,7 +152,51 @@ export default function PrescriptionsPage() {
     is_preferred: false,
   })
 
-  const handleCreatePrescription = useCallback(async () => {
+  // Real-time drug interaction checking with debounce
+  useEffect(() => {
+    // Clear any existing timeout
+    if (interactionCheckTimeout.current) {
+      clearTimeout(interactionCheckTimeout.current)
+    }
+
+    // Only check if we have both patient and medication
+    if (!newPrescription.patient_id || !newPrescription.medication_name || newPrescription.medication_name.length < 3) {
+      setRealtimeInteractions([])
+      return
+    }
+
+    // Debounce the check by 500ms
+    interactionCheckTimeout.current = setTimeout(async () => {
+      setIsCheckingInteractions(true)
+      try {
+        const response = await fetch("/api/drug-interactions/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            medication_name: newPrescription.medication_name,
+            patient_id: newPrescription.patient_id,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setRealtimeInteractions(data.interactions || [])
+        }
+      } catch (error) {
+        console.error("Error checking interactions:", error)
+      } finally {
+        setIsCheckingInteractions(false)
+      }
+    }, 500)
+
+    return () => {
+      if (interactionCheckTimeout.current) {
+        clearTimeout(interactionCheckTimeout.current)
+      }
+    }
+  }, [newPrescription.patient_id, newPrescription.medication_name])
+
+  const handleCreatePrescription = useCallback(async (forceCreate = false) => {
     if (!newPrescription.patient_id || !newPrescription.medication_name) {
       toast({
         title: "Validation Error",
@@ -186,12 +220,17 @@ export default function PrescriptionsPage() {
           pharmacy_address: selectedPharmacy?.address,
           pharmacy_phone: selectedPharmacy?.phone,
           pharmacy_npi: selectedPharmacy?.npi,
+          force_create: forceCreate,
         }),
       })
+
+      const data = await response.json()
 
       if (response.ok) {
         mutate()
         setShowNewDialog(false)
+        setShowInteractionWarning(false)
+        setPendingInteractions([])
         setNewPrescription({
           patient_id: "",
           prescribed_by: "",
@@ -204,12 +243,24 @@ export default function PrescriptionsPage() {
           pharmacy_id: "",
           notes: "",
         })
-        toast({
-          title: "Success",
-          description: "Prescription created successfully",
-        })
+        
+        // Show warning if there were minor interactions
+        if (data.interaction_warnings && data.interaction_warnings.length > 0) {
+          toast({
+            title: "Prescription Created with Warnings",
+            description: `${data.interaction_warnings.length} drug interaction(s) noted. Review patient medications.`,
+          })
+        } else {
+          toast({
+            title: "Success",
+            description: "Prescription created successfully",
+          })
+        }
+      } else if (response.status === 409 && data.requiresConfirmation) {
+        // Drug interaction detected - show warning dialog
+        setPendingInteractions(data.interactions || [])
+        setShowInteractionWarning(true)
       } else {
-        const data = await response.json()
         toast({
           title: "Error",
           description: data.error || "Failed to create prescription",
@@ -227,6 +278,10 @@ export default function PrescriptionsPage() {
       setIsSubmitting(false)
     }
   }, [newPrescription, pharmacies, providers, mutate, toast])
+
+  const handleConfirmPrescriptionWithInteractions = useCallback(() => {
+    handleCreatePrescription(true) // Force create
+  }, [handleCreatePrescription])
 
   const handleUpdatePrescription = useCallback(async () => {
     if (!selectedPrescription) return
@@ -418,26 +473,58 @@ export default function PrescriptionsPage() {
       return
     }
 
-    const pharmacy: Pharmacy = {
-      id: `pharm-${Date.now()}`,
-      ...newPharmacy,
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/pharmacies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newPharmacy.name,
+          address: newPharmacy.address,
+          phone: newPharmacy.phone,
+          npi: newPharmacy.npi,
+          fax: newPharmacy.fax,
+          email: newPharmacy.email,
+          is_active: true,
+          accepts_e_prescribing: true,
+        }),
+      })
+
+      if (response.ok) {
+        mutatePharmacies() // Refresh pharmacy list
+        setShowPharmacyDialog(false)
+        setNewPharmacy({
+          name: "",
+          address: "",
+          phone: "",
+          npi: "",
+          fax: "",
+          email: "",
+          is_preferred: false,
+        })
+        toast({
+          title: "Success",
+          description: "Pharmacy added successfully",
+        })
+      } else {
+        const data = await response.json()
+        toast({
+          title: "Error",
+          description: data.error || "Failed to add pharmacy",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to add pharmacy:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add pharmacy",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-    setPharmacies((prev) => [...prev, pharmacy])
-    setShowPharmacyDialog(false)
-    setNewPharmacy({
-      name: "",
-      address: "",
-      phone: "",
-      npi: "",
-      fax: "",
-      email: "",
-      is_preferred: false,
-    })
-    toast({
-      title: "Success",
-      description: "Pharmacy added successfully",
-    })
-  }, [newPharmacy, toast])
+  }, [newPharmacy, toast, mutatePharmacies])
 
   const openViewDialog = (rx: Prescription) => {
     setSelectedPrescription(rx)
@@ -702,6 +789,42 @@ export default function PrescriptionsPage() {
                       </div>
                     </div>
 
+                    {/* Real-time Drug Interaction Warning */}
+                    {isCheckingInteractions && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted rounded-md">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Checking for drug interactions...
+                      </div>
+                    )}
+                    {!isCheckingInteractions && realtimeInteractions.length > 0 && (
+                      <div className="space-y-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                        <div className="flex items-center gap-2 text-amber-800 font-medium">
+                          <AlertTriangle className="h-4 w-4" />
+                          Potential Drug Interactions Detected
+                        </div>
+                        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                          {realtimeInteractions.map((interaction, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`text-sm p-2 rounded ${
+                                interaction.severity === "contraindicated" || interaction.severity === "major"
+                                  ? "bg-red-100 text-red-800"
+                                  : interaction.severity === "moderate"
+                                    ? "bg-orange-100 text-orange-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              <span className="font-medium capitalize">{interaction.severity}:</span>{" "}
+                              {interaction.drug1} + {interaction.drug2} — {interaction.description}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-amber-700">
+                          Review these interactions before prescribing. You can still proceed if clinically appropriate.
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <Label htmlFor="dosage">Dosage & Form</Label>
                       <Input
@@ -796,7 +919,7 @@ export default function PrescriptionsPage() {
                     <Button variant="outline" onClick={() => setShowNewDialog(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreatePrescription} disabled={isSubmitting}>
+                    <Button onClick={() => handleCreatePrescription()} disabled={isSubmitting}>
                       {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Create Prescription
                     </Button>
@@ -1144,6 +1267,73 @@ export default function PrescriptionsPage() {
                 <Button variant="destructive" onClick={handleDeletePrescription} disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Drug Interaction Warning Dialog */}
+          <Dialog open={showInteractionWarning} onOpenChange={setShowInteractionWarning}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Drug Interaction Warning
+                </DialogTitle>
+                <DialogDescription>
+                  Critical drug interactions have been detected. Please review before proceeding.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+                {pendingInteractions.map((interaction, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border ${
+                      interaction.severity === "contraindicated"
+                        ? "bg-red-50 border-red-200"
+                        : interaction.severity === "major"
+                          ? "bg-orange-50 border-orange-200"
+                          : "bg-yellow-50 border-yellow-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge
+                        variant={
+                          interaction.severity === "contraindicated" ? "destructive" : "secondary"
+                        }
+                      >
+                        {interaction.severity}
+                      </Badge>
+                      <span className="font-medium text-sm">
+                        {interaction.drug1} + {interaction.drug2}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{interaction.description}</p>
+                    {interaction.action && (
+                      <p className="text-sm font-medium mt-1">
+                        Recommendation: {interaction.action}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowInteractionWarning(false)
+                    setPendingInteractions([])
+                  }}
+                >
+                  Cancel Prescription
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmPrescriptionWithInteractions}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Acknowledge & Create Anyway
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -44,7 +44,9 @@ export default async function AppointmentsPage({
   const selectedDate = typeof params.date === "string" ? params.date : new Date().toISOString().split("T")[0]
 
   // Fetch appointments for the selected date and upcoming
-  const { data: todayAppointments } = await supabase
+  const dayStart = `${selectedDate}T00:00:00`
+  const dayEnd = `${selectedDate}T23:59:59`
+  const { data: todayAppointmentsRaw } = await supabase
     .from("appointments")
     .select(`
       *,
@@ -62,16 +64,24 @@ export default async function AppointmentsPage({
         specialization
       )
     `)
-    .gte("appointment_date", selectedDate)
-    .lt(
-      "appointment_date",
-      new Date(new Date(selectedDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    )
-    .order("appointment_time", { ascending: true })
+    .gte("appointment_date", dayStart)
+    .lte("appointment_date", dayEnd)
+    .order("appointment_date", { ascending: true })
+
+  // Transform appointments to include separate date and time fields
+  const todayAppointments = (todayAppointmentsRaw || []).map((apt: any) => {
+    const dateTime = new Date(apt.appointment_date)
+    return {
+      ...apt,
+      appointment_date: dateTime.toISOString().split("T")[0],
+      appointment_time: dateTime.toTimeString().slice(0, 5), // HH:MM format
+      mode: apt.mode || "in_person", // Add default mode if missing
+    }
+  })
 
   // Fetch upcoming appointments (next 7 days)
   const nextWeek = new Date(new Date(selectedDate).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  const { data: upcomingAppointments } = await supabase
+  const { data: upcomingAppointmentsRaw } = await supabase
     .from("appointments")
     .select(`
       *,
@@ -89,14 +99,24 @@ export default async function AppointmentsPage({
         specialization
       )
     `)
-    .gt("appointment_date", selectedDate)
-    .lte("appointment_date", nextWeek)
+    .gt("appointment_date", dayEnd)
+    .lte("appointment_date", `${nextWeek}T23:59:59`)
     .order("appointment_date", { ascending: true })
-    .order("appointment_time", { ascending: true })
+
+  // Transform appointments to include separate date and time fields
+  const upcomingAppointments = (upcomingAppointmentsRaw || []).map((apt: any) => {
+    const dateTime = new Date(apt.appointment_date)
+    return {
+      ...apt,
+      appointment_date: dateTime.toISOString().split("T")[0],
+      appointment_time: dateTime.toTimeString().slice(0, 5), // HH:MM format
+      mode: apt.mode || "in_person", // Add default mode if missing
+    }
+  })
 
   // Fetch past appointments (last 30 days)
   const lastMonth = new Date(new Date(selectedDate).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-  const { data: pastAppointments } = await supabase
+  const { data: pastAppointmentsRaw } = await supabase
     .from("appointments")
     .select(`
       *,
@@ -114,19 +134,29 @@ export default async function AppointmentsPage({
         specialization
       )
     `)
-    .lt("appointment_date", selectedDate)
-    .gte("appointment_date", lastMonth)
+    .lt("appointment_date", dayStart)
+    .gte("appointment_date", `${lastMonth}T00:00:00`)
     .order("appointment_date", { ascending: false })
-    .order("appointment_time", { ascending: false })
+
+  // Transform appointments to include separate date and time fields
+  const pastAppointments = (pastAppointmentsRaw || []).map((apt: any) => {
+    const dateTime = new Date(apt.appointment_date)
+    return {
+      ...apt,
+      appointment_date: dateTime.toISOString().split("T")[0],
+      appointment_time: dateTime.toTimeString().slice(0, 5), // HH:MM format
+      mode: apt.mode || "in_person", // Add default mode if missing
+    }
+  })
 
   // Get patients and providers for appointment creation
   const { data: patients } = await supabase
     .from("patients")
-    .select("id, first_name, last_name, phone, email")
+    .select("id, first_name, last_name, date_of_birth, phone, email, created_at")
     .order("first_name")
   const { data: providers } = await supabase
     .from("providers")
-    .select("id, first_name, last_name, specialization")
+    .select("id, first_name, last_name, email, specialization")
     .order("first_name")
 
   // Calculate appointment statistics
@@ -142,7 +172,7 @@ export default async function AppointmentsPage({
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <DashboardHeader />
         <main className="p-6 space-y-6">
           <div className="flex justify-between items-center">

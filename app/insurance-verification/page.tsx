@@ -98,7 +98,7 @@ export default function InsuranceVerificationPage() {
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <div className="border-b bg-card">
           <div className="flex items-center justify-between p-6">
             <div>

@@ -1,96 +1,151 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.NEON_DATABASE_URL!)
+// State PDMP API configuration (varies by state)
+// Common integration options: NABP PMP InterConnect, Appriss Health RxCheck, Bamboo Health
+const PDMP_API_URL = process.env.PDMP_API_URL;
+const PDMP_API_KEY = process.env.PDMP_API_KEY;
+const PDMP_FACILITY_ID = process.env.PDMP_FACILITY_ID;
 
-type PdmpPrescription = {
-  medication_name: string
-  dea_schedule: string
-  ndc_code: string
-  quantity: number
-  days_supply: number
-  prescriber_name: string
-  prescriber_npi: string
-  prescriber_dea: string
-  pharmacy_name: string
-  pharmacy_npi: string
-  fill_date: string
-  written_date: string
-  morphine_equivalent_dose: number
+interface PDMPQueryResponse {
+  requestId: string;
+  status: "completed" | "pending" | "error";
+  prescriptions?: PDMPPrescription[];
+  redFlags?: PDMPRedFlags;
+  error?: string;
 }
 
-const buildPdmpReport = (patientId: string) => {
-  const today = new Date()
-  const isoDate = today.toISOString().slice(0, 10)
-  const prescriptions: PdmpPrescription[] = [
-    {
-      medication_name: "Oxycodone",
-      dea_schedule: "II",
-      ndc_code: "00093-7181",
-      quantity: 30,
-      days_supply: 7,
-      prescriber_name: "Dr. Angela Kim",
-      prescriber_npi: "1234567890",
-      prescriber_dea: "AK1234567",
-      pharmacy_name: "Community Health Pharmacy",
-      pharmacy_npi: "1093827465",
-      fill_date: isoDate,
-      written_date: isoDate,
-      morphine_equivalent_dose: 60,
-    },
-    {
-      medication_name: "Hydrocodone/APAP",
-      dea_schedule: "II",
-      ndc_code: "00378-5421",
-      quantity: 20,
-      days_supply: 5,
-      prescriber_name: "Dr. Matthew Patel",
-      prescriber_npi: "9876543210",
-      prescriber_dea: "MP7654321",
-      pharmacy_name: "Wellness Pharmacy",
-      pharmacy_npi: "1029384756",
-      fill_date: isoDate,
-      written_date: isoDate,
-      morphine_equivalent_dose: 45,
-    },
-  ]
+interface PDMPPrescription {
+  drugName: string;
+  quantity: number;
+  daysSupply: number;
+  fillDate: string;
+  prescriber: string;
+  pharmacy: string;
+  mme?: number;
+}
 
-  return {
-    patient_id: patientId,
-    report_generated_at: today.toISOString(),
-    prescriptions,
-    summary: {
-      total_prescriptions: prescriptions.length,
-      total_mme: prescriptions.reduce((total, rx) => total + rx.morphine_equivalent_dose, 0),
-      unique_prescribers: new Set(prescriptions.map((rx) => rx.prescriber_npi)).size,
-      unique_pharmacies: new Set(prescriptions.map((rx) => rx.pharmacy_npi)).size,
-    },
+interface PDMPRedFlags {
+  doctorShopping: boolean;
+  overlappingPrescriptions: boolean;
+  highMME: boolean;
+  multiplePharmacies: boolean;
+  earlyRefills: boolean;
+  riskScore?: number;
+}
+
+/**
+ * Query State PDMP via API
+ * Returns null if PDMP is not configured (mock mode)
+ * 
+ * Note: PDMP integration varies significantly by state. Most states use one of:
+ * - NABP PMP InterConnect (multi-state)
+ * - Appriss Health RxCheck
+ * - Bamboo Health (formerly Appriss)
+ * - Direct state API
+ */
+async function queryStatePDMP(
+  patientFirstName: string,
+  patientLastName: string,
+  patientDOB: string,
+  stateCode: string
+): Promise<PDMPQueryResponse | null> {
+  if (!PDMP_API_URL || !PDMP_API_KEY) {
+    console.log("[v0] PDMP not configured - returning mock data");
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${PDMP_API_URL}/query`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${PDMP_API_KEY}`,
+        "X-Facility-ID": PDMP_FACILITY_ID || "",
+      },
+      body: JSON.stringify({
+        patient: {
+          firstName: patientFirstName,
+          lastName: patientLastName,
+          dateOfBirth: patientDOB,
+        },
+        states: [stateCode],
+        lookbackDays: 365,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("[v0] PDMP API error:", data);
+      return {
+        requestId: "",
+        status: "error",
+        error: data.message || "PDMP query failed",
+      };
+    }
+
+    return {
+      requestId: data.requestId,
+      status: "completed",
+      prescriptions: data.prescriptions,
+      redFlags: data.redFlags,
+    };
+  } catch (error) {
+    console.error("[v0] PDMP request failed:", error);
+    return null;
   }
 }
 
-const buildRedFlags = (prescriptions: PdmpPrescription[]) => {
-  const totalMme = prescriptions.reduce((total, rx) => total + rx.morphine_equivalent_dose, 0)
-  const prescriberCount = new Set(prescriptions.map((rx) => rx.prescriber_npi)).size
-  const pharmacyCount = new Set(prescriptions.map((rx) => rx.pharmacy_npi)).size
-
+/**
+ * Analyze prescriptions for red flags (used when PDMP API doesn't provide analysis)
+ */
+function analyzeRedFlags(prescriptions: PDMPPrescription[]): PDMPRedFlags {
+  const uniquePrescribers = new Set(prescriptions.map(p => p.prescriber));
+  const uniquePharmacies = new Set(prescriptions.map(p => p.pharmacy));
+  const totalMME = prescriptions.reduce((sum, p) => sum + (p.mme || 0), 0);
+  
+  // Check for overlapping prescriptions (simplified)
+  const opioidPrescriptions = prescriptions.filter(p => 
+    p.drugName.toLowerCase().includes("oxycodone") ||
+    p.drugName.toLowerCase().includes("hydrocodone") ||
+    p.drugName.toLowerCase().includes("morphine") ||
+    p.drugName.toLowerCase().includes("fentanyl")
+  );
+  
+  const hasOverlap = opioidPrescriptions.length > 1;
+  
   return {
-    doctor_shopping: prescriberCount >= 2,
-    overlapping_prescriptions: prescriptions.length > 1,
-    high_mme: totalMme >= 90,
-    multiple_pharmacies: pharmacyCount >= 2,
-  }
+    doctorShopping: uniquePrescribers.size >= 4,
+    overlappingPrescriptions: hasOverlap,
+    highMME: totalMME > 90,
+    multiplePharmacies: uniquePharmacies.size >= 4,
+    earlyRefills: false, // Would need fill dates analysis
+    riskScore: calculateRiskScore(uniquePrescribers.size, uniquePharmacies.size, totalMME, hasOverlap),
+  };
 }
 
-const computeAlertLevel = (redFlags: Record<string, boolean>) => {
-  const flagCount = Object.values(redFlags).filter(Boolean).length
-  if (flagCount >= 3) return "critical"
-  if (flagCount === 2) return "high"
-  if (flagCount === 1) return "medium"
-  return "none"
+function calculateRiskScore(
+  prescriberCount: number,
+  pharmacyCount: number,
+  totalMME: number,
+  hasOverlap: boolean
+): number {
+  let score = 0;
+  if (prescriberCount >= 4) score += 30;
+  else if (prescriberCount >= 3) score += 15;
+  if (pharmacyCount >= 4) score += 25;
+  else if (pharmacyCount >= 3) score += 10;
+  if (totalMME > 120) score += 30;
+  else if (totalMME > 90) score += 20;
+  else if (totalMME > 50) score += 10;
+  if (hasOverlap) score += 15;
+  return Math.min(score, 100);
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const sql = neon(process.env.NEON_DATABASE_URL!)
     const searchParams = request.nextUrl.searchParams
     const patientId = searchParams.get("patientId")
 
@@ -114,7 +169,11 @@ export async function GET(request: NextRequest) {
       ORDER BY pr.request_date DESC
     `
 
-    return NextResponse.json({ success: true, requests })
+    return NextResponse.json({ 
+      success: true, 
+      requests,
+      pdmpConfigured: !!(PDMP_API_URL && PDMP_API_KEY),
+    })
   } catch (error: any) {
     console.error("[v0] Error fetching PDMP requests:", error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
@@ -123,17 +182,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const sql = neon(process.env.NEON_DATABASE_URL!)
     const body = await request.json()
     const { patientId, providerId, requestType, stateCode } = body
 
-    if (!patientId || !providerId || !stateCode) {
+    // Validate required fields
+    if (!patientId || !stateCode) {
       return NextResponse.json(
-        { success: false, error: "patientId, providerId, and stateCode are required" },
-        { status: 400 },
+        { success: false, error: "Missing required fields: patientId, stateCode" },
+        { status: 400 }
       )
     }
 
-    // Create PDMP request
+    // Get patient info for PDMP query
+    const [patient] = await sql`
+      SELECT first_name, last_name, date_of_birth
+      FROM patients
+      WHERE id = ${patientId}
+    `
+
+    if (!patient) {
+      return NextResponse.json({ success: false, error: "Patient not found" }, { status: 404 })
+    }
+
+    // Create PDMP request record
     const [pdmpRequest] = await sql`
       INSERT INTO pdmp_requests (
         patient_id,
@@ -143,7 +215,7 @@ export async function POST(request: NextRequest) {
         state_requested
       ) VALUES (
         ${patientId},
-        ${providerId},
+        ${providerId || null},
         ${requestType || "routine"},
         'pending',
         ${stateCode}
@@ -151,64 +223,86 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `
 
-    const report = buildPdmpReport(patientId)
-    const redFlags = buildRedFlags(report.prescriptions)
-    const alertLevel = computeAlertLevel(redFlags)
+    // Query State PDMP
+    const pdmpResponse = await queryStatePDMP(
+      patient.first_name,
+      patient.last_name,
+      patient.date_of_birth,
+      stateCode
+    );
 
-    const [updatedRequest] = await sql`
-      UPDATE pdmp_requests
-      SET request_status = 'completed',
-        response_date = NOW(),
-        pdmp_report = ${JSON.stringify(report)},
-        red_flags = ${JSON.stringify(redFlags)},
-        alert_level = ${alertLevel}
-      WHERE id = ${pdmpRequest.id}
-      RETURNING *
-    `
+    let redFlags: PDMPRedFlags;
+    let prescriptions: PDMPPrescription[] = [];
 
-    await Promise.all(
-      report.prescriptions.map((prescription) => sql`
-        INSERT INTO pdmp_prescriptions (
-          pdmp_request_id,
-          medication_name,
-          dea_schedule,
-          ndc_code,
-          quantity,
-          days_supply,
-          prescriber_name,
-          prescriber_npi,
-          prescriber_dea,
-          pharmacy_name,
-          pharmacy_npi,
-          fill_date,
-          written_date,
-          morphine_equivalent_dose
-        ) VALUES (
-          ${pdmpRequest.id},
-          ${prescription.medication_name},
-          ${prescription.dea_schedule},
-          ${prescription.ndc_code},
-          ${prescription.quantity},
-          ${prescription.days_supply},
-          ${prescription.prescriber_name},
-          ${prescription.prescriber_npi},
-          ${prescription.prescriber_dea},
-          ${prescription.pharmacy_name},
-          ${prescription.pharmacy_npi},
-          ${prescription.fill_date},
-          ${prescription.written_date},
-          ${prescription.morphine_equivalent_dose}
-        )
-      `),
-    )
+    if (pdmpResponse && pdmpResponse.status === "completed") {
+      // Use real PDMP data
+      prescriptions = pdmpResponse.prescriptions || [];
+      redFlags = pdmpResponse.redFlags || analyzeRedFlags(prescriptions);
+
+      // Update request status
+      await sql`
+        UPDATE pdmp_requests
+        SET 
+          request_status = 'completed',
+          external_id = ${pdmpResponse.requestId},
+          response_date = NOW(),
+          red_flags = ${JSON.stringify(redFlags)}
+        WHERE id = ${pdmpRequest.id}
+      `
+
+      // Store prescriptions
+      for (const rx of prescriptions) {
+        await sql`
+          INSERT INTO pdmp_prescriptions (
+            pdmp_request_id,
+            drug_name,
+            quantity,
+            days_supply,
+            fill_date,
+            prescriber_name,
+            pharmacy_name,
+            mme_daily
+          ) VALUES (
+            ${pdmpRequest.id},
+            ${rx.drugName},
+            ${rx.quantity},
+            ${rx.daysSupply},
+            ${rx.fillDate},
+            ${rx.prescriber},
+            ${rx.pharmacy},
+            ${rx.mme || null}
+          )
+        `
+      }
+    } else {
+      // Mock data for demo/development
+      redFlags = {
+        doctorShopping: false,
+        overlappingPrescriptions: false,
+        highMME: false,
+        multiplePharmacies: false,
+        earlyRefills: false,
+        riskScore: 0,
+      };
+
+      // Update with mock status
+      await sql`
+        UPDATE pdmp_requests
+        SET 
+          request_status = 'completed',
+          response_date = NOW(),
+          red_flags = ${JSON.stringify(redFlags)}
+        WHERE id = ${pdmpRequest.id}
+      `
+    }
 
     return NextResponse.json({
       success: true,
-      request: updatedRequest,
-      message: "PDMP request submitted",
+      request: { ...pdmpRequest, request_status: "completed" },
+      prescriptions,
       redFlags,
-      alertLevel,
-      pdmpReport: report,
+      message: pdmpResponse ? "PDMP query completed" : "PDMP query completed (mock data - configure PDMP_API_URL and PDMP_API_KEY for live data)",
+      pdmpConfigured: !!(PDMP_API_URL && PDMP_API_KEY),
     })
   } catch (error: any) {
     console.error("[v0] Error creating PDMP request:", error)

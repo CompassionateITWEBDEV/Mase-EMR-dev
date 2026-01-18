@@ -26,7 +26,6 @@ export default function CaseManagementPage() {
   const [resourceDialogOpen, setResourceDialogOpen] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [referralDialogOpen, setReferralDialogOpen] = useState(false)
-  const [progressDialogOpen, setProgressDialogOpen] = useState(false)
 
   const [resourceForm, setResourceForm] = useState({
     service: "",
@@ -45,13 +44,6 @@ export default function CaseManagementPage() {
     provider: "",
     reason: "",
     priority: "normal",
-  })
-
-  const [progressForm, setProgressForm] = useState({
-    noteDate: "",
-    progressSummary: "",
-    servicesCoordinationUpdate: "",
-    nextSteps: "",
   })
 
   return (
@@ -75,10 +67,6 @@ export default function CaseManagementPage() {
                 <Button onClick={() => setReferralDialogOpen(true)} variant="outline">
                   <Send className="w-4 h-4 mr-2" />
                   Create Referral
-                </Button>
-                <Button onClick={() => setProgressDialogOpen(true)} variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Progress Note
                 </Button>
               </div>
             </div>
@@ -120,7 +108,6 @@ export default function CaseManagementPage() {
                 <TabsTrigger value="referrals">Community Referrals</TabsTrigger>
                 <TabsTrigger value="notes">Case Notes</TabsTrigger>
                 <TabsTrigger value="services">Active Services</TabsTrigger>
-                <TabsTrigger value="progress">Progress Notes</TabsTrigger>
               </TabsList>
 
               {/* Resource Requests Tab */}
@@ -317,41 +304,6 @@ export default function CaseManagementPage() {
                   </Card>
                 </div>
               </TabsContent>
-
-              {/* Progress Notes Tab */}
-              <TabsContent value="progress" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Case Management Progress Notes</CardTitle>
-                    <CardDescription>Document ongoing case management progress and interventions</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Note Date</Label>
-                      <Input type="datetime-local" />
-                    </div>
-                    <div>
-                      <Label>Progress Summary</Label>
-                      <Textarea
-                        rows={6}
-                        placeholder="Document patient progress toward case management goals, services utilized, barriers addressed..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Services Coordination Update</Label>
-                      <Textarea
-                        rows={4}
-                        placeholder="Document coordination with community providers, referral status, resource connections..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Next Steps</Label>
-                      <Textarea rows={3} placeholder="Plan for upcoming case management activities..." />
-                    </div>
-                    <Button className="w-full bg-cyan-600">Save Progress Note</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
         </main>
@@ -455,58 +407,6 @@ export default function CaseManagementPage() {
               Cancel
             </Button>
             <Button className="bg-cyan-600">Save Note</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Progress Note Dialog */}
-      <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Progress Note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Note Date</Label>
-              <Input
-                type="datetime-local"
-                value={progressForm.noteDate}
-                onChange={(e) => setProgressForm({ ...progressForm, noteDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Progress Summary</Label>
-              <Textarea
-                rows={6}
-                placeholder="Document patient progress toward case management goals, services utilized, barriers addressed..."
-                value={progressForm.progressSummary}
-                onChange={(e) => setProgressForm({ ...progressForm, progressSummary: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Services Coordination Update</Label>
-              <Textarea
-                rows={4}
-                placeholder="Document coordination with community providers, referral status, resource connections..."
-                value={progressForm.servicesCoordinationUpdate}
-                onChange={(e) => setProgressForm({ ...progressForm, servicesCoordinationUpdate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Next Steps</Label>
-              <Textarea
-                rows={3}
-                placeholder="Plan for upcoming case management activities..."
-                value={progressForm.nextSteps}
-                onChange={(e) => setProgressForm({ ...progressForm, nextSteps: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProgressDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-cyan-600">Save Progress Note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

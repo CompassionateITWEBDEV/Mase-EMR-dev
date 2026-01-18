@@ -94,7 +94,7 @@ export function CreateDischargeSummaryDialog({
     if (formData.patientId && open) {
       loadPatientData(formData.patientId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [formData.patientId, open])
 
   const loadPatientData = async (patientId: string) => {

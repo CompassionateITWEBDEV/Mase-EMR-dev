@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -46,24 +45,29 @@ export function UpdateAppointmentStatusDialog({ children, appointment }: UpdateA
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
-
-      const { error } = await supabase
-        .from("appointments")
-        .update({
+      const response = await fetch(`/api/appointments/${appointment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", appointment.id)
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update appointment status")
+      }
 
       toast.success("Appointment status updated successfully")
       setOpen(false)
       router.refresh()
     } catch (error) {
       console.error("Error updating appointment status:", error)
-      toast.error("Failed to update appointment status")
+      const errorMessage = error instanceof Error ? error.message : "Failed to update appointment status"
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }

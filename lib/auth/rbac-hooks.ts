@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { type UserRole, type Permission, hasPermission, hasAnyPermission, canAccessResource } from "./roles"
+import { type UserRole, type Permission, hasPermission, hasAnyPermission, canAccessResource, STAFF_ROLES } from "./roles"
+import { useAuthToggle } from "@/lib/dev-tools/auth-toggle-context"
 
 interface StaffUser {
   id: string
@@ -25,18 +26,50 @@ interface UseAuthReturn {
   signOut: () => Promise<void>
 }
 
+/**
+ * Mock user for development/testing when auth bypass is enabled
+ */
+const MOCK_USER: StaffUser = {
+  id: "dev-bypass-user",
+  email: "dev@test.local",
+  role: STAFF_ROLES.ADMIN,
+  first_name: "Dev",
+  last_name: "User",
+  employee_id: "DEV-001",
+  is_active: true,
+}
+
 export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<StaffUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
+  const { bypassAuth, disableTokenRefresh } = useAuthToggle()
 
   useEffect(() => {
+    // If bypass is enabled, return mock user immediately
+    if (bypassAuth) {
+      setUser(MOCK_USER)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     getUser()
+
+    // Only subscribe to auth state changes if token refresh is not disabled
+    if (disableTokenRefresh) {
+      return
+    }
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Skip token refresh events if disabled
+      if (disableTokenRefresh && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN")) {
+        return
+      }
+
       if (event === "SIGNED_IN" && session) {
         await getUser()
       } else if (event === "SIGNED_OUT") {
@@ -46,9 +79,17 @@ export function useAuth(): UseAuthReturn {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [bypassAuth, disableTokenRefresh])
 
   const getUser = async () => {
+    // If bypass is enabled, return mock user
+    if (bypassAuth) {
+      setUser(MOCK_USER)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)

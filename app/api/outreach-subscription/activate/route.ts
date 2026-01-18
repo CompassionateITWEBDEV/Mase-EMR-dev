@@ -1,23 +1,16 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { type NextRequest, NextResponse } from "next/server"
+import { createServiceClient } from "@/lib/supabase/service-role"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies()
-
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
-      },
-    },
-  })
-
   try {
-    const { tier } = await request.json()
+    const supabase = createServiceClient()
+    const body = await request.json()
+    const { tier, organization_id } = body
 
-    // Get organization ID (in real app, get from authenticated user)
-    const organizationId = "00000000-0000-0000-0000-000000000001" // Replace with actual org ID
+    if (!organization_id) {
+      return NextResponse.json({ error: "Organization ID required" }, { status: 400 })
+    }
 
     // Define pricing and limits by tier
     const tierConfig: Record<string, any> = {
@@ -50,11 +43,17 @@ export async function POST(request: NextRequest) {
     const config = tierConfig[tier] || tierConfig.basic
 
     // Check if subscription already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("community_outreach_subscriptions")
       .select("id")
-      .eq("organization_id", organizationId)
+      .eq("organization_id", organization_id)
       .single()
+
+    if (existingError && existingError.code !== "PGRST116") {
+      throw existingError
+    }
+
+    const trialEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
 
     if (existing) {
       // Update existing subscription
@@ -63,8 +62,13 @@ export async function POST(request: NextRequest) {
         .update({
           feature_tier: tier,
           status: "trial",
-          trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          ...config,
+          trial_end_date: trialEndDate,
+          monthly_price: config.monthly_price,
+          max_monthly_screenings: config.max_monthly_screenings,
+          max_monthly_referrals: config.max_monthly_referrals,
+          max_external_providers: config.max_external_providers,
+          enable_analytics: config.enable_analytics,
+          enable_custom_branding: config.enable_custom_branding,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
@@ -78,11 +82,16 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from("community_outreach_subscriptions")
         .insert({
-          organization_id: organizationId,
+          organization_id,
           feature_tier: tier,
           status: "trial",
-          trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          ...config,
+          trial_end_date: trialEndDate,
+          monthly_price: config.monthly_price,
+          max_monthly_screenings: config.max_monthly_screenings,
+          max_monthly_referrals: config.max_monthly_referrals,
+          max_external_providers: config.max_external_providers,
+          enable_analytics: config.enable_analytics,
+          enable_custom_branding: config.enable_custom_branding,
         })
         .select()
         .single()
@@ -90,8 +99,8 @@ export async function POST(request: NextRequest) {
       if (error) throw error
       return NextResponse.json(data)
     }
-  } catch (error) {
-    console.error("Error activating outreach subscription:", error)
+  } catch (error: any) {
+    console.error("[Outreach Subscription] Error activating subscription:", error)
     return NextResponse.json({ error: "Failed to activate subscription" }, { status: 500 })
   }
 }

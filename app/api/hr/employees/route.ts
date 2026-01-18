@@ -1,34 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.NEON_DATABASE_URL!)
+import { createServiceClient } from "@/lib/supabase/service-role"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get("status") || "active"
 
-    const employees = await sql`
-      SELECT 
-        e.*,
-        s.first_name || ' ' || s.last_name as supervisor_name,
-        COUNT(DISTINCT l.id) as total_licenses,
-        COUNT(DISTINCT c.id) as total_credentials,
-        COUNT(DISTINCT tc.id) as completed_trainings
-      FROM hr_employees e
-      LEFT JOIN hr_employees s ON e.supervisor_id = s.id
-      LEFT JOIN hr_licenses l ON e.id = l.employee_id AND l.is_active = true
-      LEFT JOIN hr_credentials c ON e.id = c.employee_id AND c.is_active = true
-      LEFT JOIN hr_training_completions tc ON e.id = tc.employee_id
-      WHERE e.employment_status = ${status}
-      AND e.is_active = true
-      GROUP BY e.id, s.first_name, s.last_name
-      ORDER BY e.last_name, e.first_name
-    `
+    const { data: employees, error } = await supabase
+      .from("hr_employees")
+      .select(`
+        *,
+        supervisor:hr_employees!supervisor_id(first_name, last_name)
+      `)
+      .eq("employment_status", status)
+      .eq("is_active", true)
+      .order("last_name", { ascending: true })
 
-    return NextResponse.json({ employees })
+    if (error) throw error
+
+    // Transform to include supervisor name
+    const formattedEmployees = (employees || []).map((emp: any) => ({
+      ...emp,
+      supervisor_name: emp.supervisor 
+        ? `${emp.supervisor.first_name} ${emp.supervisor.last_name}` 
+        : null,
+    }))
+
+    return NextResponse.json({ employees: formattedEmployees })
   } catch (error: unknown) {
-    console.error("[v0] Error fetching employees:", error)
+    console.error("[HR] Error fetching employees:", error)
 
     // Return mock data with comprehensive employee information
     const mockEmployees = [
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
         employment_type: "Full-Time",
         employment_status: "active",
         hire_date: "2022-03-15",
-        email: "sjohnson@masaemr.com",
+        email: "sjohnson@maseemr.com",
         phone: "(555) 123-4567",
         supervisor_name: "Michael Chen",
         facial_biometric_enrolled: true,
@@ -135,44 +136,35 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
 
-    const result = await sql`
-      INSERT INTO hr_employees (
-        organization_id,
-        employee_number,
-        first_name,
-        last_name,
-        email,
-        phone,
-        position_title,
-        department,
-        employment_type,
-        hire_date,
-        pay_type,
-        pay_rate,
-        supervisor_id
-      ) VALUES (
-        ${body.organization_id || "org-001"},
-        ${body.employee_number},
-        ${body.first_name},
-        ${body.last_name},
-        ${body.email},
-        ${body.phone || null},
-        ${body.position_title},
-        ${body.department},
-        ${body.employment_type},
-        ${body.hire_date},
-        ${body.pay_type},
-        ${body.pay_rate},
-        ${body.supervisor_id || null}
-      )
-      RETURNING *
-    `
+    const { data, error } = await supabase
+      .from("hr_employees")
+      .insert({
+        organization_id: body.organization_id || "org-001",
+        employee_number: body.employee_number,
+        first_name: body.first_name,
+        last_name: body.last_name,
+        email: body.email,
+        phone: body.phone || null,
+        position_title: body.position_title,
+        department: body.department,
+        employment_type: body.employment_type,
+        hire_date: body.hire_date,
+        pay_type: body.pay_type,
+        pay_rate: body.pay_rate,
+        supervisor_id: body.supervisor_id || null,
+        date_of_birth: body.date_of_birth,
+      })
+      .select()
+      .single()
 
-    return NextResponse.json({ success: true, employee: result[0] })
+    if (error) throw error
+
+    return NextResponse.json({ success: true, employee: data })
   } catch (error) {
-    console.error("Error creating employee:", error)
+    console.error("[HR] Error creating employee:", error)
     return NextResponse.json({ error: "Failed to create employee" }, { status: 500 })
   }
 }

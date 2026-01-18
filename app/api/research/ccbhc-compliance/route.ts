@@ -1,94 +1,126 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-function getSql() {
-  return neon(process.env.NEON_DATABASE_URL!)
-}
-
-const mockData = {
-  audit: {
-    id: "audit-001",
-    audit_date: new Date().toISOString(),
-    overall_score: 94,
-    certification_status: "Certified",
-    next_audit_date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-    auditor_name: "State CCBHC Review Team",
-    findings_count: 3,
-    deficiencies_count: 0,
-  },
-  serviceCompliance: [
-    { service: "24/7 Crisis Services", compliance_score: 98, status: "Compliant", patients_served: 156 },
-    { service: "Screening & Assessment", compliance_score: 96, status: "Compliant", patients_served: 423 },
-    { service: "Mental Health Treatment", compliance_score: 95, status: "Compliant", patients_served: 389 },
-    { service: "SUD Treatment", compliance_score: 97, status: "Compliant", patients_served: 267 },
-    { service: "Case Management", compliance_score: 94, status: "Compliant", patients_served: 412 },
-    { service: "Peer Support", compliance_score: 92, status: "Compliant", patients_served: 234 },
-    { service: "Family Support", compliance_score: 90, status: "Compliant", patients_served: 178 },
-    { service: "Targeted Outreach", compliance_score: 93, status: "Compliant", patients_served: 145 },
-    { service: "Psychiatric Rehabilitation", compliance_score: 91, status: "Compliant", patients_served: 123 },
-  ],
-  careCoordination: {
-    total_patients: 487,
-    patients_with_coordinator: 476,
-    total_coordination_events: 1234,
-    coordination_rate: 97.7,
-  },
-  qualityOutcomes: [
-    { measure: "Follow-up after Hospitalization (7 days)", rate: 87, target: 80, status: "Exceeds" },
-    { measure: "Follow-up after ED Visit (7 days)", rate: 82, target: 75, status: "Exceeds" },
-    { measure: "Screening for Clinical Depression", rate: 96, target: 90, status: "Exceeds" },
-    { measure: "SUD Screening", rate: 98, target: 95, status: "Meets" },
-    { measure: "Diabetes Screening", rate: 89, target: 85, status: "Exceeds" },
-    { measure: "Care Plan Documentation", rate: 94, target: 90, status: "Exceeds" },
-    { measure: "Patient Satisfaction Score", rate: 91, target: 85, status: "Exceeds" },
-  ],
-}
+import { createServiceClient } from "@/lib/supabase/service-role"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const sql = getSql()
+    const supabase = createServiceClient()
+    const { searchParams } = new URL(request.url)
+    const organizationId = searchParams.get("organization_id")
 
+    // Initialize default response
+    let latestAudit: any = null
+    let serviceCompliance: any[] = []
+    let careCoordination: any[] = []
+    let qualityOutcomes: any[] = []
+
+    // Fetch latest CCBHC compliance audit
     try {
-      const latestAudit = await sql`
-        SELECT * FROM ccbhc_compliance_audits
-        ORDER BY audit_date DESC
-        LIMIT 1
-      `
+      let auditQuery = supabase
+        .from("ccbhc_certification_audits")
+        .select("*")
+        .order("audit_date", { ascending: false })
+        .limit(1)
 
-      const serviceCompliance = await sql`
-        SELECT * FROM ccbhc_service_compliance
-        WHERE audit_id = ${latestAudit[0]?.id}
-      `
-
-      const careCoordination = await sql`
-        SELECT 
-          COUNT(DISTINCT patient_id) as total_patients,
-          COUNT(DISTINCT CASE WHEN has_care_coordinator THEN patient_id END) as patients_with_coordinator,
-          COUNT(*) as total_coordination_events
-        FROM ccbhc_care_coordination
-        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      `
-
-      const qualityOutcomes = await sql`
-        SELECT * FROM ccbhc_quality_outcomes
-        WHERE measurement_period = 'current'
-      `
-
-      return NextResponse.json({
-        audit: latestAudit[0] || null,
-        serviceCompliance: serviceCompliance || [],
-        careCoordination: careCoordination[0] || {},
-        qualityOutcomes: qualityOutcomes || [],
-      })
-    } catch (dbError: any) {
-      if (dbError.code === "42P01") {
-        console.log("[v0] CCBHC compliance tables not found, returning mock data")
-        return NextResponse.json(mockData)
+      if (organizationId) {
+        auditQuery = auditQuery.eq("organization_id", organizationId)
       }
-      throw dbError
+
+      const { data: audits, error: auditError } = await auditQuery
+
+      if (!auditError && audits && audits.length > 0) {
+        latestAudit = audits[0]
+      } else if (auditError) {
+        console.error("[Research] Error fetching audits:", auditError)
+      }
+    } catch (err) {
+      console.error("[Research] Exception fetching audits:", err)
     }
-  } catch (error) {
-    console.error("[v0] Error fetching CCBHC compliance:", error)
-    return NextResponse.json(mockData)
+
+    // Fetch service compliance
+    try {
+      let serviceQuery = supabase.from("ccbhc_core_services_compliance").select("*")
+
+      if (organizationId) {
+        serviceQuery = serviceQuery.eq("organization_id", organizationId)
+      }
+
+      const { data: services, error: serviceError } = await serviceQuery
+
+      if (!serviceError && services) {
+        serviceCompliance = services
+      } else if (serviceError) {
+        console.error("[Research] Error fetching service compliance:", serviceError)
+      }
+    } catch (err) {
+      console.error("[Research] Exception fetching service compliance:", err)
+    }
+
+    // Fetch care coordination metrics
+    // Note: ccbhc_care_coordination table doesn't have organization_id column
+    try {
+      const { data: careCoord, error: careCoordError } = await supabase
+        .from("ccbhc_care_coordination")
+        .select("patient_id, care_coordinator_id, coordination_status")
+        .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+
+      if (!careCoordError && careCoord) {
+        careCoordination = careCoord
+      } else if (careCoordError) {
+        console.error("[Research] Error fetching care coordination:", careCoordError)
+      }
+    } catch (err) {
+      console.error("[Research] Exception fetching care coordination:", err)
+    }
+
+    // Calculate metrics
+    const totalPatients = new Set(careCoordination.map((c: any) => c.patient_id) || []).size
+    const patientsWithCoordinator = new Set(
+      careCoordination.filter((c: any) => c.care_coordinator_id).map((c: any) => c.patient_id) || []
+    ).size
+    const totalCoordinationEvents = careCoordination.length || 0
+
+    // Fetch quality outcomes
+    try {
+      let qualityQuery = supabase.from("ccbhc_quality_measures").select("*")
+
+      if (organizationId) {
+        qualityQuery = qualityQuery.eq("organization_id", organizationId)
+      }
+
+      const { data: quality, error: qualityError } = await qualityQuery
+
+      if (!qualityError && quality) {
+        qualityOutcomes = quality
+      } else if (qualityError) {
+        console.error("[Research] Error fetching quality outcomes:", qualityError)
+      }
+    } catch (err) {
+      console.error("[Research] Exception fetching quality outcomes:", err)
+    }
+
+    return NextResponse.json({
+      audit: latestAudit,
+      serviceCompliance: serviceCompliance,
+      careCoordination: {
+        total_patients: totalPatients,
+        patients_with_coordinator: patientsWithCoordinator,
+        total_coordination_events: totalCoordinationEvents,
+      },
+      qualityOutcomes: qualityOutcomes,
+    })
+  } catch (error: any) {
+    console.error("[Research] Error fetching CCBHC compliance:", error)
+    // Return empty data structure instead of error to allow page to render
+    return NextResponse.json({
+      audit: null,
+      serviceCompliance: [],
+      careCoordination: {
+        total_patients: 0,
+        patients_with_coordinator: 0,
+        total_coordination_events: 0,
+      },
+      qualityOutcomes: [],
+    })
   }
 }

@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -24,7 +23,7 @@ import { toast } from "sonner"
 interface AppointmentData {
   id: string
   patient_id: string
-  provider_id: string
+  provider_id: string | null
   appointment_date: string
   appointment_time: string
   duration_minutes: number
@@ -32,6 +31,17 @@ interface AppointmentData {
   mode: string
   status: string
   notes?: string
+  patients?: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+  providers?: {
+    id: string
+    first_name: string
+    last_name: string
+    title?: string
+  } | null
 }
 
 interface Patient {
@@ -59,14 +69,38 @@ export function EditAppointmentDialog({ children, appointment, patients, provide
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
+  // Parse appointment_date timestamp into separate date and time
+  const parseAppointmentDateTime = (dateTimeStr: string) => {
+    if (!dateTimeStr) return { date: "", time: "" }
+    try {
+      const date = new Date(dateTimeStr)
+      return {
+        date: date.toISOString().split("T")[0],
+        time: date.toTimeString().slice(0, 5), // HH:MM format
+      }
+    } catch {
+      // If it's already in date format (YYYY-MM-DD), use it as is
+      if (dateTimeStr.includes("T")) {
+        const date = new Date(dateTimeStr)
+        return {
+          date: date.toISOString().split("T")[0],
+          time: date.toTimeString().slice(0, 5),
+        }
+      }
+      return { date: dateTimeStr, time: appointment.appointment_time || "" }
+    }
+  }
+
+  const parsedDateTime = parseAppointmentDateTime(appointment.appointment_date)
+
   const [formData, setFormData] = useState({
     patientId: appointment.patient_id,
-    providerId: appointment.provider_id,
-    appointmentDate: appointment.appointment_date,
-    appointmentTime: appointment.appointment_time,
+    providerId: appointment.provider_id || "",
+    appointmentDate: parsedDateTime.date,
+    appointmentTime: parsedDateTime.time,
     durationMinutes: appointment.duration_minutes.toString(),
     appointmentType: appointment.appointment_type,
-    mode: appointment.mode,
+    mode: appointment.mode || "in_person",
     status: appointment.status,
     notes: appointment.notes || "",
   })
@@ -80,32 +114,47 @@ export function EditAppointmentDialog({ children, appointment, patients, provide
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
+      // Combine date and time into ISO timestamp
+      const appointmentDateTime = formData.appointmentDate && formData.appointmentTime
+        ? `${formData.appointmentDate}T${formData.appointmentTime}:00`
+        : formData.appointmentDate || null
 
-      const { error } = await supabase
-        .from("appointments")
-        .update({
+      if (!appointmentDateTime) {
+        toast.error("Appointment date and time are required")
+        setIsLoading(false)
+        return
+      }
+
+      const response = await fetch(`/api/appointments/${appointment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           patient_id: formData.patientId,
-          provider_id: formData.providerId,
-          appointment_date: formData.appointmentDate,
-          appointment_time: formData.appointmentTime,
-          duration_minutes: Number.parseInt(formData.durationMinutes),
+          provider_id: formData.providerId || null,
+          appointment_date: appointmentDateTime,
+          duration_minutes: Number.parseInt(formData.durationMinutes) || 60,
           appointment_type: formData.appointmentType,
           mode: formData.mode,
           status: formData.status,
           notes: formData.notes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", appointment.id)
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update appointment")
+      }
 
       toast.success("Appointment updated successfully")
       setOpen(false)
       router.refresh()
     } catch (error) {
       console.error("Error updating appointment:", error)
-      toast.error("Failed to update appointment")
+      const errorMessage = error instanceof Error ? error.message : "Failed to update appointment"
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }

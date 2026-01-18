@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth/rbac-hooks"
+import { useAuthToggle } from "@/lib/dev-tools/auth-toggle-context"
 import type { Permission, UserRole } from "@/lib/auth/roles"
 import type { ReactNode } from "react"
 
@@ -22,6 +23,12 @@ export function RoleGuard({
   showError = false,
 }: RoleGuardProps) {
   const { user, loading, hasAnyPermission } = useAuth()
+  const { bypassAuth } = useAuthToggle()
+
+  // If auth bypass is enabled, skip all checks and render children
+  if (bypassAuth) {
+    return <>{children}</>
+  }
 
   if (loading) {
     return (

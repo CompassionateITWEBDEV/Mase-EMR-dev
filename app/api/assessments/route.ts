@@ -1,10 +1,9 @@
-import { createClient } from "@supabase/supabase-js"
+import { createServiceClient } from "@/lib/supabase/service-role"
 import { type NextRequest, NextResponse } from "next/server"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 export async function GET() {
   try {
+    const supabase = createServiceClient()
     // Fetch assessment types from catalog
     const { data: assessmentCatalog, error: catalogError } = await supabase
       .from("assessment_forms_catalog")
@@ -108,25 +107,59 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
     const { action, ...data } = body
 
     if (action === "create_assessment") {
-      const { patient_id, form_id, provider_id } = data
+      const { patient_id, form_id, provider_id, notes } = data
+
+      // Validate and convert to integers
+      const patientId = typeof patient_id === "string" ? parseInt(patient_id, 10) : patient_id
+      const formId = typeof form_id === "string" ? parseInt(form_id, 10) : form_id
+      const providerId = provider_id 
+        ? (typeof provider_id === "string" ? parseInt(provider_id, 10) : provider_id)
+        : null
+
+      // Validate required fields
+      if (!patientId || isNaN(patientId)) {
+        return NextResponse.json(
+          { error: "Invalid or missing patient_id. Must be a valid integer." },
+          { status: 400 }
+        )
+      }
+
+      if (!formId || isNaN(formId)) {
+        return NextResponse.json(
+          { error: "Invalid or missing form_id. Must be a valid integer." },
+          { status: 400 }
+        )
+      }
+
+      // Note: provider_id is NOT NULL in schema, but we'll use a default or require it
+      // For now, if not provided, we'll return an error
+      if (!providerId || isNaN(providerId)) {
+        return NextResponse.json(
+          { error: "provider_id is required and must be a valid integer." },
+          { status: 400 }
+        )
+      }
 
       const { data: newAssessment, error } = await supabase
         .from("patient_assessments")
         .insert({
-          patient_id,
-          form_id,
-          provider_id,
+          patient_id: patientId,
+          form_id: formId,
+          provider_id: providerId,
           assessment_date: new Date().toISOString(),
           status: "in_progress",
+          ...(notes && { notes }),
         })
         .select()
         .single()
 
       if (error) {
+        console.error("[API] Error creating assessment:", error)
         return NextResponse.json({ error: error.message }, { status: 400 })
       }
 

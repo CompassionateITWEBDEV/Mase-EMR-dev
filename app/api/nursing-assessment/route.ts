@@ -1,9 +1,9 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
     const data = await request.json()
 
     const { error } = await supabase.from("nursing_assessments").insert({
@@ -19,18 +19,21 @@ export async function POST(request: Request) {
     })
 
     if (error) {
+      console.error("[nursing-assessment] Error saving assessment:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json({ error: "Failed to save assessment" }, { status: 500 })
+    console.error("[nursing-assessment] Error saving assessment:", error)
+    const errorMessage = error instanceof Error ? error.message : "Failed to save assessment"
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const patientId = searchParams.get("patient_id")
 
@@ -43,11 +46,14 @@ export async function GET(request: Request) {
     const { data, error } = await query
 
     if (error) {
+      console.error("[nursing-assessment] Error fetching assessments:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ assessments: data })
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch assessments" }, { status: 500 })
+    console.error("[nursing-assessment] Error fetching assessments:", error)
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch assessments"
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

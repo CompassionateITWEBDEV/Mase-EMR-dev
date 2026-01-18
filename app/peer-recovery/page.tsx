@@ -18,7 +18,6 @@ export default function PeerRecoveryPage() {
   const [selectedPatient, setSelectedPatient] = useState("")
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [assessmentDialogOpen, setAssessmentDialogOpen] = useState(false)
-  const [progressNotesDialogOpen, setProgressNotesDialogOpen] = useState(false)
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -43,10 +42,6 @@ export default function PeerRecoveryPage() {
                 <Button onClick={() => setAssessmentDialogOpen(true)} variant="outline">
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Wellness Check
-                </Button>
-                <Button onClick={() => setProgressNotesDialogOpen(true)} variant="outline">
-                  <Activity className="w-4 h-4 mr-2" />
-                  Progress Notes
                 </Button>
               </div>
             </div>
@@ -88,7 +83,6 @@ export default function PeerRecoveryPage() {
                 <TabsTrigger value="wellness">Wellness Assessments</TabsTrigger>
                 <TabsTrigger value="notes">Recovery Notes</TabsTrigger>
                 <TabsTrigger value="progress">Progress Tracking</TabsTrigger>
-                <TabsTrigger value="progress-notes">Progress Notes</TabsTrigger>
               </TabsList>
 
               {/* Compliance Checks Tab */}
@@ -310,41 +304,6 @@ export default function PeerRecoveryPage() {
                   </Card>
                 </div>
               </TabsContent>
-
-              {/* Progress Notes Tab */}
-              <TabsContent value="progress-notes" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Peer Recovery Progress Notes</CardTitle>
-                    <CardDescription>Document patient progress in peer recovery program</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Note Date</Label>
-                      <Input type="datetime-local" />
-                    </div>
-                    <div>
-                      <Label>Recovery Progress Summary</Label>
-                      <Textarea
-                        rows={6}
-                        placeholder="Document patient's progress in recovery, milestones achieved, challenges faced..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Peer Support Interventions</Label>
-                      <Textarea
-                        rows={4}
-                        placeholder="Document peer support interventions provided, techniques used..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Recovery Goals Progress</Label>
-                      <Textarea rows={3} placeholder="Update on progress toward recovery goals..." />
-                    </div>
-                    <Button className="w-full bg-cyan-600">Save Progress Note</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
         </main>
@@ -450,42 +409,6 @@ export default function PeerRecoveryPage() {
               Cancel
             </Button>
             <Button className="bg-cyan-600">Save Assessment</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Progress Notes Dialog */}
-      <Dialog open={progressNotesDialogOpen} onOpenChange={setProgressNotesDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Progress Note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Note Date</Label>
-              <Input type="datetime-local" />
-            </div>
-            <div>
-              <Label>Recovery Progress Summary</Label>
-              <Textarea
-                rows={6}
-                placeholder="Document patient's progress in recovery, milestones achieved, challenges faced..."
-              />
-            </div>
-            <div>
-              <Label>Peer Support Interventions</Label>
-              <Textarea rows={4} placeholder="Document peer support interventions provided, techniques used..." />
-            </div>
-            <div>
-              <Label>Recovery Goals Progress</Label>
-              <Textarea rows={3} placeholder="Update on progress toward recovery goals..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProgressNotesDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-cyan-600">Save Progress Note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
