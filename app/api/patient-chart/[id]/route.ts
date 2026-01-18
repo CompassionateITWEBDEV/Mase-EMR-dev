@@ -40,6 +40,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
           .from("patient_medications")
           .select("id, medication_name, dosage, frequency, start_date, status")
           .eq("patient_id", patientId)
+          .eq("status", "active")
           .order("start_date", { ascending: false }),
         supabase
           .from("assessments")
