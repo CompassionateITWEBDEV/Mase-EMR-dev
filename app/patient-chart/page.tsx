@@ -29,7 +29,6 @@ import {
   Shield,
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
-import { createBrowserClient } from "@supabase/ssr"
 import { toast } from "sonner"
 
 interface Patient {
@@ -144,26 +143,18 @@ export default function PatientChartPage() {
   const fetchPatientData = async (patientId: string) => {
     console.log("[v0] fetchPatientData called with patientId:", patientId)
     setLoading(true)
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
 
     try {
-      console.log("[v0] Fetching patient data from Supabase...")
-      const { data: patientDataArray, error: patientError } = await supabase
-        .from("patients")
-        .select("*")
-        .eq("id", patientId)
+      console.log("[v0] Fetching patient data from API...")
+      const response = await fetch(`/api/patient-chart/${patientId}`)
 
-      console.log("[v0] Patient data array:", patientDataArray)
-      console.log("[v0] Patient error:", patientError)
-
-      if (patientError) {
-        throw patientError
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}))
+        throw new Error(errorBody?.error || "Failed to fetch patient chart data")
       }
 
-      const patientData = patientDataArray && patientDataArray.length > 0 ? patientDataArray[0] : null
+      const data = await response.json()
+      const patientData = data?.patient ?? null
 
       if (!patientData) {
         throw new Error("Patient not found")
@@ -171,14 +162,8 @@ export default function PatientChartPage() {
 
       setSelectedPatient(patientData)
 
-      const { data: vitalsData } = await supabase
-        .from("vital_signs")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("measurement_date", { ascending: false })
-        .limit(30)
-
-      setVitalSigns(vitalsData || [])
+      const vitalsData = data?.vitalSigns ?? []
+      setVitalSigns(vitalsData)
 
       const criticalVitals = vitalsData?.filter(
         (v) =>
@@ -204,51 +189,21 @@ export default function PatientChartPage() {
         ])
       }
 
-      const { data: medsData } = await supabase
-        .from("medications")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-
-      setMedications(medsData || [])
-
-      const { data: assessmentsData } = await supabase
-        .from("assessments")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-        .limit(10)
-
-      setAssessments(assessmentsData || [])
-
-      const { data: encountersData } = await supabase
-        .from("encounters")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("encounter_date", { ascending: false })
-        .limit(10)
-
-      setEncounters(encountersData || [])
-
-      const { data: dosingData } = await supabase
-        .from("dosing_log")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("dose_date", { ascending: false })
-        .limit(30)
-
-      setDosingLog(dosingData || [])
-
-      const { data: consentsData } = await supabase
-        .from("hie_patient_consents")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-
-      setConsents(consentsData || [])
+      setMedications(data?.medications ?? [])
+      setAssessments(data?.assessments ?? [])
+      setEncounters(data?.encounters ?? [])
+      setDosingLog(data?.dosingLog ?? [])
+      setConsents(data?.consents ?? [])
     } catch (error) {
       console.error("Error fetching patient data:", error)
       toast.error("Failed to load patient chart data")
+      setSelectedPatient(null)
+      setVitalSigns([])
+      setMedications([])
+      setAssessments([])
+      setEncounters([])
+      setDosingLog([])
+      setConsents([])
     } finally {
       setLoading(false)
     }
