@@ -333,9 +333,14 @@ export default function PatientIntake() {
         throw new Error(error.error || "Failed to create patient")
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as { patient?: Patient }
+      const patient = data.patient
 
-      setSelectedPatient(data)
+      if (!patient) {
+        throw new Error("Patient data missing from response")
+      }
+
+      setSelectedPatient(patient)
       setShowNewPatientForm(false)
       setNewPatient({
         first_name: "",
@@ -354,7 +359,7 @@ export default function PatientIntake() {
       toast({ title: "Success", description: "Patient created successfully" })
 
       // Auto-run PMP check for new patient
-      await runPMPCheck(data)
+      await runPMPCheck(patient)
     } catch (err) {
       console.error("Error creating patient:", err)
       toast({
