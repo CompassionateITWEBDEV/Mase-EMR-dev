@@ -45,6 +45,10 @@ interface Patient {
   program_type?: string
   created_at?: string
   updated_at?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  insurance_provider?: string
+  insurance_id?: string
 }
 
 interface VitalSign {
