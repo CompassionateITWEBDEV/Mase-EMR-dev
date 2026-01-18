@@ -70,37 +70,9 @@ export async function getAuthenticatedUser(): Promise<{
   user: User | null;
   error: string | null;
 }> {
-  // Check if auth bypass is enabled (dev mode only)
-  const bypassAuth = await isAuthBypassEnabled();
-
-  if (bypassAuth) {
-    console.warn("[DevTools] ⚠️ Auth bypass is ACTIVE - returning mock user");
-    return { user: createMockUser(), error: null };
-  }
-
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-      console.error("[Auth] Error getting user:", error.message);
-      return { user: null, error: error.message };
-    }
-
-    if (!user) {
-      console.warn("[Auth] No user found in session");
-      return { user: null, error: "User not authenticated" };
-    }
-
-    return { user, error: null };
-  } catch (error: unknown) {
-    const err = error instanceof Error ? error : new Error("Unknown error");
-    console.error("[Auth] Exception getting user:", err.message);
-    return { user: null, error: err.message };
-  }
+  // Authentication disabled - always return mock user
+  console.warn("[Auth] ⚠️ Authentication is DISABLED - returning mock user");
+  return { user: createMockUser(), error: null };
 }
 
 /**
