@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'patientId and zipCode required' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   // Get patient EHR data
   const { data: patient, error: patientError } = await supabase
