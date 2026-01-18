@@ -334,8 +334,9 @@ export default function PatientIntake() {
       }
 
       const data = await response.json()
+      const patient = data?.patient as Patient
 
-      setSelectedPatient(data)
+      setSelectedPatient(patient)
       setShowNewPatientForm(false)
       setNewPatient({
         first_name: "",
@@ -354,7 +355,7 @@ export default function PatientIntake() {
       toast({ title: "Success", description: "Patient created successfully" })
 
       // Auto-run PMP check for new patient
-      await runPMPCheck(data)
+      await runPMPCheck(patient)
     } catch (err) {
       console.error("Error creating patient:", err)
       toast({
