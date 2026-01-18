@@ -333,8 +333,12 @@ export default function PatientIntake() {
         throw new Error(error.error || "Failed to create patient")
       }
 
-      const data = await response.json()
-      const patient = data?.patient as Patient
+      const data = (await response.json()) as { patient?: Patient }
+      const patient = data.patient
+
+      if (!patient) {
+        throw new Error("Patient data missing from response")
+      }
 
       setSelectedPatient(patient)
       setShowNewPatientForm(false)
