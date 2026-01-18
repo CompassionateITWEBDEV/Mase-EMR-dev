@@ -25,7 +25,10 @@ export async function GET(request: Request) {
         emergency_contact_phone,
         insurance_provider,
         insurance_id,
-        created_at
+        created_at,
+        client_number,
+        program_type,
+        updated_at
       `)
       .order("last_name", { ascending: true })
 

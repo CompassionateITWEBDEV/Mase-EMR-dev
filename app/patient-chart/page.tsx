@@ -35,14 +35,19 @@ interface Patient {
   id: string
   first_name: string
   last_name: string
-  date_of_birth: string
-  gender: string
-  phone: string
-  email: string
-  address: string
+  date_of_birth?: string
+  gender?: string
+  phone?: string
+  email?: string
+  address?: string
   client_number?: string
   program_type?: string
+  created_at?: string
   updated_at?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  insurance_provider?: string
+  insurance_id?: string
 }
 
 interface VitalSign {
@@ -116,7 +121,9 @@ export default function PatientChartPage() {
       } else if (sortBy === "client") {
         return (a.client_number || "").localeCompare(b.client_number || "")
       } else if (sortBy === "recent") {
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+        const aDate = a.updated_at || a.created_at || 0
+        const bDate = b.updated_at || b.created_at || 0
+        return new Date(bDate).getTime() - new Date(aDate).getTime()
       }
       return 0
     })
@@ -129,6 +136,14 @@ export default function PatientChartPage() {
       fetchPatientData(selectedPatientId)
     }
   }, [selectedPatientId])
+
+  const getDisplayValue = (value?: string | null) => {
+    if (value === null || value === undefined) {
+      return "N/A"
+    }
+    const trimmed = value.toString().trim()
+    return trimmed.length > 0 ? trimmed : "N/A"
+  }
 
   const fetchPatients = async () => {
     try {
@@ -365,7 +380,11 @@ export default function PatientChartPage() {
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground mt-1">
-                              DOB: {patient.date_of_birth} • {patient.gender} • {patient.phone || "No phone"}
+                              DOB: {getDisplayValue(patient.date_of_birth)} • {getDisplayValue(patient.gender)} •{" "}
+                              {getDisplayValue(patient.phone)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Program: {getDisplayValue(patient.program_type)}
                             </div>
                           </div>
                           {selectedPatientId === patient.id && <ChevronRight className="h-5 w-5 text-primary" />}
@@ -384,7 +403,7 @@ export default function PatientChartPage() {
                         Selected: {selectedPatient.first_name} {selectedPatient.last_name}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Client #{selectedPatient.client_number || "N/A"} • MRN: {selectedPatient.id.slice(0, 8)}
+                        Client #{getDisplayValue(selectedPatient.client_number)} • MRN: {selectedPatient.id.slice(0, 8)}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -449,35 +468,35 @@ export default function PatientChartPage() {
                         <Calendar className="h-4 w-4" />
                         <span>Date of Birth</span>
                       </div>
-                      <p className="font-medium">{selectedPatient.date_of_birth}</p>
+                      <p className="font-medium">{getDisplayValue(selectedPatient.date_of_birth)}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <User className="h-4 w-4" />
                         <span>Gender</span>
                       </div>
-                      <p className="font-medium">{selectedPatient.gender}</p>
+                      <p className="font-medium">{getDisplayValue(selectedPatient.gender)}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <Phone className="h-4 w-4" />
                         <span>Phone</span>
                       </div>
-                      <p className="font-medium">{selectedPatient.phone}</p>
+                      <p className="font-medium">{getDisplayValue(selectedPatient.phone)}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <Mail className="h-4 w-4" />
                         <span>Email</span>
                       </div>
-                      <p className="font-medium">{selectedPatient.email}</p>
+                      <p className="font-medium">{getDisplayValue(selectedPatient.email)}</p>
                     </div>
                     <div className="col-span-3">
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <MapPin className="h-4 w-4" />
                         <span>Address</span>
                       </div>
-                      <p className="font-medium">{selectedPatient.address}</p>
+                      <p className="font-medium">{getDisplayValue(selectedPatient.address)}</p>
                     </div>
                   </div>
                 </CardContent>
