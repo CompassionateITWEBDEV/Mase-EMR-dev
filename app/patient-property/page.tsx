@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Package, Smartphone, Lock, Search, Plus, AlertCircle, Printer } from "lucide-react"
+import { useState } from "react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Package, Smartphone, Lock, Search, Plus, AlertCircle, Printer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 export default function PatientPropertyPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false)
-  const [selectedProperty, setSelectedProperty] = useState<string>("")
+  const [searchTerm, setSearchTerm] = useState("");
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<string>("");
 
   return (
     <div className="flex min-h-screen">
@@ -360,5 +360,6 @@ export default function PatientPropertyPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
+

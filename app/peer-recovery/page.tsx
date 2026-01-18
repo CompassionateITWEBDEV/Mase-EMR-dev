@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,13 +12,63 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle, Clock, Activity, Plus, Search, TrendingUp } from "lucide-react"
+import { CheckCircle, Clock, Activity, Plus, Search, TrendingUp, Loader2, X } from "lucide-react"
+import { toast } from "sonner"
 
 export default function PeerRecoveryPage() {
-  const [selectedPatient, setSelectedPatient] = useState("")
+  const [selectedPatient, setSelectedPatient] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [assessmentDialogOpen, setAssessmentDialogOpen] = useState(false)
-  const [progressNotesDialogOpen, setProgressNotesDialogOpen] = useState(false)
+
+  // Search patients from database using API route
+  const searchPatients = async (term: string) => {
+    if (!term || term.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/patients?search=${encodeURIComponent(term)}&limit=10`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to search patients")
+      }
+
+      const data = await response.json()
+      setSearchResults(data.patients || [])
+    } catch (err) {
+      console.error("Error searching patients:", err)
+      setSearchResults([])
+      toast.error(err instanceof Error ? err.message : "Failed to search patients. Please try again.")
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Handle patient selection from search results
+  const handleSelectPatient = (patient: any) => {
+    setSelectedPatient(patient)
+    setSearchResults([])
+    setSearchQuery("")
+    toast.success(`Selected patient: ${patient.first_name} ${patient.last_name}`)
+  }
+
+  // Debounced search on input change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        searchPatients(searchQuery)
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -36,17 +86,23 @@ export default function PeerRecoveryPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setNoteDialogOpen(true)} className="bg-cyan-600">
+                <Button 
+                  onClick={() => setNoteDialogOpen(true)} 
+                  className="bg-cyan-600"
+                  disabled={!selectedPatient}
+                  title={!selectedPatient ? "Please select a patient first" : ""}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Recovery Note
                 </Button>
-                <Button onClick={() => setAssessmentDialogOpen(true)} variant="outline">
+                <Button 
+                  onClick={() => setAssessmentDialogOpen(true)} 
+                  variant="outline"
+                  disabled={!selectedPatient}
+                  title={!selectedPatient ? "Please select a patient first" : ""}
+                >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Wellness Check
-                </Button>
-                <Button onClick={() => setProgressNotesDialogOpen(true)} variant="outline">
-                  <Activity className="w-4 h-4 mr-2" />
-                  Progress Notes
                 </Button>
               </div>
             </div>
@@ -59,28 +115,151 @@ export default function PeerRecoveryPage() {
                   Select Patient
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Search Patient</Label>
-                    <Input placeholder="Search by name..." />
+              <CardContent className="space-y-4">
+                {!selectedPatient ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Search Patient Section */}
+                    <div className="space-y-2">
+                      <Label>Search Patient</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Search by name, phone, or MRN..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                        {isSearching && (
+                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />
+                        )}
+                      </div>
+
+                      {/* Search Results */}
+                      {searchResults.length > 0 && (
+                        <div className="border rounded-lg divide-y max-h-64 overflow-y-auto mt-2">
+                          {searchResults.map((patient) => (
+                            <div
+                              key={patient.id}
+                              className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => handleSelectPatient(patient)}
+                            >
+                              <p className="font-medium text-gray-900">
+                                {patient.first_name} {patient.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {patient.phone && `Phone: ${patient.phone}`}
+                                {patient.phone && patient.mrn && " • "}
+                                {patient.mrn && `MRN: ${patient.mrn}`}
+                                {!patient.phone && !patient.mrn && `ID: ${patient.id.slice(0, 8)}`}
+                                {patient.date_of_birth && ` • DOB: ${new Date(patient.date_of_birth).toLocaleDateString()}`}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+                        <div className="text-sm text-gray-500 text-center py-4 mt-2">
+                          No patients found matching "{searchQuery}"
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Assigned Peer Support Group Section */}
+                    <div className="space-y-2">
+                      <Label>Assigned Peer Support Group</Label>
+                      <Select 
+                        onValueChange={(value) => {
+                          // For now, we'll use placeholder patient objects
+                          // In a real implementation, this would fetch from an API
+                          const placeholderPatients: Record<string, any> = {
+                            patient1: {
+                              id: "patient1",
+                              first_name: "Sarah",
+                              last_name: "Johnson",
+                              phone: "(555) 123-4567",
+                              mrn: "MRN001",
+                              status: "Active"
+                            },
+                            patient2: {
+                              id: "patient2",
+                              first_name: "Michael",
+                              last_name: "Chen",
+                              phone: "(555) 234-5678",
+                              mrn: "MRN002",
+                              status: "Check-in Due"
+                            },
+                            patient3: {
+                              id: "patient3",
+                              first_name: "Emily",
+                              last_name: "Davis",
+                              phone: "(555) 345-6789",
+                              mrn: "MRN003",
+                              status: "Follow-up Needed"
+                            }
+                          }
+                          const patient = placeholderPatients[value]
+                          if (patient) {
+                            handleSelectPatient(patient)
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select from your group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="patient1">Sarah Johnson - Active</SelectItem>
+                          <SelectItem value="patient2">Michael Chen - Check-in Due</SelectItem>
+                          <SelectItem value="patient3">Emily Davis - Follow-up Needed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Quick select from your assigned peer support group
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Assigned Peer Support Group</Label>
-                    <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select from your group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="patient1">Sarah Johnson - Active</SelectItem>
-                        <SelectItem value="patient2">Michael Chen - Check-in Due</SelectItem>
-                        <SelectItem value="patient3">Emily Davis - Follow-up Needed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                ) : (
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-lg text-gray-900">
+                          {selectedPatient.first_name} {selectedPatient.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {selectedPatient.phone && `Phone: ${selectedPatient.phone}`}
+                          {selectedPatient.phone && selectedPatient.mrn && " • "}
+                          {selectedPatient.mrn && `MRN: ${selectedPatient.mrn}`}
+                          {selectedPatient.date_of_birth && ` • DOB: ${new Date(selectedPatient.date_of_birth).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPatient(null)
+                          setSearchQuery("")
+                          setSearchResults([])
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Change Patient
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
+
+            {selectedPatient && (
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-cyan-600 rounded-full"></div>
+                  <p className="text-sm font-medium text-cyan-900">
+                    Viewing data for: <span className="font-semibold">{selectedPatient.first_name} {selectedPatient.last_name}</span>
+                  </p>
+                </div>
+              </div>
+            )}
 
             <Tabs defaultValue="compliance" className="space-y-4">
               <TabsList>
@@ -88,7 +267,6 @@ export default function PeerRecoveryPage() {
                 <TabsTrigger value="wellness">Wellness Assessments</TabsTrigger>
                 <TabsTrigger value="notes">Recovery Notes</TabsTrigger>
                 <TabsTrigger value="progress">Progress Tracking</TabsTrigger>
-                <TabsTrigger value="progress-notes">Progress Notes</TabsTrigger>
               </TabsList>
 
               {/* Compliance Checks Tab */}
@@ -310,41 +488,6 @@ export default function PeerRecoveryPage() {
                   </Card>
                 </div>
               </TabsContent>
-
-              {/* Progress Notes Tab */}
-              <TabsContent value="progress-notes" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Peer Recovery Progress Notes</CardTitle>
-                    <CardDescription>Document patient progress in peer recovery program</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Note Date</Label>
-                      <Input type="datetime-local" />
-                    </div>
-                    <div>
-                      <Label>Recovery Progress Summary</Label>
-                      <Textarea
-                        rows={6}
-                        placeholder="Document patient's progress in recovery, milestones achieved, challenges faced..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Peer Support Interventions</Label>
-                      <Textarea
-                        rows={4}
-                        placeholder="Document peer support interventions provided, techniques used..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Recovery Goals Progress</Label>
-                      <Textarea rows={3} placeholder="Update on progress toward recovery goals..." />
-                    </div>
-                    <Button className="w-full bg-cyan-600">Save Progress Note</Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
         </main>
@@ -355,8 +498,21 @@ export default function PeerRecoveryPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Peer Recovery Note</DialogTitle>
+            {selectedPatient && (
+              <p className="text-sm text-gray-600 mt-1">
+                Patient: {selectedPatient.first_name} {selectedPatient.last_name}
+              </p>
+            )}
           </DialogHeader>
-          <div className="space-y-4">
+          {!selectedPatient ? (
+            <div className="py-8 text-center">
+              <p className="text-gray-600 mb-4">Please select a patient first to add a recovery note.</p>
+              <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
             <div>
               <Label>Note Type</Label>
               <Select>
@@ -375,12 +531,15 @@ export default function PeerRecoveryPage() {
               <Label>Note Content</Label>
               <Textarea placeholder="Document peer support interaction..." rows={6} />
             </div>
-          </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-cyan-600">Save Note</Button>
+            <Button className="bg-cyan-600" disabled={!selectedPatient}>
+              Save Note
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -390,8 +549,21 @@ export default function PeerRecoveryPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Wellness Check Assessment</DialogTitle>
+            {selectedPatient && (
+              <p className="text-sm text-gray-600 mt-1">
+                Patient: {selectedPatient.first_name} {selectedPatient.last_name}
+              </p>
+            )}
           </DialogHeader>
-          <div className="space-y-4">
+          {!selectedPatient ? (
+            <div className="py-8 text-center">
+              <p className="text-gray-600 mb-4">Please select a patient first to perform a wellness check.</p>
+              <Button variant="outline" onClick={() => setAssessmentDialogOpen(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Current Mood</Label>
@@ -444,48 +616,15 @@ export default function PeerRecoveryPage() {
               <Label>Action Plan</Label>
               <Textarea placeholder="Document action steps or referrals..." rows={3} />
             </div>
-          </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssessmentDialogOpen(false)}>
               Cancel
             </Button>
-            <Button className="bg-cyan-600">Save Assessment</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Progress Notes Dialog */}
-      <Dialog open={progressNotesDialogOpen} onOpenChange={setProgressNotesDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Progress Note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Note Date</Label>
-              <Input type="datetime-local" />
-            </div>
-            <div>
-              <Label>Recovery Progress Summary</Label>
-              <Textarea
-                rows={6}
-                placeholder="Document patient's progress in recovery, milestones achieved, challenges faced..."
-              />
-            </div>
-            <div>
-              <Label>Peer Support Interventions</Label>
-              <Textarea rows={4} placeholder="Document peer support interventions provided, techniques used..." />
-            </div>
-            <div>
-              <Label>Recovery Goals Progress</Label>
-              <Textarea rows={3} placeholder="Update on progress toward recovery goals..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProgressNotesDialogOpen(false)}>
-              Cancel
+            <Button className="bg-cyan-600" disabled={!selectedPatient}>
+              Save Assessment
             </Button>
-            <Button className="bg-cyan-600">Save Progress Note</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

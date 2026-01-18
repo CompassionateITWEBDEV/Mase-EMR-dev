@@ -1,42 +1,45 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.NEON_DATABASE_URL!)
+import { type NextRequest, NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const patientId = searchParams.get("patientId")
+    const sql = neon(process.env.NEON_DATABASE_URL!);
+    const searchParams = request.nextUrl.searchParams;
+    const patientId = searchParams.get("patientId");
 
     let query = `
-      SELECT 
+      SELECT
         sm.*,
         p.first_name,
         p.last_name
       FROM sms_messages sm
       LEFT JOIN patients p ON sm.patient_id = p.id
-    `
+    `;
 
     if (patientId) {
-      query += ` WHERE sm.patient_id = $1`
-      const messages = await sql(query, [patientId])
-      return NextResponse.json({ success: true, messages })
+      query += ` WHERE sm.patient_id = $1`;
+      const messages = await sql.query(query, [patientId]);
+      return NextResponse.json({ success: true, messages });
     }
 
-    query += ` ORDER BY sm.created_at DESC LIMIT 100`
-    const messages = await sql(query)
+    query += ` ORDER BY sm.created_at DESC LIMIT 100`;
+    const messages = await sql.query(query, []);
 
-    return NextResponse.json({ success: true, messages })
+    return NextResponse.json({ success: true, messages });
   } catch (error: any) {
-    console.error("[v0] Error fetching SMS messages:", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error("[v0] Error fetching SMS messages:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { patientId, toNumber, messageBody } = body
+    const sql = neon(process.env.NEON_DATABASE_URL!);
+    const body = await request.json();
+    const { patientId, toNumber, messageBody } = body;
 
     const [sms] = await sql`
       INSERT INTO sms_messages (
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
         'queued'
       )
       RETURNING *
-    `
+    `;
 
     // TODO: Integrate with Twilio API
     // const twilioResponse = await sendTwilioSMS(...)
@@ -62,9 +65,12 @@ export async function POST(request: NextRequest) {
       success: true,
       sms,
       message: "SMS queued for sending",
-    })
+    });
   } catch (error: any) {
-    console.error("[v0] Error sending SMS:", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error("[v0] Error sending SMS:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }

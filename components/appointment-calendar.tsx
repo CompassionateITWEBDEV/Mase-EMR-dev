@@ -18,10 +18,16 @@ interface AppointmentCalendarProps {
   appointments: Appointment[]
 }
 
+// Helper to parse date string in local timezone (avoids UTC offset issues)
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export function AppointmentCalendar({ selectedDate, appointments }: AppointmentCalendarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [date, setDate] = useState<Date | undefined>(new Date(selectedDate))
+  const [date, setDate] = useState<Date | undefined>(parseLocalDate(selectedDate))
 
   // Group appointments by date
   const appointmentsByDate = appointments.reduce(
@@ -77,7 +83,7 @@ export function AppointmentCalendar({ selectedDate, appointments }: AppointmentC
         {appointmentsByDate[selectedDate] && (
           <div className="space-y-2">
             <h4 className="font-medium text-sm">
-              {appointmentsByDate[selectedDate].length} appointment(s) on {new Date(selectedDate).toLocaleDateString()}
+              {appointmentsByDate[selectedDate].length} appointment(s) on {parseLocalDate(selectedDate).toLocaleDateString()}
             </h4>
             <div className="space-y-1">
               {appointmentsByDate[selectedDate].slice(0, 3).map((apt) => (

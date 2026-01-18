@@ -1,36 +1,53 @@
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { type NextRequest, NextResponse } from "next/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { type NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const holdId = Number.parseInt(params.id)
-    const { override_reason, override_type, overridden_by } = await request.json()
+    const { id } = await params;
+    const holdId = Number.parseInt(id);
+    const { override_reason, override_type, overridden_by } =
+      await request.json();
 
     if (!Number.isFinite(holdId)) {
-      return NextResponse.json({ error: "Invalid hold identifier" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid hold identifier" },
+        { status: 400 }
+      );
     }
 
     if (!override_reason || override_reason.trim().length < 20) {
-      return NextResponse.json({ error: "Override reason must be at least 20 characters" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Override reason must be at least 20 characters" },
+        { status: 400 }
+      );
     }
 
-    const supabase = await createServiceRoleClient()
+    const supabase = await createServiceRoleClient();
 
     const { data: hold, error: holdError } = await supabase
       .from("compliance_holds")
       .select("id, patient_id, status")
       .eq("id", holdId)
-      .single()
+      .single();
 
     if (holdError || !hold) {
-      return NextResponse.json({ error: "Compliance hold not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Compliance hold not found" },
+        { status: 404 }
+      );
     }
 
     if (hold.status === "cleared") {
-      return NextResponse.json({ error: "Hold already cleared" }, { status: 409 })
+      return NextResponse.json(
+        { error: "Hold already cleared" },
+        { status: 409 }
+      );
     }
 
-    const now = new Date().toISOString()
+    const now = new Date().toISOString();
 
     const { error: updateError } = await supabase
       .from("compliance_holds")
@@ -39,11 +56,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         cleared_by: overridden_by ?? null,
         cleared_time: now,
       })
-      .eq("id", holdId)
+      .eq("id", holdId);
 
     if (updateError) {
-      console.error("[takehome] hold override update failed", updateError)
-      return NextResponse.json({ error: "Failed to update compliance hold" }, { status: 500 })
+      console.error("[takehome] hold override update failed", updateError);
+      return NextResponse.json(
+        { error: "Failed to update compliance hold" },
+        { status: 500 }
+      );
     }
 
     await supabase.from("audit_trail").insert({
@@ -58,16 +78,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         override_time: now,
         ip_address: request.headers.get("x-forwarded-for") || "unknown",
       },
-    })
+    });
 
     return NextResponse.json({
       success: true,
       message: "Override authorized. Medical Director has been notified.",
       override_id: `OVR-${holdId}-${Date.now()}`,
-      review_required_by: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    })
+      review_required_by: new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString(),
+    });
   } catch (error) {
-    console.error("Override processing failed:", error)
-    return NextResponse.json({ error: "Failed to process override" }, { status: 500 })
+    console.error("Override processing failed:", error);
+    return NextResponse.json(
+      { error: "Failed to process override" },
+      { status: 500 }
+    );
   }
 }

@@ -1,54 +1,60 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
-    const searchParams = request.nextUrl.searchParams
-    const therapistId = searchParams.get("therapist_id")
-    const patientId = searchParams.get("patient_id")
+    const supabase = await createClient();
+    const searchParams = request.nextUrl.searchParams;
+    const therapistId = searchParams.get("therapist_id");
+    const patientId = searchParams.get("patient_id");
 
     // Fetch HEP programs
     let programsQuery = supabase
       .from("hep_programs")
-      .select(`
+      .select(
+        `
         *,
         patients(id, first_name, last_name, phone, email),
         staff(id, first_name, last_name)
-      `)
-      .order("created_at", { ascending: false })
+      `
+      )
+      .order("created_at", { ascending: false });
 
     if (therapistId) {
-      programsQuery = programsQuery.eq("therapist_id", therapistId)
+      programsQuery = programsQuery.eq("therapist_id", therapistId);
     }
     if (patientId) {
-      programsQuery = programsQuery.eq("patient_id", patientId)
+      programsQuery = programsQuery.eq("patient_id", patientId);
     }
 
-    const { data: programs, error: programsError } = await programsQuery
+    const { data: programs, error: programsError } = await programsQuery;
 
     // Fetch exercise library
     const { data: exercises, error: exercisesError } = await supabase
       .from("hep_exercises")
       .select("*")
       .eq("is_active", true)
-      .order("exercise_category", { ascending: true })
+      .order("exercise_category", { ascending: true });
 
     // Fetch compliance alerts
     const { data: alerts, error: alertsError } = await supabase
       .from("hep_compliance_alerts")
-      .select(`
+      .select(
+        `
         *,
         patients(first_name, last_name),
         hep_programs(program_name)
-      `)
+      `
+      )
       .eq("is_acknowledged", false)
       .order("created_at", { ascending: false })
-      .limit(20)
+      .limit(20);
 
     // Calculate stats
-    const activePrograms = programs?.filter((p) => p.status === "active").length || 0
-    const completedPrograms = programs?.filter((p) => p.status === "completed").length || 0
+    const activePrograms =
+      programs?.filter((p) => p.status === "active").length || 0;
+    const completedPrograms =
+      programs?.filter((p) => p.status === "completed").length || 0;
 
     return NextResponse.json({
       programs: programs || [],
@@ -59,18 +65,21 @@ export async function GET(request: NextRequest) {
         completedPrograms,
         pendingAlerts: alerts?.length || 0,
       },
-    })
+    });
   } catch (error) {
-    console.error("Error fetching HEP data:", error)
-    return NextResponse.json({ error: "Failed to fetch HEP data" }, { status: 500 })
+    console.error("Error fetching HEP data:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch HEP data" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
-    const body = await request.json()
-    const { action, ...data } = body
+    const supabase = await createClient();
+    const body = await request.json();
+    const { action, ...data } = body;
 
     if (action === "create_program") {
       // Create new HEP program
@@ -90,29 +99,31 @@ export async function POST(request: NextRequest) {
           status: "active",
         })
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
       // Add exercises to program
       if (data.exercises && data.exercises.length > 0) {
-        const exerciseInserts = data.exercises.map((ex: any, index: number) => ({
-          program_id: program.id,
-          exercise_id: ex.exercise_id,
-          exercise_order: index + 1,
-          sets: ex.sets,
-          reps: ex.reps,
-          hold_duration_seconds: ex.hold_duration_seconds,
-          rest_seconds: ex.rest_seconds,
-          frequency_per_day: ex.frequency_per_day,
-          frequency_per_week: ex.frequency_per_week,
-          special_instructions: ex.special_instructions,
-        }))
+        const exerciseInserts = data.exercises.map(
+          (ex: any, index: number) => ({
+            program_id: program.id,
+            exercise_id: ex.exercise_id,
+            exercise_order: index + 1,
+            sets: ex.sets,
+            reps: ex.reps,
+            hold_duration_seconds: ex.hold_duration_seconds,
+            rest_seconds: ex.rest_seconds,
+            frequency_per_day: ex.frequency_per_day,
+            frequency_per_week: ex.frequency_per_week,
+            special_instructions: ex.special_instructions,
+          })
+        );
 
-        await supabase.from("hep_program_exercises").insert(exerciseInserts)
+        await supabase.from("hep_program_exercises").insert(exerciseInserts);
       }
 
-      return NextResponse.json({ success: true, program })
+      return NextResponse.json({ success: true, program });
     }
 
     if (action === "log_exercise") {
@@ -134,20 +145,20 @@ export async function POST(request: NextRequest) {
           completed: true,
         })
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
       // Update RTM billing minutes
-      const currentMonth = new Date().toISOString().slice(0, 7) + "-01"
+      const currentMonth = new Date().toISOString().slice(0, 7) + "-01";
       await supabase.rpc("increment_rtm_minutes", {
         p_patient_id: data.patient_id,
         p_program_id: data.program_id,
         p_service_month: currentMonth,
         p_minutes: data.duration_minutes || 0,
-      })
+      });
 
-      return NextResponse.json({ success: true, log })
+      return NextResponse.json({ success: true, log });
     }
 
     if (action === "create_progress_review") {
@@ -168,16 +179,19 @@ export async function POST(request: NextRequest) {
           cpt_codes_billed: data.cpt_codes_billed,
         })
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
-      return NextResponse.json({ success: true, review })
+      return NextResponse.json({ success: true, review });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
-    console.error("Error in HEP POST:", error)
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
+    console.error("Error in HEP POST:", error);
+    return NextResponse.json(
+      { error: "Failed to process request" },
+      { status: 500 }
+    );
   }
 }

@@ -6,11 +6,15 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Brain, Heart, Users, FileText } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
 export default function BioPsychoSocialPage() {
   return (
-    <div className="flex-1 p-8 ml-64">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="ml-64">
+        <div className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Bio-Psycho-Social Assessment</h1>
           <p className="text-muted-foreground">Comprehensive clinical assessment per SAMHSA standards</p>
@@ -152,6 +156,8 @@ export default function BioPsychoSocialPage() {
             <FileText className="mr-2 h-4 w-4" />
             Complete Assessment
           </Button>
+        </div>
+          </div>
         </div>
       </div>
     </div>

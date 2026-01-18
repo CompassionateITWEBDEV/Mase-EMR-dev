@@ -1,86 +1,138 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { AlertTriangle, Activity, Brain, Pill, FileText, AlertCircle, Sparkles } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { createClient } from "@/lib/supabase/client"
-import { useToast } from "@/hooks/use-toast"
+import { useEffect, useState } from "react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  AlertTriangle,
+  Activity,
+  Brain,
+  Pill,
+  FileText,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { fetchAllPatients } from "@/lib/utils/fetch-patients";
 
 interface VitalSign {
-  id: string
-  measurement_date: string
-  systolic_bp: number
-  diastolic_bp: number
-  heart_rate: number
-  respiratory_rate: number
-  temperature: number
-  oxygen_saturation: number
-  weight: number
-  bmi: number
-  pain_scale: number
+  id: string;
+  measurement_date: string;
+  systolic_bp: number;
+  diastolic_bp: number;
+  heart_rate: number;
+  respiratory_rate: number;
+  temperature: number;
+  oxygen_saturation: number;
+  weight: number;
+  bmi: number;
+  pain_scale: number;
 }
 
 interface Patient {
-  id: string
-  first_name: string
-  last_name: string
-  vital_signs?: VitalSign[]
-  medications?: any[]
-  uds_results?: any[]
-  diagnoses?: string[]
-  latest_vitals?: VitalSign
+  id: string;
+  first_name: string;
+  last_name: string;
+  vital_signs?: VitalSign[];
+  medications?: any[];
+  uds_results?: any[];
+  diagnoses?: string[];
+  latest_vitals?: VitalSign;
 }
 
 interface ClinicalRecommendation {
-  category: string
-  priority: "critical" | "warning" | "info"
-  title: string
-  recommendation: string
-  reasoning: string
-  evidence?: string
+  category: string;
+  priority: "critical" | "warning" | "info";
+  title: string;
+  recommendation: string;
+  reasoning: string;
+  evidence?: string;
 }
 
 export default function BehavioralHealthDashboard() {
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [selectedPatient, setSelectedPatient] = useState<string>("")
-  const [patientData, setPatientData] = useState<Patient | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [aiAnalyzing, setAiAnalyzing] = useState(false)
-  const [recommendations, setRecommendations] = useState<ClinicalRecommendation[]>([])
-  const [clinicalQuery, setClinicalQuery] = useState("")
-  const { toast } = useToast()
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<string>("");
+  const [patientData, setPatientData] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [recommendations, setRecommendations] = useState<
+    ClinicalRecommendation[]
+  >([]);
+  const [clinicalQuery, setClinicalQuery] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchPatients()
-  }, [])
+    fetchPatients();
+  }, []);
 
   useEffect(() => {
     if (selectedPatient) {
-      fetchPatientData(selectedPatient)
+      fetchPatientData(selectedPatient);
     }
-  }, [selectedPatient])
+  }, [selectedPatient]);
 
   async function fetchPatients() {
-    const supabase = createClient()
-    const { data } = await supabase.from("patients").select("id, first_name, last_name").limit(50)
+    try {
+      const fetchedPatients = await fetchAllPatients({
+        includeInactive: false,
+      });
 
-    if (data) {
-      setPatients(data)
+      if (fetchedPatients && fetchedPatients.length > 0) {
+        setPatients(fetchedPatients);
+      } else {
+        // Show info message if no patients found
+        toast({
+          title: "No patients found",
+          description: "No active patients are available in the system.",
+          variant: "default",
+        });
+        setPatients([]);
+      }
+    } catch (error) {
+      console.error("[BehavioralHealthDashboard] Error fetching patients:", error);
+      toast({
+        title: "Error loading patients",
+        description:
+          "Failed to fetch patients from the database. Please try again later.",
+        variant: "destructive",
+      });
+      setPatients([]);
     }
   }
 
   async function fetchPatientData(patientId: string) {
-    setLoading(true)
-    const supabase = createClient()
+    setLoading(true);
+    const supabase = createClient();
 
     // Fetch vital signs
     const { data: vitals } = await supabase
@@ -88,14 +140,14 @@ export default function BehavioralHealthDashboard() {
       .select("*")
       .eq("patient_id", patientId)
       .order("measurement_date", { ascending: false })
-      .limit(30)
+      .limit(30);
 
     // Fetch medications
     const { data: medications } = await supabase
       .from("medications")
       .select("*")
       .eq("patient_id", patientId)
-      .eq("status", "active")
+      .eq("status", "active");
 
     // Fetch UDS results
     const { data: uds } = await supabase
@@ -103,57 +155,58 @@ export default function BehavioralHealthDashboard() {
       .select("*")
       .eq("patient_id", patientId)
       .order("collection_date", { ascending: false })
-      .limit(10)
+      .limit(10);
 
-    const patient = patients.find((p) => p.id === patientId)
+    const patient = patients.find((p) => p.id === patientId);
     if (patient && vitals) {
       setPatientData({
         ...patient,
         vital_signs: vitals,
-        medications,
-        uds_results: uds,
+        medications: medications ?? undefined,
+        uds_results: uds ?? undefined,
         latest_vitals: vitals[0],
-      })
+      });
     }
 
-    setLoading(false)
+    setLoading(false);
   }
 
   async function runAIAnalysis() {
-    if (!patientData) return
+    if (!patientData) return;
 
-    setAiAnalyzing(true)
+    setAiAnalyzing(true);
     try {
       const response = await fetch("/api/ai-behavioral-health-assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: patientData.id,
-          query: clinicalQuery || "Provide comprehensive clinical recommendations",
+          query:
+            clinicalQuery || "Provide comprehensive clinical recommendations",
         }),
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setRecommendations(data.recommendations)
+        const data = await response.json();
+        setRecommendations(data.recommendations);
         toast({
           title: "AI Analysis Complete",
           description: "Clinical recommendations generated successfully",
-        })
+        });
       }
     } catch (error) {
       toast({
         title: "Analysis Error",
         description: "Failed to generate recommendations",
         variant: "destructive",
-      })
+      });
     } finally {
-      setAiAnalyzing(false)
+      setAiAnalyzing(false);
     }
   }
 
   const isCriticalVitals = (vitals: VitalSign | undefined) => {
-    if (!vitals) return false
+    if (!vitals) return false;
     return (
       vitals.systolic_bp > 180 ||
       vitals.systolic_bp < 90 ||
@@ -164,8 +217,8 @@ export default function BehavioralHealthDashboard() {
       vitals.oxygen_saturation < 90 ||
       vitals.temperature > 101 ||
       vitals.temperature < 96
-    )
-  }
+    );
+  };
 
   const vitalsTrendData = patientData?.vital_signs
     ?.slice(0, 14)
@@ -177,7 +230,7 @@ export default function BehavioralHealthDashboard() {
       hr: v.heart_rate,
       temp: v.temperature,
       weight: v.weight,
-    }))
+    }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -187,7 +240,9 @@ export default function BehavioralHealthDashboard() {
         <main className="p-6">
           <div className="mb-6">
             <h1 className="text-3xl font-bold">Behavioral Health Dashboard</h1>
-            <p className="text-muted-foreground">AI-powered clinical decision support and vital signs monitoring</p>
+            <p className="text-muted-foreground">
+              AI-powered clinical decision support and vital signs monitoring
+            </p>
           </div>
 
           <div className="mb-6">
@@ -237,7 +292,9 @@ export default function BehavioralHealthDashboard() {
                         <AlertTriangle className="mr-2 h-5 w-5" />
                         Critical Vital Signs Alert
                       </CardTitle>
-                      <CardDescription>Immediate attention required</CardDescription>
+                      <CardDescription>
+                        Immediate attention required
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -245,24 +302,32 @@ export default function BehavioralHealthDashboard() {
                           (patientData.latest_vitals.systolic_bp > 180 ||
                             patientData.latest_vitals.systolic_bp < 90) && (
                             <div className="text-red-700">
-                              <div className="font-semibold">Blood Pressure</div>
+                              <div className="font-semibold">
+                                Blood Pressure
+                              </div>
                               <div>
-                                {patientData.latest_vitals.systolic_bp}/{patientData.latest_vitals.diastolic_bp}
+                                {patientData.latest_vitals.systolic_bp}/
+                                {patientData.latest_vitals.diastolic_bp}
                               </div>
                             </div>
                           )}
                         {patientData.latest_vitals?.heart_rate &&
-                          (patientData.latest_vitals.heart_rate > 120 || patientData.latest_vitals.heart_rate < 50) && (
+                          (patientData.latest_vitals.heart_rate > 120 ||
+                            patientData.latest_vitals.heart_rate < 50) && (
                             <div className="text-red-700">
                               <div className="font-semibold">Heart Rate</div>
-                              <div>{patientData.latest_vitals.heart_rate} bpm</div>
+                              <div>
+                                {patientData.latest_vitals.heart_rate} bpm
+                              </div>
                             </div>
                           )}
                         {patientData.latest_vitals?.oxygen_saturation &&
                           patientData.latest_vitals.oxygen_saturation < 90 && (
                             <div className="text-red-700">
                               <div className="font-semibold">O2 Saturation</div>
-                              <div>{patientData.latest_vitals.oxygen_saturation}%</div>
+                              <div>
+                                {patientData.latest_vitals.oxygen_saturation}%
+                              </div>
                             </div>
                           )}
                         {patientData.latest_vitals?.temperature &&
@@ -270,7 +335,9 @@ export default function BehavioralHealthDashboard() {
                             patientData.latest_vitals.temperature < 96) && (
                             <div className="text-red-700">
                               <div className="font-semibold">Temperature</div>
-                              <div>{patientData.latest_vitals.temperature}°F</div>
+                              <div>
+                                {patientData.latest_vitals.temperature}°F
+                              </div>
                             </div>
                           )}
                       </div>
@@ -285,52 +352,86 @@ export default function BehavioralHealthDashboard() {
                     <CardDescription>
                       Last recorded:{" "}
                       {patientData.latest_vitals
-                        ? new Date(patientData.latest_vitals.measurement_date).toLocaleString()
+                        ? new Date(
+                            patientData.latest_vitals.measurement_date
+                          ).toLocaleString()
                         : "N/A"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       <div>
-                        <div className="text-sm text-muted-foreground">Blood Pressure</div>
+                        <div className="text-sm text-muted-foreground">
+                          Blood Pressure
+                        </div>
                         <div className="text-2xl font-bold">
                           {patientData.latest_vitals?.systolic_bp || "--"}/
                           {patientData.latest_vitals?.diastolic_bp || "--"}
                         </div>
-                        <div className="text-xs text-muted-foreground">mmHg</div>
+                        <div className="text-xs text-muted-foreground">
+                          mmHg
+                        </div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">Heart Rate</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.heart_rate || "--"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Heart Rate
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.heart_rate || "--"}
+                        </div>
                         <div className="text-xs text-muted-foreground">bpm</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">Temperature</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.temperature || "--"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Temperature
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.temperature || "--"}
+                        </div>
                         <div className="text-xs text-muted-foreground">°F</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">O2 Saturation</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.oxygen_saturation || "--"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          O2 Saturation
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.oxygen_saturation || "--"}
+                        </div>
                         <div className="text-xs text-muted-foreground">%</div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">Weight</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.weight || "--"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Weight
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.weight || "--"}
+                        </div>
                         <div className="text-xs text-muted-foreground">lbs</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">BMI</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.bmi?.toFixed(1) || "--"}</div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.bmi?.toFixed(1) || "--"}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">Respiratory Rate</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.respiratory_rate || "--"}</div>
-                        <div className="text-xs text-muted-foreground">/min</div>
+                        <div className="text-sm text-muted-foreground">
+                          Respiratory Rate
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.respiratory_rate || "--"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          /min
+                        </div>
                       </div>
                       <div>
-                        <div className="text-sm text-muted-foreground">Pain Scale</div>
-                        <div className="text-2xl font-bold">{patientData.latest_vitals?.pain_scale || "--"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Pain Scale
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {patientData.latest_vitals?.pain_scale || "--"}
+                        </div>
                         <div className="text-xs text-muted-foreground">/10</div>
                       </div>
                     </div>
@@ -352,8 +453,20 @@ export default function BehavioralHealthDashboard() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="bp_sys" stroke="#ef4444" name="Systolic" strokeWidth={2} />
-                            <Line type="monotone" dataKey="bp_dia" stroke="#3b82f6" name="Diastolic" strokeWidth={2} />
+                            <Line
+                              type="monotone"
+                              dataKey="bp_sys"
+                              stroke="#ef4444"
+                              name="Systolic"
+                              strokeWidth={2}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="bp_dia"
+                              stroke="#3b82f6"
+                              name="Diastolic"
+                              strokeWidth={2}
+                            />
                           </LineChart>
                         </ResponsiveContainer>
                       </CardContent>
@@ -431,8 +544,9 @@ export default function BehavioralHealthDashboard() {
                       AI Clinical Decision Support
                     </CardTitle>
                     <CardDescription>
-                      Powered by advanced behavioral health algorithms analyzing patient history, vitals, medications,
-                      UDS results, and diagnoses
+                      Powered by advanced behavioral health algorithms analyzing
+                      patient history, vitals, medications, UDS results, and
+                      diagnoses
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -445,13 +559,20 @@ export default function BehavioralHealthDashboard() {
                         rows={3}
                       />
                     </div>
-                    <Button onClick={runAIAnalysis} disabled={aiAnalyzing} className="w-full">
-                      {aiAnalyzing ? "Analyzing..." : "Generate Clinical Recommendations"}
+                    <Button
+                      onClick={runAIAnalysis}
+                      disabled={aiAnalyzing}
+                      className="w-full">
+                      {aiAnalyzing
+                        ? "Analyzing..."
+                        : "Generate Clinical Recommendations"}
                     </Button>
 
                     {recommendations.length > 0 && (
                       <div className="space-y-4 mt-6">
-                        <h3 className="font-semibold text-lg">Clinical Recommendations</h3>
+                        <h3 className="font-semibold text-lg">
+                          Clinical Recommendations
+                        </h3>
                         {recommendations.map((rec, idx) => (
                           <Card
                             key={idx}
@@ -459,20 +580,24 @@ export default function BehavioralHealthDashboard() {
                               rec.priority === "critical"
                                 ? "border-red-500 bg-red-50"
                                 : rec.priority === "warning"
-                                  ? "border-yellow-500 bg-yellow-50"
-                                  : "border-blue-500 bg-blue-50"
-                            }
-                          >
+                                ? "border-yellow-500 bg-yellow-50"
+                                : "border-blue-500 bg-blue-50"
+                            }>
                             <CardHeader>
                               <CardTitle className="flex items-center text-sm">
-                                {rec.priority === "critical" && <AlertCircle className="mr-2 h-4 w-4 text-red-600" />}
+                                {rec.priority === "critical" && (
+                                  <AlertCircle className="mr-2 h-4 w-4 text-red-600" />
+                                )}
                                 {rec.priority === "warning" && (
                                   <AlertTriangle className="mr-2 h-4 w-4 text-yellow-600" />
                                 )}
                                 <Badge
-                                  variant={rec.priority === "critical" ? "destructive" : "outline"}
-                                  className="mr-2"
-                                >
+                                  variant={
+                                    rec.priority === "critical"
+                                      ? "destructive"
+                                      : "outline"
+                                  }
+                                  className="mr-2">
                                   {rec.priority.toUpperCase()}
                                 </Badge>
                                 {rec.category}
@@ -481,7 +606,9 @@ export default function BehavioralHealthDashboard() {
                             <CardContent className="space-y-2">
                               <div>
                                 <div className="font-semibold">{rec.title}</div>
-                                <div className="text-sm mt-1">{rec.recommendation}</div>
+                                <div className="text-sm mt-1">
+                                  {rec.recommendation}
+                                </div>
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 <strong>Reasoning:</strong> {rec.reasoning}
@@ -506,20 +633,25 @@ export default function BehavioralHealthDashboard() {
                     </CardHeader>
                     <CardContent className="text-sm space-y-2">
                       <div>
-                        <strong>Active Medications:</strong> {patientData.medications?.length || 0}
+                        <strong>Active Medications:</strong>{" "}
+                        {patientData.medications?.length || 0}
                       </div>
                       <div>
-                        <strong>Recent UDS Tests:</strong> {patientData.uds_results?.length || 0}
+                        <strong>Recent UDS Tests:</strong>{" "}
+                        {patientData.uds_results?.length || 0}
                       </div>
                       <div>
-                        <strong>Vital Signs Records:</strong> {patientData.vital_signs?.length || 0}
+                        <strong>Vital Signs Records:</strong>{" "}
+                        {patientData.vital_signs?.length || 0}
                       </div>
                       <div>
-                        <strong>Latest BP:</strong> {patientData.latest_vitals?.systolic_bp || "--"}/
+                        <strong>Latest BP:</strong>{" "}
+                        {patientData.latest_vitals?.systolic_bp || "--"}/
                         {patientData.latest_vitals?.diastolic_bp || "--"} mmHg
                       </div>
                       <div>
-                        <strong>Latest HR:</strong> {patientData.latest_vitals?.heart_rate || "--"} bpm
+                        <strong>Latest HR:</strong>{" "}
+                        {patientData.latest_vitals?.heart_rate || "--"} bpm
                       </div>
                     </CardContent>
                   </Card>
@@ -547,22 +679,28 @@ export default function BehavioralHealthDashboard() {
                     <CardTitle>Active Medications</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {patientData.medications && patientData.medications.length > 0 ? (
+                    {patientData.medications &&
+                    patientData.medications.length > 0 ? (
                       <div className="space-y-4">
                         {patientData.medications.map((med: any) => (
                           <div key={med.id} className="border-b pb-4">
-                            <div className="font-semibold">{med.medication_name}</div>
+                            <div className="font-semibold">
+                              {med.medication_name}
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {med.dosage} - {med.frequency}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Started: {new Date(med.start_date).toLocaleDateString()}
+                              Started:{" "}
+                              {new Date(med.start_date).toLocaleDateString()}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No active medications</p>
+                      <p className="text-muted-foreground">
+                        No active medications
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -575,34 +713,52 @@ export default function BehavioralHealthDashboard() {
                     <CardTitle>Urine Drug Screen Results</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {patientData.uds_results && patientData.uds_results.length > 0 ? (
+                    {patientData.uds_results &&
+                    patientData.uds_results.length > 0 ? (
                       <div className="space-y-4">
                         {patientData.uds_results.map((uds: any) => (
                           <div key={uds.id} className="border-b pb-4">
                             <div className="flex justify-between items-center">
                               <div>
                                 <div className="font-semibold">
-                                  {new Date(uds.collection_date).toLocaleDateString()}
+                                  {new Date(
+                                    uds.collection_date
+                                  ).toLocaleDateString()}
                                 </div>
-                                <div className="text-sm text-muted-foreground">Type: {uds.test_type}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Type: {uds.test_type}
+                                </div>
                               </div>
-                              <Badge variant={uds.positive_for?.length > 0 ? "destructive" : "outline"}>
-                                {uds.positive_for?.length > 0 ? "Positive" : "Negative"}
+                              <Badge
+                                variant={
+                                  uds.positive_for?.length > 0
+                                    ? "destructive"
+                                    : "outline"
+                                }>
+                                {uds.positive_for?.length > 0
+                                  ? "Positive"
+                                  : "Negative"}
                               </Badge>
                             </div>
-                            {uds.positive_for && uds.positive_for.length > 0 && (
-                              <div className="mt-2 text-sm">
-                                <strong>Positive for:</strong> {uds.positive_for.join(", ")}
-                              </div>
-                            )}
+                            {uds.positive_for &&
+                              uds.positive_for.length > 0 && (
+                                <div className="mt-2 text-sm">
+                                  <strong>Positive for:</strong>{" "}
+                                  {uds.positive_for.join(", ")}
+                                </div>
+                              )}
                             {uds.interpretation && (
-                              <div className="mt-1 text-xs text-muted-foreground">{uds.interpretation}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {uds.interpretation}
+                              </div>
                             )}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No UDS results available</p>
+                      <p className="text-muted-foreground">
+                        No UDS results available
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -615,7 +771,10 @@ export default function BehavioralHealthDashboard() {
               <CardContent className="flex items-center justify-center h-64">
                 <div className="text-center text-muted-foreground">
                   <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Select a patient to view vital signs and clinical recommendations</p>
+                  <p>
+                    Select a patient to view vital signs and clinical
+                    recommendations
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -623,5 +782,5 @@ export default function BehavioralHealthDashboard() {
         </main>
       </div>
     </div>
-  )
+  );
 }

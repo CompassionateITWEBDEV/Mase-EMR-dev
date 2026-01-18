@@ -1,60 +1,60 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
-import { ArrowRight, Search, Users, CheckCircle2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect } from "react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { createClient } from "@/lib/supabase/client";
+import { ArrowRight, Search, Users, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CaseloadTransferPage() {
-  const [staff, setStaff] = useState<any[]>([])
-  const [fromStaffId, setFromStaffId] = useState("")
-  const [toStaffId, setToStaffId] = useState("")
-  const [patients, setPatients] = useState<any[]>([])
-  const [selectedPatients, setSelectedPatients] = useState<string[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [transferReason, setTransferReason] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const { toast } = useToast()
+  const [staff, setStaff] = useState<any[]>([]);
+  const [fromStaffId, setFromStaffId] = useState("");
+  const [toStaffId, setToStaffId] = useState("");
+  const [patients, setPatients] = useState<any[]>([]);
+  const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   useEffect(() => {
     async function getCurrentUser() {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getUser();
       if (user) {
-        setCurrentUserId(user.id)
+        setCurrentUserId(user.id);
       }
     }
-    getCurrentUser()
-  }, [])
+    getCurrentUser();
+  }, []);
 
   // Load staff members
   useEffect(() => {
-    fetchStaff()
-  }, [])
+    fetchStaff();
+  }, []);
 
   // Load patients when from staff selected
   useEffect(() => {
     if (fromStaffId) {
-      fetchPatients()
+      fetchPatients();
     } else {
-      setPatients([])
-      setSelectedPatients([])
+      setPatients([]);
+      setSelectedPatients([]);
     }
-  }, [fromStaffId])
+  }, [fromStaffId]);
 
   async function fetchStaff() {
     const { data, error } = await supabase
@@ -62,43 +62,43 @@ export default function CaseloadTransferPage() {
       .select("*")
       .eq("is_active", true)
       .in("role", ["counselor", "case_manager", "therapist", "social_worker"])
-      .order("last_name", { ascending: true })
+      .order("last_name", { ascending: true });
 
     if (!error && data) {
-      setStaff(data)
+      setStaff(data);
     }
   }
 
   async function fetchPatients() {
     // This would be improved with actual assigned_counselor field
     // For now we'll get all active patients
-    const { data, error } = await supabase.from("patients").select("*").order("last_name", { ascending: true })
+    const { data, error } = await supabase.from("patients").select("*").order("last_name", { ascending: true });
 
     if (!error && data) {
-      setPatients(data)
+      setPatients(data);
     }
   }
 
   const filteredPatients = patients.filter((p) =>
     `${p.first_name} ${p.last_name} ${p.email || ""}`.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
-  const fromStaff = staff.find((s) => s.id === fromStaffId)
-  const toStaff = staff.find((s) => s.id === toStaffId)
+  const fromStaff = staff.find((s) => s.id === fromStaffId);
+  const toStaff = staff.find((s) => s.id === toStaffId);
 
   const togglePatient = (patientId: string) => {
     setSelectedPatients((prev) =>
       prev.includes(patientId) ? prev.filter((id) => id !== patientId) : [...prev, patientId],
-    )
-  }
+    );
+  };
 
   const selectAll = () => {
-    setSelectedPatients(filteredPatients.map((p) => p.id))
-  }
+    setSelectedPatients(filteredPatients.map((p) => p.id));
+  };
 
   const deselectAll = () => {
-    setSelectedPatients([])
-  }
+    setSelectedPatients([]);
+  };
 
   async function handleTransfer() {
     if (!fromStaffId || !toStaffId || selectedPatients.length === 0) {
@@ -106,8 +106,8 @@ export default function CaseloadTransferPage() {
         title: "Validation Error",
         description: "Please select both staff members and at least one patient",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (!currentUserId) {
@@ -115,11 +115,11 @@ export default function CaseloadTransferPage() {
         title: "Authentication Error",
         description: "You must be logged in to perform transfers",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       // Here you would update the assigned_counselor field for each patient
@@ -131,30 +131,31 @@ export default function CaseloadTransferPage() {
         transfer_reason: transferReason,
         transferred_at: new Date().toISOString(),
         transferred_by: currentUserId,
-      }))
-
-      console.log("[v0] Caseload transfer:", transfers)
+      }));
 
       // You would insert into a caseload_transfers audit table here
       // And update patients.assigned_counselor
+      // Example:
+      // await supabase.from('caseload_transfers').insert(transfers);
+      // await supabase.from('patients').update({ assigned_counselor: toStaffId }).in('id', selectedPatients);
 
       toast({
         title: "Transfer Complete",
         description: `Successfully transferred ${selectedPatients.length} patient(s) from ${fromStaff?.first_name} ${fromStaff?.last_name} to ${toStaff?.first_name} ${toStaff?.last_name}`,
-      })
+      });
 
       // Reset form
-      setSelectedPatients([])
-      setTransferReason("")
+      setSelectedPatients([]);
+      setTransferReason("");
     } catch (error) {
-      console.error("Transfer error:", error)
+      console.error("Transfer error:", error);
       toast({
         title: "Transfer Failed",
         description: "An error occurred during the transfer",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -340,5 +341,5 @@ export default function CaseloadTransferPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }

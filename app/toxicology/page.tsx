@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +22,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
+import { DashboardHeader } from "@/components/dashboard-header"
 import {
   FlaskConical,
   Plus,
@@ -36,28 +39,83 @@ import {
   RefreshCw,
   Settings,
   Loader2,
+  Edit,
+  Trash2,
+  Ban,
+  Send,
+  FileSignature,
+  AlertTriangle,
 } from "lucide-react"
 import useSWR from "swr"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-export default function ToxicologyPage() {
+function ToxicologyContent() {
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const preSelectedPatientId = searchParams.get("patient")
+  
   const { data, error, isLoading, mutate } = useSWR("/api/toxicology", fetcher)
   const { data: labsData, mutate: mutateLabs } = useSWR("/api/toxicology?action=labs", fetcher)
   const { data: ordersData, mutate: mutateOrders } = useSWR("/api/toxicology?action=orders", fetcher)
+  const { data: settingsData, mutate: mutateSettings } = useSWR("/api/toxicology?action=settings", fetcher)
+  
+  // Fetch pre-selected patient data if provided via URL
+  const { data: preSelectedPatientData } = useSWR(
+    preSelectedPatientId ? `/api/patients/${preSelectedPatientId}` : null,
+    fetcher
+  )
+  
+  // Combine patients list with pre-selected patient (if not already in list)
+  const allPatients = (() => {
+    const basePatients = data?.patients || []
+    if (preSelectedPatientData?.patient && preSelectedPatientId) {
+      const patientInList = basePatients.some((p: any) => p.id === preSelectedPatientId)
+      if (!patientInList) {
+        const patient = preSelectedPatientData.patient
+        return [
+          {
+            id: patient.id,
+            full_name: patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+          },
+          ...basePatients
+        ]
+      }
+    }
+    return basePatients
+  })()
 
   const [activeTab, setActiveTab] = useState("orders")
   const [searchTerm, setSearchTerm] = useState("")
+  const hasAutoOpenedRef = useRef(false)
 
   // Dialog states
   const [newOrderOpen, setNewOrderOpen] = useState(false)
   const [newLabOpen, setNewLabOpen] = useState(false)
+  const [editLabOpen, setEditLabOpen] = useState(false)
+  const [deactivateLabOpen, setDeactivateLabOpen] = useState(false)
   const [collectSpecimenOpen, setCollectSpecimenOpen] = useState(false)
   const [enterResultsOpen, setEnterResultsOpen] = useState(false)
   const [viewOrderOpen, setViewOrderOpen] = useState(false)
+  const [cancelOrderOpen, setCancelOrderOpen] = useState(false)
+  const [sendToLabOpen, setSendToLabOpen] = useState(false)
+  const [reviewResultsOpen, setReviewResultsOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [selectedLab, setSelectedLab] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [cancellationReason, setCancellationReason] = useState("")
+  const [trackingInfo, setTrackingInfo] = useState("")
+  const [reviewNotes, setReviewNotes] = useState("")
+  
+  // Settings state
+  const [settingsForm, setSettingsForm] = useState({
+    defaultCollectionMethod: "Urine",
+    observedCollectionPolicy: "clinical",
+    defaultTestPanel: "",
+    autoSendToLab: false,
+    preferredLabId: "",
+  })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // New Order form
   const [orderForm, setOrderForm] = useState({
@@ -103,6 +161,207 @@ export default function ToxicologyPage() {
     overallResult: "Negative",
     results: [] as any[],
   })
+
+  // Pre-select patient from URL parameter (when navigating from Patient Chart)
+  useEffect(() => {
+    // Skip if already auto-opened or no pre-selected patient
+    if (hasAutoOpenedRef.current || !preSelectedPatientId) return
+    
+    // Wait for providers to load before opening the dialog
+    if (data?.providers && data.providers.length > 0) {
+      // Check if the patient exists in the combined patients list or if we have pre-selected patient data
+      const patientExists = allPatients.some((p: any) => p.id === preSelectedPatientId) || preSelectedPatientData?.patient
+      if (patientExists) {
+        setOrderForm(prev => ({ ...prev, patientId: preSelectedPatientId }))
+        // Auto-open the new order dialog
+        setNewOrderOpen(true)
+        hasAutoOpenedRef.current = true
+      }
+    }
+  }, [preSelectedPatientId, allPatients, preSelectedPatientData, data?.providers])
+
+  // Load settings when data arrives
+  useEffect(() => {
+    if (settingsData?.settings) {
+      setSettingsForm({
+        defaultCollectionMethod: settingsData.settings.default_collection_method || "Urine",
+        observedCollectionPolicy: settingsData.settings.observed_collection_policy || "clinical",
+        defaultTestPanel: settingsData.settings.default_test_panel || "",
+        autoSendToLab: settingsData.settings.auto_send_to_lab || false,
+        preferredLabId: settingsData.settings.preferred_lab_id || "",
+      })
+    }
+  }, [settingsData?.settings])
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true)
+    try {
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save-settings",
+          ...settingsForm,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to save settings")
+
+      toast({ title: "Success", description: "Settings saved successfully" })
+      mutateSettings()
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  // Print handler for toxicology reports
+  const handlePrint = (order: any) => {
+    const patientName = `${order.patients?.first_name || ""} ${order.patients?.last_name || ""}`
+    const providerName = `${order.providers?.first_name || ""} ${order.providers?.last_name || ""}`
+    const orderDate = order.order_date ? new Date(order.order_date).toLocaleDateString() : "-"
+    const collectionDate = order.collection_date ? new Date(order.collection_date).toLocaleDateString() : "-"
+    const resultDate = order.result_received_date ? new Date(order.result_received_date).toLocaleDateString() : "-"
+
+    const resultsHtml = (order.results || []).map((r: any) => `
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd;">${r.substance_name}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${r.substance_class || "-"}</td>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${r.result === "Positive" ? "#dc2626" : "#16a34a"};">${r.result}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${r.cutoff_level || "-"}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${r.concentration || "-"}</td>
+      </tr>
+    `).join("")
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Toxicology Report - ${order.order_number}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+          h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+          h2 { color: #374151; margin-top: 20px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+          .info-item { margin-bottom: 10px; }
+          .info-label { font-weight: bold; color: #6b7280; font-size: 12px; text-transform: uppercase; }
+          .info-value { font-size: 14px; color: #1f2937; }
+          .overall-result { font-size: 18px; font-weight: bold; padding: 10px; border-radius: 5px; display: inline-block; }
+          .negative { background: #dcfce7; color: #16a34a; }
+          .positive { background: #fee2e2; color: #dc2626; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th { background: #f3f4f6; padding: 10px; text-align: left; border: 1px solid #ddd; }
+          .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #6b7280; }
+          .chain-of-custody { background: #f9fafb; padding: 15px; border-radius: 5px; margin-top: 20px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Drug Screen Report</h1>
+        <div class="header">
+          <div><strong>Order #:</strong> ${order.order_number}</div>
+          <div><strong>Status:</strong> ${order.status}</div>
+        </div>
+        
+        <h2>Patient Information</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Patient Name</div>
+            <div class="info-value">${patientName}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Ordering Provider</div>
+            <div class="info-value">Dr. ${providerName}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Order Date</div>
+            <div class="info-value">${orderDate}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Test Panel</div>
+            <div class="info-value">${order.test_panel}</div>
+          </div>
+        </div>
+
+        <h2>Collection Information</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Collection Date</div>
+            <div class="info-value">${collectionDate}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Collection Method</div>
+            <div class="info-value">${order.collection_method || "-"}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Specimen ID</div>
+            <div class="info-value">${order.specimen_id || "-"}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Specimen Integrity</div>
+            <div class="info-value">${order.specimen_integrity || "-"}</div>
+          </div>
+        </div>
+
+        ${order.chain_of_custody_number ? `
+        <div class="chain-of-custody">
+          <strong>Chain of Custody #:</strong> ${order.chain_of_custody_number}<br>
+          <strong>Observed Collection:</strong> ${order.observed_collection ? "Yes" : "No"}<br>
+          <strong>Temperature Check:</strong> ${order.temperature_check ? "Passed" : "N/A"}
+        </div>
+        ` : ""}
+
+        ${order.overall_result ? `
+        <h2>Results</h2>
+        <div class="info-item">
+          <div class="info-label">Result Date</div>
+          <div class="info-value">${resultDate}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Overall Result</div>
+          <div class="overall-result ${order.overall_result === "Negative" ? "negative" : "positive"}">${order.overall_result}</div>
+        </div>
+
+        ${(order.results || []).length > 0 ? `
+        <h3>Detailed Results</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Substance</th>
+              <th>Class</th>
+              <th>Result</th>
+              <th>Cutoff Level</th>
+              <th>Concentration</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${resultsHtml}
+          </tbody>
+        </table>
+        ` : ""}
+        ` : ""}
+
+        <div class="footer">
+          <p>This report was generated on ${new Date().toLocaleString()}</p>
+          <p>MASE EMR - Toxicology Lab Integration</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    const printWindow = window.open("", "_blank")
+    if (printWindow) {
+      printWindow.document.write(printContent)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    } else {
+      toast({ title: "Error", description: "Unable to open print window. Please check popup blocker settings.", variant: "destructive" })
+    }
+  }
 
   const testPanels = [
     { id: "5-panel", name: "5-Panel Standard", substances: ["THC", "Cocaine", "Opiates", "PCP", "Amphetamines"] },
@@ -360,6 +619,203 @@ export default function ToxicologyPage() {
     setViewOrderOpen(true)
   }
 
+  // Edit Lab handlers
+  const openEditLab = (lab: any) => {
+    setSelectedLab(lab)
+    setLabForm({
+      labName: lab.lab_name || "",
+      contactName: lab.contact_name || "",
+      phone: lab.phone || "",
+      email: lab.email || "",
+      address: lab.address || "",
+      city: lab.city || "",
+      state: lab.state || "",
+      zip: lab.zip || "",
+      cliaNumber: lab.clia_number || "",
+      samhsaCertified: lab.samhsa_certified || false,
+      capAccredited: lab.cap_accredited || false,
+      turnaroundHours: lab.average_turnaround_hours || 24,
+      testPanelsOffered: lab.test_panels_offered || [],
+    })
+    setEditLabOpen(true)
+  }
+
+  const handleEditLab = async () => {
+    if (!selectedLab || !labForm.labName || !labForm.cliaNumber) {
+      toast({ title: "Error", description: "Lab name and CLIA number are required", variant: "destructive" })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-lab",
+          labId: selectedLab.id,
+          ...labForm,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to update lab")
+
+      toast({ title: "Success", description: "Lab updated successfully" })
+      setEditLabOpen(false)
+      setSelectedLab(null)
+      mutateLabs()
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update lab", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openDeactivateLab = (lab: any) => {
+    setSelectedLab(lab)
+    setDeactivateLabOpen(true)
+  }
+
+  const handleDeactivateLab = async () => {
+    if (!selectedLab) return
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "deactivate-lab",
+          labId: selectedLab.id,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to deactivate lab")
+
+      toast({ title: "Success", description: "Lab deactivated successfully" })
+      setDeactivateLabOpen(false)
+      setSelectedLab(null)
+      mutateLabs()
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to deactivate lab", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Cancel Order handlers
+  const openCancelOrder = (order: any) => {
+    setSelectedOrder(order)
+    setCancellationReason("")
+    setCancelOrderOpen(true)
+  }
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "cancel-order",
+          orderId: selectedOrder.id,
+          cancellationReason,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to cancel order")
+
+      toast({ title: "Success", description: "Order cancelled successfully" })
+      setCancelOrderOpen(false)
+      setSelectedOrder(null)
+      mutate()
+      mutateOrders()
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to cancel order", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Send to Lab handlers
+  const openSendToLab = (order: any) => {
+    setSelectedOrder(order)
+    setTrackingInfo("")
+    setSendToLabOpen(true)
+  }
+
+  const handleSendToLab = async () => {
+    if (!selectedOrder) return
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send-to-lab",
+          orderId: selectedOrder.id,
+          trackingInfo,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to send to lab")
+
+      toast({ title: "Success", description: "Order sent to lab" })
+      setSendToLabOpen(false)
+      setSelectedOrder(null)
+      mutate()
+      mutateOrders()
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to send to lab", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Provider Review handlers
+  const openReviewResults = (order: any) => {
+    setSelectedOrder(order)
+    setReviewNotes("")
+    setReviewResultsOpen(true)
+  }
+
+  const handleReviewResults = async () => {
+    if (!selectedOrder) return
+
+    setSubmitting(true)
+    try {
+      // Use the first provider for now (in a real app, use the logged-in provider)
+      const providerId = data?.providers?.[0]?.id
+
+      const res = await fetch("/api/toxicology", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "provider-review",
+          orderId: selectedOrder.id,
+          providerId,
+          clinicalNotes: reviewNotes,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to review results")
+
+      toast({ title: "Success", description: "Results reviewed and signed off" })
+      setReviewResultsOpen(false)
+      setSelectedOrder(null)
+      mutate()
+      mutateOrders()
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to review results", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -397,11 +853,11 @@ export default function ToxicologyPage() {
   })
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="min-h-screen bg-background">
       <DashboardSidebar />
-
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
+      <div className="pl-64">
+        <DashboardHeader />
+        <main className="p-6">
           {/* Header */}
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -558,19 +1014,41 @@ export default function ToxicologyPage() {
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 {order.status === "pending" && (
-                                  <Button size="sm" variant="outline" onClick={() => openCollectSpecimen(order)}>
-                                    Collect
-                                  </Button>
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={() => openCollectSpecimen(order)}>
+                                      Collect
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => openCancelOrder(order)}>
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                  </>
                                 )}
-                                {(order.status === "collected" || order.status === "in-lab") && (
+                                {order.status === "collected" && (
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={() => openSendToLab(order)}>
+                                      <Send className="h-4 w-4 mr-1" />
+                                      Send
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => openEnterResults(order)}>
+                                      Results
+                                    </Button>
+                                  </>
+                                )}
+                                {order.status === "in-lab" && (
                                   <Button size="sm" variant="outline" onClick={() => openEnterResults(order)}>
                                     Results
                                   </Button>
                                 )}
                                 {order.status === "resulted" && (
-                                  <Button size="sm" variant="ghost">
-                                    <Printer className="h-4 w-4" />
-                                  </Button>
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={() => openReviewResults(order)}>
+                                      <FileSignature className="h-4 w-4 mr-1" />
+                                      Review
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => handlePrint(order)}>
+                                      <Printer className="h-4 w-4" />
+                                    </Button>
+                                  </>
                                 )}
                               </div>
                             </TableCell>
@@ -629,12 +1107,18 @@ export default function ToxicologyPage() {
                               </TableCell>
                               <TableCell>{getResultBadge(order.overall_result)}</TableCell>
                               <TableCell className="text-right">
-                                <Button size="sm" variant="ghost" onClick={() => openViewOrder(order)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost">
-                                  <Printer className="h-4 w-4" />
-                                </Button>
+                                <div className="flex justify-end gap-1">
+                                  <Button size="sm" variant="ghost" onClick={() => openViewOrder(order)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => openReviewResults(order)}>
+                                    <FileSignature className="h-4 w-4 mr-1" />
+                                    Review
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handlePrint(order)}>
+                                    <Printer className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -677,11 +1161,19 @@ export default function ToxicologyPage() {
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                               <CardTitle className="text-lg">{lab.lab_name}</CardTitle>
-                              <Badge
-                                className={lab.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100"}
-                              >
-                                {lab.status}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={lab.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100"}
+                                >
+                                  {lab.status}
+                                </Badge>
+                                <Button size="sm" variant="ghost" onClick={() => openEditLab(lab)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => openDeactivateLab(lab)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2 text-sm">
@@ -715,15 +1207,39 @@ export default function ToxicologyPage() {
             <TabsContent value="settings">
               <Card>
                 <CardHeader>
-                  <CardTitle>Toxicology Settings</CardTitle>
-                  <CardDescription>Configure default settings for drug screening</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Toxicology Settings</CardTitle>
+                      <CardDescription>Configure default settings for drug screening</CardDescription>
+                    </div>
+                    <Button onClick={handleSaveSettings} disabled={savingSettings}>
+                      {savingSettings && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save Settings
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <h3 className="font-medium">Default Test Panels</h3>
+                    <h3 className="font-medium">Default Test Panel</h3>
+                    <Select 
+                      value={settingsForm.defaultTestPanel || "none"} 
+                      onValueChange={(v) => setSettingsForm({ ...settingsForm, defaultTestPanel: v === "none" ? "" : v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select default test panel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No default</SelectItem>
+                        {testPanels.map((panel) => (
+                          <SelectItem key={panel.id} value={panel.id}>
+                            {panel.name} ({panel.substances.length} substances)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="grid gap-3">
                       {testPanels.map((panel) => (
-                        <div key={panel.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div key={panel.id} className={`flex items-center justify-between p-3 border rounded-lg ${settingsForm.defaultTestPanel === panel.id ? 'border-primary bg-primary/5' : ''}`}>
                           <div className="flex-1 font-medium">{panel.name}</div>
                           <Badge variant="outline">{panel.substances.length} substances</Badge>
                         </div>
@@ -736,7 +1252,10 @@ export default function ToxicologyPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Default Collection Method</Label>
-                        <Select defaultValue="Urine">
+                        <Select 
+                          value={settingsForm.defaultCollectionMethod}
+                          onValueChange={(v) => setSettingsForm({ ...settingsForm, defaultCollectionMethod: v })}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -750,7 +1269,10 @@ export default function ToxicologyPage() {
                       </div>
                       <div className="space-y-2">
                         <Label>Require Observed Collection</Label>
-                        <Select defaultValue="clinical">
+                        <Select 
+                          value={settingsForm.observedCollectionPolicy}
+                          onValueChange={(v) => setSettingsForm({ ...settingsForm, observedCollectionPolicy: v })}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -763,11 +1285,49 @@ export default function ToxicologyPage() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Lab Integration</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Preferred Laboratory</Label>
+                        <Select 
+                          value={settingsForm.preferredLabId || "none"}
+                          onValueChange={(v) => setSettingsForm({ ...settingsForm, preferredLabId: v === "none" ? "" : v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select preferred lab" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No preference</SelectItem>
+                            {(labsData?.labs || []).filter((lab: any) => lab.id).map((lab: any) => (
+                              <SelectItem key={lab.id} value={lab.id}>
+                                {lab.lab_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Auto-Send to Lab</Label>
+                        <div className="flex items-center space-x-2 pt-2">
+                          <Checkbox
+                            id="auto-send"
+                            checked={settingsForm.autoSendToLab}
+                            onCheckedChange={(c) => setSettingsForm({ ...settingsForm, autoSendToLab: c === true })}
+                          />
+                          <Label htmlFor="auto-send" className="font-normal">
+                            Automatically send collected specimens to preferred lab
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
+        </main>
       </div>
 
       {/* New Order Dialog */}
@@ -777,6 +1337,12 @@ export default function ToxicologyPage() {
             <DialogTitle>New Drug Screen Order</DialogTitle>
             <DialogDescription>Create a new toxicology test order</DialogDescription>
           </DialogHeader>
+          {isLoading || (allPatients.length === 0 && !data?.providers) ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+              <span className="text-muted-foreground">Loading patients and providers...</span>
+            </div>
+          ) : (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Patient *</Label>
@@ -785,9 +1351,9 @@ export default function ToxicologyPage() {
                   <SelectValue placeholder="Select patient" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(data?.patients || []).map((p: any) => (
+                  {allPatients.filter((p: any) => p.id).map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.first_name} {p.last_name}
+                      {p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Unknown Patient"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -800,9 +1366,9 @@ export default function ToxicologyPage() {
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(data?.providers || []).map((p: any) => (
+                  {(data?.providers || []).filter((p: any) => p.id).map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>
-                      Dr. {p.first_name} {p.last_name}
+                      Dr. {p.first_name} {p.last_name} {p.license_type ? `, ${p.license_type}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -876,7 +1442,7 @@ export default function ToxicologyPage() {
               <div className="space-y-2">
                 <Label>Send to Lab (Optional)</Label>
                 <Select
-                  value={orderForm.labId}
+                  value={orderForm.labId || "in-house"}
                   onValueChange={(v) => setOrderForm({ ...orderForm, labId: v === "in-house" ? "" : v })}
                 >
                   <SelectTrigger>
@@ -884,7 +1450,7 @@ export default function ToxicologyPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="in-house">In-house testing</SelectItem>
-                    {(labsData?.labs || []).map((lab: any) => (
+                    {(labsData?.labs || []).filter((lab: any) => lab.id).map((lab: any) => (
                       <SelectItem key={lab.id} value={lab.id}>
                         {lab.lab_name}
                       </SelectItem>
@@ -894,6 +1460,7 @@ export default function ToxicologyPage() {
               </div>
             )}
           </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewOrderOpen(false)}>
               Cancel
@@ -996,6 +1563,25 @@ export default function ToxicologyPage() {
             <DialogDescription>Record specimen collection for order {selectedOrder?.order_number}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Collector</Label>
+              <Select
+                value={collectionForm.staffId || "self"}
+                onValueChange={(v) => setCollectionForm({ ...collectionForm, staffId: v === "self" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select collector" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Self (Current User)</SelectItem>
+                  {(data?.providers || []).filter((p: any) => p.id).map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.first_name} {p.last_name} {p.license_type ? `(${p.license_type})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Specimen ID *</Label>
               <Input
@@ -1201,6 +1787,262 @@ export default function ToxicologyPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Lab Dialog */}
+      <Dialog open={editLabOpen} onOpenChange={setEditLabOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Toxicology Lab</DialogTitle>
+            <DialogDescription>Update laboratory information</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Lab Name *</Label>
+              <Input value={labForm.labName} onChange={(e) => setLabForm({ ...labForm, labName: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Contact Name</Label>
+                <Input
+                  value={labForm.contactName}
+                  onChange={(e) => setLabForm({ ...labForm, contactName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input value={labForm.phone} onChange={(e) => setLabForm({ ...labForm, phone: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={labForm.email}
+                onChange={(e) => setLabForm({ ...labForm, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CLIA Number *</Label>
+              <Input
+                value={labForm.cliaNumber}
+                onChange={(e) => setLabForm({ ...labForm, cliaNumber: e.target.value })}
+                placeholder="e.g., 12D3456789"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Turnaround (hours)</Label>
+                <Input
+                  type="number"
+                  value={labForm.turnaroundHours}
+                  onChange={(e) => setLabForm({ ...labForm, turnaroundHours: Number.parseInt(e.target.value) || 24 })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-6">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-samhsa"
+                  checked={labForm.samhsaCertified}
+                  onCheckedChange={(c) => setLabForm({ ...labForm, samhsaCertified: c === true })}
+                />
+                <Label htmlFor="edit-samhsa">SAMHSA Certified</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-cap"
+                  checked={labForm.capAccredited}
+                  onCheckedChange={(c) => setLabForm({ ...labForm, capAccredited: c === true })}
+                />
+                <Label htmlFor="edit-cap">CAP Accredited</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditLabOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditLab} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate Lab Confirmation Dialog */}
+      <Dialog open={deactivateLabOpen} onOpenChange={setDeactivateLabOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Deactivate Laboratory
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to deactivate "{selectedLab?.lab_name}"? This will prevent new orders from being sent to this lab.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeactivateLabOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeactivateLab} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Deactivate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={cancelOrderOpen} onOpenChange={setCancelOrderOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-red-500" />
+              Cancel Order
+            </DialogTitle>
+            <DialogDescription>
+              Cancel order #{selectedOrder?.order_number}. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Cancellation Reason</Label>
+              <Textarea
+                placeholder="Please provide a reason for cancellation..."
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOrderOpen(false)}>
+              Keep Order
+            </Button>
+            <Button variant="destructive" onClick={handleCancelOrder} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cancel Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send to Lab Dialog */}
+      <Dialog open={sendToLabOpen} onOpenChange={setSendToLabOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-500" />
+              Send to Laboratory
+            </DialogTitle>
+            <DialogDescription>
+              Send specimen for order #{selectedOrder?.order_number} to the laboratory for processing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Tracking Information (Optional)</Label>
+              <Input
+                placeholder="Enter tracking number or courier info..."
+                value={trackingInfo}
+                onChange={(e) => setTrackingInfo(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendToLabOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendToLab} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send to Lab
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Provider Review Dialog */}
+      <Dialog open={reviewResultsOpen} onOpenChange={setReviewResultsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSignature className="h-5 w-5 text-green-500" />
+              Provider Review & Sign-off
+            </DialogTitle>
+            <DialogDescription>
+              Review and sign off on results for order #{selectedOrder?.order_number}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Patient</Label>
+                  <p className="font-medium">
+                    {selectedOrder.patients?.first_name} {selectedOrder.patients?.last_name}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Overall Result</Label>
+                  <div className="mt-1">{getResultBadge(selectedOrder.overall_result)}</div>
+                </div>
+              </div>
+              {selectedOrder.results && selectedOrder.results.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Individual Results</Label>
+                  <div className="space-y-1">
+                    {selectedOrder.results.map((r: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center p-2 bg-muted rounded">
+                        <span>{r.substance_name}</span>
+                        {getResultBadge(r.result)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Clinical Notes / Interpretation</Label>
+                <Textarea
+                  placeholder="Enter clinical notes, interpretation, or follow-up recommendations..."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewResultsOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReviewResults} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign Off & Complete Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+export default function ToxicologyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background">
+        <DashboardSidebar />
+        <div className="pl-64">
+          <DashboardHeader />
+          <main className="p-6">
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          </main>
+        </div>
+      </div>
+    }>
+      <ToxicologyContent />
+    </Suspense>
   )
 }

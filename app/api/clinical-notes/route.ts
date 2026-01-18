@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
+import { getAuthenticatedUser } from "@/lib/auth/middleware"
 
 export async function GET() {
   try {
@@ -84,25 +85,91 @@ export async function POST(request: Request) {
 
     const { patient_id, note_type, subjective, objective, assessment, plan, provider_id } = body
 
+    // Validate required fields
+    if (!patient_id) {
+      return NextResponse.json({ error: "Patient ID is required" }, { status: 400 })
+    }
+
+    if (!subjective && !objective && !assessment && !plan) {
+      return NextResponse.json({ error: "Note content is required" }, { status: 400 })
+    }
+
+    // Get provider_id from authenticated user if not provided
+    let finalProviderId = provider_id
+    if (!finalProviderId) {
+      const { user, error: authError } = await getAuthenticatedUser()
+      
+      // In development mode, allow proceeding without auth (similar to patients API)
+      if (authError || !user) {
+        if (process.env.NODE_ENV === "production") {
+          return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+        } else {
+          console.warn(
+            "[API] Development mode: Proceeding without authentication, provider_id will be null"
+          )
+          // In development, allow saving without provider_id
+          finalProviderId = null
+        }
+      } else {
+        // User is authenticated, try to get provider_id from staff or providers table
+        const { data: staffData } = await supabase
+          .from("staff")
+          .select("id")
+          .eq("id", user.id)
+          .single()
+
+        if (staffData) {
+          finalProviderId = staffData.id
+        } else {
+          // Check if user is in providers table
+          const { data: providerData } = await supabase
+            .from("providers")
+            .select("id")
+            .eq("id", user.id)
+            .single()
+
+          if (providerData) {
+            finalProviderId = providerData.id
+          } else {
+            // In development, allow null provider_id
+            if (process.env.NODE_ENV === "development") {
+              console.warn(
+                "[API] Development mode: Provider ID not found in staff or providers tables, proceeding with null provider_id"
+              )
+              finalProviderId = null
+            } else {
+              return NextResponse.json({ error: "Provider ID not found" }, { status: 400 })
+            }
+          }
+        }
+      }
+    }
+
+    // Note: note_date column doesn't exist in the schema - using created_at (auto-set by database)
     const { data, error } = await supabase
       .from("progress_notes")
       .insert({
         patient_id,
-        provider_id,
+        provider_id: finalProviderId,
         note_type: note_type || "progress",
-        subjective,
-        objective,
-        assessment,
-        plan,
+        subjective: subjective || "",
+        objective: objective || "",
+        assessment: assessment || "",
+        plan: plan || "",
       })
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error("Save note error:", error)
+      return NextResponse.json({ error: error.message || "Failed to save note" }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, note: data })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Save note error:", error)
-    return NextResponse.json({ error: "Failed to save note" }, { status: 500 })
+    return NextResponse.json({ 
+      error: error.message || "Failed to save note" 
+    }, { status: 500 })
   }
 }

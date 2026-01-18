@@ -4,25 +4,11 @@ import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  DollarSign,
-  FileCheck,
-  TrendingUp,
-  Building2,
-  AlertTriangle,
-  Package,
-  Shield,
-  FileText,
-  Activity,
-} from "lucide-react"
+import { DollarSign, FileCheck, TrendingUp, Building2, AlertTriangle, Package } from "lucide-react"
 import { BillingCenterOverview } from "@/components/billing-center-overview"
 import { ClaimsManagement } from "@/components/claims-management"
 import { BillingConfiguration } from "@/components/billing-configuration"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { PriorAuthorizationManager } from "@/components/prior-authorization-manager"
-import { ERAProcessing } from "@/components/era-processing"
-import { ClaimsFollowUp } from "@/components/claims-follow-up"
-import { InsuranceManagement } from "@/components/insurance-management"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -143,34 +129,18 @@ export default function BillingCenterPage() {
 
             {/* Main Content Tabs */}
             <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-8">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview" className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
                   Overview
                 </TabsTrigger>
                 <TabsTrigger value="claims" className="flex items-center gap-2">
                   <FileCheck className="h-4 w-4" />
-                  Claims
-                </TabsTrigger>
-                <TabsTrigger value="prior-auth" className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Prior Auth
-                </TabsTrigger>
-                <TabsTrigger value="era" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  ERA/Remittance
-                </TabsTrigger>
-                <TabsTrigger value="follow-up" className="flex items-center gap-2">
-                  <Activity className="h-4 w-4" />
-                  Follow-Up
-                </TabsTrigger>
-                <TabsTrigger value="insurance" className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Insurance
+                  Claims Management
                 </TabsTrigger>
                 <TabsTrigger value="payers" className="flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
-                  Payers
+                  Payer Management
                 </TabsTrigger>
                 <TabsTrigger value="configuration" className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
@@ -184,22 +154,6 @@ export default function BillingCenterPage() {
 
               <TabsContent value="claims">
                 <ClaimsManagement />
-              </TabsContent>
-
-              <TabsContent value="prior-auth">
-                <PriorAuthorizationManager />
-              </TabsContent>
-
-              <TabsContent value="era">
-                <ERAProcessing />
-              </TabsContent>
-
-              <TabsContent value="follow-up">
-                <ClaimsFollowUp />
-              </TabsContent>
-
-              <TabsContent value="insurance">
-                <InsuranceManagement />
               </TabsContent>
 
               <TabsContent value="payers">

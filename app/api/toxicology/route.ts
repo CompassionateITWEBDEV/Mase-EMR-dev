@@ -1,12 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { createServiceClient } from "@/lib/supabase/service-role"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
+
+    // Get Settings
+    if (action === "settings") {
+      const { data: settings, error } = await supabase
+        .from("toxicology_settings")
+        .select("*")
+        .limit(1)
+        .single()
+
+      // Return default settings if none exist
+      if (error || !settings) {
+        return NextResponse.json({
+          settings: {
+            default_collection_method: "Urine",
+            observed_collection_policy: "clinical",
+            default_test_panel: null,
+            auto_send_to_lab: false,
+            preferred_lab_id: null,
+          }
+        })
+      }
+
+      return NextResponse.json({ settings })
+    }
 
     // Get Toxicology Labs
     if (action === "labs") {
@@ -73,13 +96,14 @@ export async function GET(request: NextRequest) {
     // Get Dashboard Stats
     const { data: patients } = await supabase
       .from("patients")
-      .select("id, first_name, last_name, patient_number")
-      .order("last_name")
+      .select("id, full_name, email")
+      .eq("is_active", true)
+      .order("full_name")
       .limit(100)
 
     const { data: providers } = await supabase
       .from("providers")
-      .select("id, first_name, last_name, credentials")
+      .select("id, first_name, last_name, license_type")
       .order("last_name")
 
     const { count: pendingCount } = await supabase
@@ -110,6 +134,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
     const { action } = body
 
@@ -175,20 +200,26 @@ export async function POST(request: NextRequest) {
 
     // Record Specimen Collection
     if (action === "record-collection") {
+      const updateData: Record<string, any> = {
+        collection_date: new Date().toISOString(),
+        specimen_id: body.specimenId,
+        temperature_check: body.temperatureCheck,
+        specimen_integrity: body.specimenIntegrity,
+        observed_collection: body.observedCollection || false,
+        chain_of_custody_number: body.cocNumber,
+        custody_sealed: true,
+        status: "collected",
+        updated_at: new Date().toISOString(),
+      }
+
+      // Only include collection_staff_id if a valid UUID is provided
+      if (body.staffId && body.staffId.trim() !== "") {
+        updateData.collection_staff_id = body.staffId
+      }
+
       const { data, error } = await supabase
         .from("toxicology_orders")
-        .update({
-          collection_date: new Date().toISOString(),
-          collection_staff_id: body.staffId,
-          specimen_id: body.specimenId,
-          temperature_check: body.temperatureCheck,
-          specimen_integrity: body.specimenIntegrity,
-          observed_collection: body.observedCollection || false,
-          chain_of_custody_number: body.cocNumber,
-          custody_sealed: true,
-          status: "collected",
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", body.orderId)
         .select()
         .single()
@@ -228,6 +259,197 @@ export async function POST(request: NextRequest) {
       await supabase.from("audit_trail").insert({
         action: "toxicology_results_entered",
         details: { order_id: body.orderId, result: body.overallResult },
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
+    // Update Lab
+    if (action === "update-lab") {
+      const { data, error } = await supabase
+        .from("toxicology_labs")
+        .update({
+          lab_name: body.labName,
+          contact_name: body.contactName,
+          phone: body.phone,
+          email: body.email,
+          clia_number: body.cliaNumber,
+          samhsa_certified: body.samhsaCertified || false,
+          cap_accredited: body.capAccredited || false,
+          test_panels_offered: body.testPanelsOffered || [],
+          average_turnaround_hours: body.turnaroundHours,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.labId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await supabase.from("audit_trail").insert({
+        action: "toxicology_lab_updated",
+        details: { lab_id: body.labId, name: body.labName },
+      })
+
+      return NextResponse.json({ success: true, lab: data })
+    }
+
+    // Deactivate Lab
+    if (action === "deactivate-lab") {
+      // Check if lab has active orders
+      const { count } = await supabase
+        .from("toxicology_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("lab_id", body.labId)
+        .in("status", ["pending", "collected", "in-lab"])
+
+      if (count && count > 0) {
+        return NextResponse.json(
+          { error: `Cannot deactivate lab with ${count} active order(s). Complete or cancel orders first.` },
+          { status: 400 }
+        )
+      }
+
+      const { data, error } = await supabase
+        .from("toxicology_labs")
+        .update({
+          status: "inactive",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.labId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await supabase.from("audit_trail").insert({
+        action: "toxicology_lab_deactivated",
+        details: { lab_id: body.labId },
+      })
+
+      return NextResponse.json({ success: true, lab: data })
+    }
+
+    // Cancel Order
+    if (action === "cancel-order") {
+      const { data, error } = await supabase
+        .from("toxicology_orders")
+        .update({
+          status: "cancelled",
+          notes: body.cancellationReason ? `Cancelled: ${body.cancellationReason}` : "Cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.orderId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await supabase.from("audit_trail").insert({
+        action: "toxicology_order_cancelled",
+        details: { order_id: body.orderId, reason: body.cancellationReason },
+      })
+
+      return NextResponse.json({ success: true, order: data })
+    }
+
+    // Send to Lab
+    if (action === "send-to-lab") {
+      const { data, error } = await supabase
+        .from("toxicology_orders")
+        .update({
+          status: "in-lab",
+          notes: body.trackingInfo ? `Sent to lab. Tracking: ${body.trackingInfo}` : "Sent to lab",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.orderId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await supabase.from("audit_trail").insert({
+        action: "toxicology_order_sent_to_lab",
+        details: { order_id: body.orderId, tracking: body.trackingInfo },
+      })
+
+      return NextResponse.json({ success: true, order: data })
+    }
+
+    // Save Settings
+    if (action === "save-settings") {
+      // Check if settings exist
+      const { data: existingSettings } = await supabase
+        .from("toxicology_settings")
+        .select("id")
+        .limit(1)
+        .single()
+
+      if (existingSettings) {
+        // Update existing settings
+        const { data, error } = await supabase
+          .from("toxicology_settings")
+          .update({
+            default_collection_method: body.defaultCollectionMethod,
+            observed_collection_policy: body.observedCollectionPolicy,
+            default_test_panel: body.defaultTestPanel,
+            auto_send_to_lab: body.autoSendToLab || false,
+            preferred_lab_id: body.preferredLabId || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingSettings.id)
+          .select()
+          .single()
+
+        if (error) throw error
+        return NextResponse.json({ success: true, settings: data })
+      } else {
+        // Create new settings
+        const { data, error } = await supabase
+          .from("toxicology_settings")
+          .insert({
+            default_collection_method: body.defaultCollectionMethod,
+            observed_collection_policy: body.observedCollectionPolicy,
+            default_test_panel: body.defaultTestPanel,
+            auto_send_to_lab: body.autoSendToLab || false,
+            preferred_lab_id: body.preferredLabId || null,
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        return NextResponse.json({ success: true, settings: data })
+      }
+    }
+
+    // Provider Review
+    if (action === "provider-review") {
+      // Update order with review info
+      const { error: orderError } = await supabase
+        .from("toxicology_orders")
+        .update({
+          status: "reviewed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", body.orderId)
+
+      if (orderError) throw orderError
+
+      // Update all results for this order with review info
+      const { error: resultsError } = await supabase
+        .from("toxicology_results")
+        .update({
+          reviewed_by_provider_id: body.providerId,
+          reviewed_date: new Date().toISOString(),
+          clinical_notes: body.clinicalNotes,
+        })
+        .eq("order_id", body.orderId)
+
+      if (resultsError) throw resultsError
+
+      await supabase.from("audit_trail").insert({
+        action: "toxicology_results_reviewed",
+        details: { order_id: body.orderId, provider_id: body.providerId },
       })
 
       return NextResponse.json({ success: true })

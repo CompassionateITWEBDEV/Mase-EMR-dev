@@ -89,7 +89,21 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     // Get PDMP configuration
-    const { data: config } = await supabase.from("pdmp_config").select("*").single()
+    const { data: config, error: configError } = await supabase
+      .from("pdmp_config")
+      .select("*")
+      .maybeSingle()
+
+    if (configError) {
+      console.error("[v0] Error fetching PDMP config:", configError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "PMP is not configured. Please configure your PMP credentials first.",
+        },
+        { status: 400 },
+      )
+    }
 
     if (!config || !config.is_active) {
       return NextResponse.json(

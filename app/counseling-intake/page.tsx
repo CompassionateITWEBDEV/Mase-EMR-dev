@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,20 +9,73 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Brain, ClipboardCheck, Search, Package } from "lucide-react"
+import { Brain, ClipboardCheck, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
 export default function CounselingIntakePage() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null)
   const [asamLevel, setAsamLevel] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  // Search patients from database using API route
+  const searchPatients = async (term: string) => {
+    if (!term || term.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      const response = await fetch(`/api/patients?search=${encodeURIComponent(term)}&limit=10`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to search patients")
+      }
+
+      const data = await response.json()
+      setSearchResults(data.patients || [])
+    } catch (err) {
+      console.error("Error searching patients:", err)
+      setSearchResults([])
+      toast.error(err instanceof Error ? err.message : "Failed to search patients. Please try again.")
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Handle patient selection from search results
+  const handleSelectPatient = (patient: any) => {
+    setSelectedPatient(patient)
+    setSearchResults([])
+    setSearchQuery("")
+  }
+
+  // Debounced search on input change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        searchPatients(searchQuery)
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   const handleSubmitIntake = () => {
     toast.success("Counseling intake completed and added to Intake Queue")
   }
 
   return (
-    <div className="flex-1 p-8 ml-64">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="ml-64">
+        <div className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">Counseling Intake</h1>
@@ -37,13 +90,71 @@ export default function CounselingIntakePage() {
               Patient Lookup
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex gap-4">
-              <div className="flex-1">
-                <Input placeholder="Search by name, client number, or DOB..." />
+              <div className="flex-1 relative">
+                <Input 
+                  placeholder="Search by name, client number, or DOB..." 
+                  value={searchQuery || ""}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
               </div>
-              <Button>Search</Button>
+              <Button onClick={() => searchPatients(searchQuery)} disabled={isSearching || !searchQuery}>
+                Search
+              </Button>
             </div>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && !selectedPatient && (
+              <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                {searchResults.map((patient) => (
+                  <div
+                    key={patient.id}
+                    className="p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => handleSelectPatient(patient)}
+                  >
+                    <p className="font-medium">
+                      {patient.first_name} {patient.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {patient.phone || patient.mrn || `ID: ${patient.id.slice(0, 8)}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Selected Patient Info */}
+            {selectedPatient && (
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-lg">
+                      {selectedPatient.first_name} {selectedPatient.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedPatient.phone && `Phone: ${selectedPatient.phone}`}
+                      {selectedPatient.mrn && ` • MRN: ${selectedPatient.mrn}`}
+                      {selectedPatient.date_of_birth && ` • DOB: ${new Date(selectedPatient.date_of_birth).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedPatient(null)
+                      setSearchQuery("")
+                      setSearchResults([])
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -55,9 +166,6 @@ export default function CounselingIntakePage() {
             <TabsTrigger value="mental">Mental Health</TabsTrigger>
             <TabsTrigger value="asam">ASAM Criteria</TabsTrigger>
             <TabsTrigger value="goals">Treatment Goals</TabsTrigger>
-            <TabsTrigger value="progress">Progress Notes</TabsTrigger>
-            <TabsTrigger value="peer-tasks">Peer Recovery Tasks</TabsTrigger>
-            <TabsTrigger value="case-tasks">Case Management</TabsTrigger>
           </TabsList>
 
           <TabsContent value="presenting" className="space-y-4">
@@ -375,328 +483,6 @@ export default function CounselingIntakePage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Progress Notes Tab */}
-          <TabsContent value="progress" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Counseling Progress Notes</CardTitle>
-                <CardDescription>Document ongoing counseling sessions and patient progress</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Session Date/Time</Label>
-                  <Input type="datetime-local" />
-                </div>
-                <div>
-                  <Label>Session Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select session type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="individual">Individual Counseling</SelectItem>
-                      <SelectItem value="group">Group Therapy</SelectItem>
-                      <SelectItem value="family">Family Session</SelectItem>
-                      <SelectItem value="crisis">Crisis Intervention</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Progress Notes</Label>
-                  <Textarea
-                    rows={8}
-                    placeholder="Document session content, patient progress, interventions used, and clinical observations..."
-                  />
-                </div>
-                <div>
-                  <Label>Treatment Plan Updates</Label>
-                  <Textarea rows={4} placeholder="Note any updates to treatment goals or plan..." />
-                </div>
-                <Button className="w-full">Save Progress Note</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Peer Recovery Task Assignment Tab */}
-          <TabsContent value="peer-tasks" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Assign Tasks to Peer Recovery</CardTitle>
-                <CardDescription>Create and track tasks for peer recovery specialists</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Task Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select task type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="wellness">Wellness Check</SelectItem>
-                      <SelectItem value="support">Support Session</SelectItem>
-                      <SelectItem value="crisis">Crisis Follow-up</SelectItem>
-                      <SelectItem value="compliance">Compliance Check</SelectItem>
-                      <SelectItem value="outreach">Community Outreach</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Assign To Peer Specialist</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select peer specialist" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="peer1">John Martinez - Peer Recovery Specialist</SelectItem>
-                      <SelectItem value="peer2">Maria Garcia - Peer Recovery Specialist</SelectItem>
-                      <SelectItem value="peer3">David Lee - Senior Peer Specialist</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Priority</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Due Date</Label>
-                  <Input type="date" />
-                </div>
-                <div>
-                  <Label>Task Description</Label>
-                  <Textarea rows={4} placeholder="Describe what needs to be done and any specific instructions..." />
-                </div>
-                <Button className="w-full">Assign Task</Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Assigned Tasks Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    {
-                      task: "Weekly wellness check",
-                      assignedTo: "John Martinez",
-                      status: "completed",
-                      date: "2 days ago",
-                    },
-                    {
-                      task: "Crisis follow-up session",
-                      assignedTo: "Maria Garcia",
-                      status: "in-progress",
-                      date: "Due today",
-                    },
-                    {
-                      task: "Community resource referral",
-                      assignedTo: "David Lee",
-                      status: "pending",
-                      date: "Due in 3 days",
-                    },
-                  ].map((item, idx) => (
-                    <div key={idx} className="p-4 border rounded-lg flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{item.task}</div>
-                        <div className="text-sm text-gray-600">Assigned to: {item.assignedTo}</div>
-                        <div className="text-xs text-gray-500">{item.date}</div>
-                      </div>
-                      <Badge
-                        variant={
-                          item.status === "completed"
-                            ? "default"
-                            : item.status === "in-progress"
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {item.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Case Management Task Assignment Tab */}
-          <TabsContent value="case-tasks" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Request Resources & Case Management Support
-                </CardTitle>
-                <CardDescription>Submit resource requests and assign tasks to case management team</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Request Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select request type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="housing">Housing Assistance</SelectItem>
-                      <SelectItem value="transportation">Transportation Voucher</SelectItem>
-                      <SelectItem value="employment">Employment Resources</SelectItem>
-                      <SelectItem value="food">Food/Nutrition Assistance</SelectItem>
-                      <SelectItem value="legal">Legal Aid Referral</SelectItem>
-                      <SelectItem value="insurance">Insurance/Benefits Enrollment</SelectItem>
-                      <SelectItem value="childcare">Childcare Services</SelectItem>
-                      <SelectItem value="medical">Medical Care Coordination</SelectItem>
-                      <SelectItem value="financial">Financial Assistance</SelectItem>
-                      <SelectItem value="education">Education/Training Programs</SelectItem>
-                      <SelectItem value="other">Other Resource</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Assign To Case Manager</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select case manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cm1">Jennifer Brown - Senior Case Manager</SelectItem>
-                      <SelectItem value="cm2">Michael Thompson - Case Manager</SelectItem>
-                      <SelectItem value="cm3">Lisa Chen - Resource Coordinator</SelectItem>
-                      <SelectItem value="cm4">Robert Wilson - Benefits Specialist</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Urgency Level</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="routine">Routine - Within 2 weeks</SelectItem>
-                      <SelectItem value="soon">Soon - Within 1 week</SelectItem>
-                      <SelectItem value="urgent">Urgent - Within 48 hours</SelectItem>
-                      <SelectItem value="emergency">Emergency - Same day</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Target Completion Date</Label>
-                  <Input type="date" />
-                </div>
-                <div>
-                  <Label>Patient Current Situation</Label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Describe patient's current circumstances and barriers to treatment..."
-                  />
-                </div>
-                <div>
-                  <Label>Specific Request Details</Label>
-                  <Textarea
-                    rows={4}
-                    placeholder="Provide detailed information about the resource needed, eligibility requirements, or any documentation needed..."
-                  />
-                </div>
-                <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-md">
-                  <input type="checkbox" id="follow-up" className="mt-1" />
-                  <label htmlFor="follow-up" className="text-sm">
-                    Notify me when this request is fulfilled or requires additional information
-                  </label>
-                </div>
-                <Button className="w-full">Submit Resource Request</Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Resource Requests</CardTitle>
-                <CardDescription>Track status of submitted case management requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    {
-                      request: "Housing assistance referral",
-                      assignedTo: "Jennifer Brown",
-                      status: "completed",
-                      date: "Completed 5 days ago",
-                      urgency: "urgent",
-                    },
-                    {
-                      request: "Transportation vouchers (monthly)",
-                      assignedTo: "Michael Thompson",
-                      status: "in-progress",
-                      date: "Started 2 days ago",
-                      urgency: "routine",
-                    },
-                    {
-                      request: "Food bank enrollment",
-                      assignedTo: "Lisa Chen",
-                      status: "pending",
-                      date: "Submitted today",
-                      urgency: "soon",
-                    },
-                    {
-                      request: "Medicaid application assistance",
-                      assignedTo: "Robert Wilson",
-                      status: "waiting-info",
-                      date: "Needs documentation",
-                      urgency: "urgent",
-                    },
-                  ].map((item, idx) => (
-                    <div key={idx} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="font-medium">{item.request}</div>
-                          <div className="text-sm text-gray-600">Case Manager: {item.assignedTo}</div>
-                          <div className="text-xs text-gray-500 mt-1">{item.date}</div>
-                        </div>
-                        <div className="flex flex-col gap-1 items-end">
-                          <Badge
-                            variant={
-                              item.status === "completed"
-                                ? "default"
-                                : item.status === "in-progress"
-                                  ? "secondary"
-                                  : item.status === "waiting-info"
-                                    ? "outline"
-                                    : "outline"
-                            }
-                          >
-                            {item.status === "waiting-info" ? "Needs Info" : item.status}
-                          </Badge>
-                          {item.urgency === "urgent" && (
-                            <Badge variant="destructive" className="text-xs">
-                              Urgent
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          Send Message
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Action Buttons */}
@@ -706,6 +492,8 @@ export default function CounselingIntakePage() {
             <ClipboardCheck className="mr-2 h-4 w-4" />
             Complete Intake & Add to Queue
           </Button>
+        </div>
+          </div>
         </div>
       </div>
     </div>

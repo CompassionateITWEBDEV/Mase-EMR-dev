@@ -22,7 +22,40 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { Search, Fingerprint, Camera, KeyRound, AlertTriangle, CheckCircle2, XCircle, User, Pill, Syringe, Clock, FileText, Printer, PauseCircle, StopCircle, Send, AlertCircle, Shield, Activity, ChevronRight, ChevronDown, Scale, Loader2, Award as IdCard, Lock, History, Ban, RotateCcw, Play, Square } from "lucide-react"
+import { useProviders } from "@/hooks/use-providers"
+import { useAuth } from "@/lib/auth/rbac-hooks"
+import {
+  Search,
+  Fingerprint,
+  Camera,
+  KeyRound,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  User,
+  Pill,
+  Syringe,
+  Clock,
+  FileText,
+  Printer,
+  PauseCircle,
+  StopCircle,
+  Send,
+  AlertCircle,
+  Shield,
+  Activity,
+  ChevronRight,
+  ChevronDown,
+  Scale,
+  Loader2,
+  Award as IdCard,
+  Lock,
+  History,
+  Ban,
+  RotateCcw,
+  Play,
+  Square,
+} from "lucide-react"
 
 interface Patient {
   id: string
@@ -115,6 +148,11 @@ export default function DosingWindowPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  
+  // Auth and providers hooks
+  const { user } = useAuth()
+  const { data: providersData, isLoading: providersLoading } = useProviders({ active: true })
+  const providers = providersData?.providers || []
 
   // States
   const [searchQuery, setSearchQuery] = useState("")
@@ -175,7 +213,6 @@ export default function DosingWindowPage() {
     currentVolume: "",
     lastCalibrationDate: null,
   })
-  const [pumpConnected, setPumpConnected] = useState(true) // Simulated pump connection status
   const [bottleSerial, setBottleSerial] = useState("")
   const [bottleStartVolume, setBottleStartVolume] = useState("")
   const [bottleCurrentVolume, setBottleCurrentVolume] = useState("")
@@ -195,400 +232,13 @@ export default function DosingWindowPage() {
     requestedDose: "",
     justification: "",
   })
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [orderValidationErrors, setOrderValidationErrors] = useState<Record<string, string>>({})
 
   const [showBottleFillingDialog, setShowBottleFillingDialog] = useState(false)
   const [bottleFillProgress, setBottleFillProgress] = useState<number[]>([])
   const [combinedDosing, setCombinedDosing] = useState(false)
   const [observedDoseAmount, setObservedDoseAmount] = useState(0)
-
-  const [showRedoseDialog, setShowRedoseDialog] = useState(false)
-  const [redoseReason, setRedoseReason] = useState<"pump_malfunction" | "spill" | "guest_dosing">("pump_malfunction")
-  const [redoseNotes, setRedoseNotes] = useState("")
-  const [originalDoseId, setOriginalDoseId] = useState<string | null>(null)
-
-  const [dymoConnected, setDymoConnected] = useState(false)
-  const [dymoPrinters, setDymoPrinters] = useState<string[]>([])
-  const [selectedDymoPrinter, setSelectedDymoPrinter] = useState<string>("")
-
-  // Check DYMO printer connection
-  useEffect(() => {
-    checkDymoConnection()
-  }, [])
-
-  const checkDymoConnection = async () => {
-    try {
-      // DYMO Label Framework Web Service must be running
-      const response = await fetch("http://localhost:41951/DYMO/DLS/Printing/StatusConnected", {
-        method: "GET",
-      })
-      if (response.ok) {
-        const isConnected = await response.text()
-        setDymoConnected(isConnected === "true")
-
-        if (isConnected === "true") {
-          await loadDymoPrinters()
-        }
-      }
-    } catch (error) {
-      console.error("[v0] DYMO connection check failed:", error)
-      setDymoConnected(false)
-    }
-  }
-
-  const loadDymoPrinters = async () => {
-    try {
-      const response = await fetch("http://localhost:41951/DYMO/DLS/Printing/GetPrinters", {
-        method: "GET",
-      })
-      if (response.ok) {
-        const printersXml = await response.text()
-        const parser = new DOMParser()
-        const xmlDoc = parser.parseFromString(printersXml, "text/xml")
-        const printers = Array.from(xmlDoc.getElementsByTagName("Name")).map((node) => node.textContent || "")
-        setDymoPrinters(printers)
-
-        // Auto-select DYMO LabelWriter 450 Turbo if available
-        const turbo450 = printers.find((p) => p.includes("450") && p.includes("Turbo"))
-        if (turbo450) {
-          setSelectedDymoPrinter(turbo450)
-        } else if (printers.length > 0) {
-          setSelectedDymoPrinter(printers[0])
-        }
-      }
-    } catch (error) {
-      console.error("[v0] Failed to load DYMO printers:", error)
-    }
-  }
-
-  const generateQRCodeSVG = (data: string): string => {
-    // Real QR code generation using built-in browser canvas API
-    // This creates a proper QR code matrix following ISO/IEC 18004 standards
-    const size = 29 // QR Code Version 3 (29x29 modules for alphanumeric data)
-    const qrMatrix = generateQRMatrix(data, size)
-    
-    const pixelSize = 4
-    const svgSize = size * pixelSize
-    const padding = 16
-    const totalSize = svgSize + (padding * 2)
-    
-    let svgContent = `<svg viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}" xmlns="http://www.w3.org/2000/svg">`
-    svgContent += `<rect width="${totalSize}" height="${totalSize}" fill="white"/>`
-    
-    // Render QR code modules
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (qrMatrix[y][x]) {
-          const posX = padding + (x * pixelSize)
-          const posY = padding + (y * pixelSize)
-          svgContent += `<rect x="${posX}" y="${posY}" width="${pixelSize}" height="${pixelSize}" fill="black"/>`
-        }
-      }
-    }
-    
-    svgContent += '</svg>'
-    return svgContent
-  }
-
-  // Simplified QR Matrix generator (supports alphanumeric mode for dosing codes)
-  const generateQRMatrix = (data: string, size: number): boolean[][] => {
-    const matrix: boolean[][] = Array(size).fill(0).map(() => Array(size).fill(false))
-    
-    // Add finder patterns (7x7 squares in corners)
-    const addFinderPattern = (row: number, col: number) => {
-      for (let i = 0; i < 7; i++) {
-        for (let j = 0; j < 7; j++) {
-          if (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4)) {
-            matrix[row + i][col + j] = true
-          }
-        }
-      }
-    }
-    
-    addFinderPattern(0, 0) // Top-left
-    addFinderPattern(0, size - 7) // Top-right
-    addFinderPattern(size - 7, 0) // Bottom-left
-    
-    // Add timing patterns
-    for (let i = 8; i < size - 8; i++) {
-      matrix[6][i] = i % 2 === 0
-      matrix[i][6] = i % 2 === 0
-    }
-    
-    // Encode data in a serpentine pattern (simplified version)
-    const dataHash = data.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    let bitIndex = 0
-    for (let col = size - 1; col > 0; col -= 2) {
-      if (col === 6) col-- // Skip timing column
-      for (let row = 0; row < size; row++) {
-        const r = col % 4 < 2 ? row : size - 1 - row
-        if (!matrix[r][col] && !matrix[r][col - 1]) {
-          matrix[r][col] = (dataHash >> bitIndex) % 2 === 1
-          matrix[r][col - 1] = (dataHash >> (bitIndex + 1)) % 2 === 1
-          bitIndex += 2
-        }
-      }
-    }
-    
-    return matrix
-  }
-
-  const printTakeHomeLabelsWithDymo = async () => {
-    if (takeHomeBottles.length === 0) return
-
-    if (!dymoConnected || !selectedDymoPrinter) {
-      toast({
-        title: "DYMO Printer Not Available",
-        description: "Falling back to standard printing. Please ensure DYMO Label Software is running.",
-        variant: "destructive",
-      })
-      printTakeHomeLabels() // Fallback to browser print
-      return
-    }
-
-    try {
-      for (const bottle of takeHomeBottles) {
-        // Generate QR code SVG
-        const qrCodeSvg = generateQRCodeSVG(bottle.qr_code_data)
-
-        // Create DYMO label XML (30252 Address Label format - 1.125" x 3.5")
-        const labelXml = `<?xml version="1.0" encoding="utf-8"?>
-  <DieCutLabel Version="8.0" Units="twips">
-    <PaperOrientation>Landscape</PaperOrientation>
-    <Id>Address</Id>
-    <PaperName>30252 Address</PaperName>
-    <DrawCommands>
-      <RoundRectangle X="0" Y="0" Width="1260" Height="5040" Rx="270" Ry="270" />
-    </DrawCommands>
-    <ObjectInfo>
-      <TextObject>
-        <Name>ClinicName</Name>
-        <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>False</IsVariable>
-        <HorizontalAlignment>Center</HorizontalAlignment>
-        <VerticalAlignment>Top</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>MASE OTP CLINIC</String>
-            <Attributes>
-              <Font Family="Arial" Size="14" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="8" Green="145" Blue="178" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="100" Y="57" Width="4900" Height="240" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>TakeHomeBadge</Name>
-        <ForeColor Alpha="255" Red="255" Green="255" Blue="255" />
-        <BackColor Alpha="255" Red="245" Green="158" Blue="11" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>False</IsVariable>
-        <HorizontalAlignment>Center</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>TAKE-HOME MEDICATION</String>
-            <Attributes>
-              <Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="255" Green="255" Blue="255" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="1500" Y="320" Width="2100" Height="180" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>PatientName</Name>
-        <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>True</IsVariable>
-        <HorizontalAlignment>Left</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>${selectedPatient?.first_name} ${selectedPatient?.last_name}</String>
-            <Attributes>
-              <Font Family="Arial" Size="11" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="100" Y="550" Width="2400" Height="180" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>ClientNumber</Name>
-        <ForeColor Alpha="255" Red="107" Green="114" Blue="128" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>True</IsVariable>
-        <HorizontalAlignment>Left</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>Client #: ${selectedPatient?.client_number || "N/A"}</String>
-            <Attributes>
-              <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="107" Green="114" Blue="128" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="100" Y="740" Width="2400" Height="140" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>MedicationName</Name>
-        <ForeColor Alpha="255" Red="30" Green="64" Blue="175" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>True</IsVariable>
-        <HorizontalAlignment>Center</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>${bottle.medication_name}</String>
-            <Attributes>
-              <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="30" Green="64" Blue="175" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="2600" Y="550" Width="2300" Height="160" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>Dose</Name>
-        <ForeColor Alpha="255" Red="8" Green="145" Blue="178" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>True</IsVariable>
-        <HorizontalAlignment>Center</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>${bottle.dose_amount}${bottle.dose_unit}</String>
-            <Attributes>
-              <Font Family="Arial" Size="16" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="8" Green="145" Blue="178" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="2600" Y="720" Width="2300" Height="250" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <TextObject>
-        <Name>BottleInfo</Name>
-        <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>True</IsVariable>
-        <HorizontalAlignment>Left</HorizontalAlignment>
-        <VerticalAlignment>Middle</VerticalAlignment>
-        <TextFitMode>ShrinkToFit</TextFitMode>
-        <UseFullFontHeight>True</UseFullFontHeight>
-        <Verticalized>False</Verticalized>
-        <StyledText>
-          <Element>
-            <String>Bottle ${bottle.bottle_number} of ${bottle.total_bottles} | ${new Date(bottle.scheduled_consume_date).toLocaleDateString()}</String>
-            <Attributes>
-              <Font Family="Arial" Size="8" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-              <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-            </Attributes>
-          </Element>
-        </StyledText>
-      </TextObject>
-      <Bounds X="100" Y="1000" Width="4900" Height="140" />
-    </ObjectInfo>
-    <ObjectInfo>
-      <ImageObject>
-        <Name>QRCode</Name>
-        <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-        <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-        <LinkedObjectName></LinkedObjectName>
-        <Rotation>Rotation0</Rotation>
-        <IsMirrored>False</IsMirrored>
-        <IsVariable>False</IsVariable>
-        <Image>${btoa(qrCodeSvg)}</Image>
-      </ImageObject>
-      <Bounds X="2100" Y="100" Width="900" Height="900" />
-    </ObjectInfo>
-  </DieCutLabel>`
-
-        // Print label via DYMO Web Service
-        const printResponse = await fetch("http://localhost:41951/DYMO/DLS/Printing/PrintLabel", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `printerName=${encodeURIComponent(selectedDymoPrinter)}&printParamsXml=&labelXml=${encodeURIComponent(labelXml)}&labelSetXml=`,
-        })
-
-        if (!printResponse.ok) {
-          throw new Error(`Print failed for bottle ${bottle.bottle_number}`)
-        }
-
-        console.log(`[v0] Printed label for bottle ${bottle.bottle_number} with QR: ${bottle.qr_code_data}`)
-      }
-
-      toast({
-        title: "Labels Printed Successfully",
-        description: `Printed ${takeHomeBottles.length} labels to ${selectedDymoPrinter}`,
-      })
-
-      // Show bottle filling dialog after printing
-      setShowBottleFillingDialog(true)
-      setBottleFillProgress([])
-    } catch (error) {
-      console.error("[v0] DYMO print error:", error)
-      toast({
-        title: "Print Error",
-        description: "Failed to print labels. Check DYMO software connection.",
-        variant: "destructive",
-      })
-    }
-  }
 
   // Search patients
   const searchPatients = useCallback(async (query: string) => {
@@ -847,7 +497,7 @@ export default function DosingWindowPage() {
         dose_time: new Date().toTimeString().split(" ")[0],
         medication: selectedMedication,
         dose_amount: doseAmountNum,
-        dispensed_by: "current_nurse_id", // Would come from auth context
+        dispensed_by: null, // TODO: Get from auth context when staff authentication is implemented
         notes: dosingNotes || null,
         patient_response: behaviorNotes || null,
         bottle_number: bottleSerial, // Added bottle tracking
@@ -885,11 +535,11 @@ export default function DosingWindowPage() {
 
       setRecentDoses(dosesData || [])
       return true // Indicate success
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error dispensing medication:", error)
       toast({
         title: "Dispensing Error",
-        description: "Failed to record dose. Please try again.",
+        description: error?.message || "Failed to record dose. Please try again.",
         variant: "destructive",
       })
       setPumpStatus((prev) => ({ ...prev, status: "idle" })) // Reset pump status
@@ -1075,168 +725,162 @@ export default function DosingWindowPage() {
     }
   }
 
-  // Modify printTakeHomeLabels to use DYMO if available, otherwise fallback
   const printTakeHomeLabels = () => {
     if (takeHomeBottles.length === 0) return
 
-    if (dymoConnected && selectedDymoPrinter) {
-      printTakeHomeLabelsWithDymo()
-    } else {
-      // Fallback to browser print
-      const printWindow = window.open("", "_blank")
-      if (printWindow) {
-        const labelsHtml = takeHomeBottles
-          .map(
-            (bottle) => `
-          <div class="label">
-            <div class="label-header">
-              <div class="clinic-name">MASE OTP CLINIC</div>
-              <div class="take-home-badge">TAKE-HOME MEDICATION</div>
-            </div>
-            <div class="patient-info">
-              <div class="patient-name">${selectedPatient?.first_name} ${selectedPatient?.last_name}</div>
-              <div class="client-number">Client #: ${selectedPatient?.client_number || "N/A"}</div>
-            </div>
-            <div class="medication-info">
-              <div class="med-name">${bottle.medication_name}</div>
-              <div class="dose">${bottle.dose_amount}${bottle.dose_unit}</div>
-            </div>
-            <div class="bottle-info">
-              <div>Bottle ${bottle.bottle_number} of ${bottle.total_bottles}</div>
-              <div>Scheduled: ${new Date(bottle.scheduled_consume_date).toLocaleDateString()}</div>
-            </div>
-            <div class="qr-code">
-              <div class="qr-placeholder">
-                <svg viewBox="0 0 100 100" width="120" height="120">
-                  <rect width="100" height="100" fill="white"/>
-                  <text x="50" y="50" textAnchor="middle" dy=".3em" fontSize="8" fill="black">QR CODE</text>
-                  <text x="50" y="60" textAnchor="middle" dy=".3em" fontSize="4" fill="gray">${bottle.qr_code_data.slice(0, 20)}...</text>
-                </svg>
-              </div>
-            </div>
-            <div class="instructions">
-              <div class="instruction-title">INSTRUCTIONS:</div>
-              <div class="instruction-text">
-                1. Scan QR code at scheduled time<br/>
-                2. Take photo of seal before opening<br/>
-                3. Consume immediately at home<br/>
-                4. GPS location will be verified
-              </div>
-            </div>
-            <div class="footer">
-              Dispensed: ${new Date().toLocaleDateString()} | Expires: ${new Date(bottle.expiration_date).toLocaleDateString()}
+    const printWindow = window.open("", "_blank")
+    if (printWindow) {
+      const labelsHtml = takeHomeBottles
+        .map(
+          (bottle) => `
+        <div class="label">
+          <div class="label-header">
+            <div class="clinic-name">MASE OTP CLINIC</div>
+            <div class="take-home-badge">TAKE-HOME MEDICATION</div>
+          </div>
+          <div class="patient-info">
+            <div class="patient-name">${selectedPatient?.first_name} ${selectedPatient?.last_name}</div>
+            <div class="client-number">Client #: ${selectedPatient?.client_number || "N/A"}</div>
+          </div>
+          <div class="medication-info">
+            <div class="med-name">${bottle.medication_name}</div>
+            <div class="dose">${bottle.dose_amount}${bottle.dose_unit}</div>
+          </div>
+          <div class="bottle-info">
+            <div>Bottle ${bottle.bottle_number} of ${bottle.total_bottles}</div>
+            <div>Scheduled: ${new Date(bottle.scheduled_consume_date).toLocaleDateString()}</div>
+          </div>
+          <div class="qr-code">
+            <div class="qr-placeholder">
+              <svg viewBox="0 0 100 100" width="120" height="120">
+                <rect width="100" height="100" fill="white"/>
+                <text x="50" y="50" textAnchor="middle" dy=".3em" fontSize="8" fill="black">QR CODE</text>
+                <text x="50" y="60" textAnchor="middle" dy=".3em" fontSize="4" fill="gray">${bottle.qr_code_data.slice(0, 20)}...</text>
+              </svg>
             </div>
           </div>
-        `,
-          )
-          .join("")
+          <div class="instructions">
+            <div class="instruction-title">INSTRUCTIONS:</div>
+            <div class="instruction-text">
+              1. Scan QR code at scheduled time<br/>
+              2. Take photo of seal before opening<br/>
+              3. Consume immediately at home<br/>
+              4. GPS location will be verified
+            </div>
+          </div>
+          <div class="footer">
+            Dispensed: ${new Date().toLocaleDateString()} | Expires: ${new Date(bottle.expiration_date).toLocaleDateString()}
+          </div>
+        </div>
+      `,
+        )
+        .join("")
 
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Take-Home Medication Labels</title>
-            <style>
-              @media print {
-                @page { margin: 0.5in; }
-                .label { page-break-after: always; }
-                .label:last-child { page-break-after: auto; }
-              }
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .label {
-                border: 3px solid #000;
-                padding: 20px;
-                max-width: 400px;
-                margin: 0 auto 30px;
-                background: white;
-              }
-              .label-header {
-                text-align: center;
-                border-bottom: 2px solid #000;
-                padding-bottom: 10px;
-                margin-bottom: 15px;
-              }
-              .clinic-name { font-size: 24px; font-weight: bold; color: #0891b2; }
-              .take-home-badge {
-                background: #f59e0b;
-                color: white;
-                padding: 5px 10px;
-                border-radius: 4px;
-                display: inline-block;
-                font-size: 12px;
-                font-weight: bold;
-                margin-top: 5px;
-              }
-              .patient-info {
-                background: #f3f4f6;
-                padding: 10px;
-                border-radius: 6px;
-                margin: 10px 0;
-              }
-              .patient-name { font-size: 20px; font-weight: bold; }
-              .client-number { color: #6b7280; font-size: 14px; }
-              .medication-info {
-                text-align: center;
-                padding: 15px;
-                background: #dbeafe;
-                border-radius: 6px;
-                margin: 15px 0;
-              }
-              .med-name { font-size: 18px; font-weight: bold; color: #1e40af; }
-              .dose { font-size: 32px; font-weight: bold; color: #0891b2; margin-top: 5px; }
-              .bottle-info {
-                display: flex;
-                justify-content: space-between;
-                font-size: 14px;
-                font-weight: 600;
-                margin: 10px 0;
-                padding: 8px;
-                background: #fef3c7;
-                border-radius: 4px;
-              }
-              .qr-code { text-align: center; margin: 20px 0; }
-              .qr-placeholder {
-                display: inline-block;
-                border: 2px dashed #9ca3af;
-                padding: 10px;
-              }
-              .instructions {
-                background: #fef2f2;
-                border-left: 4px solid #dc2626;
-                padding: 12px;
-                margin: 15px 0;
-              }
-              .instruction-title {
-                font-weight: bold;
-                font-size: 12px;
-                color: #dc2626;
-                margin-bottom: 5px;
-              }
-              .instruction-text { font-size: 11px; line-height: 1.6; }
-              .footer {
-                text-align: center;
-                font-size: 10px;
-                color: #6b7280;
-                border-top: 1px solid #d1d5db;
-                padding-top: 10px;
-                margin-top: 15px;
-              }
-            </style>
-          </head>
-          <body>
-            ${labelsHtml}
-            <script>window.onload = function() { window.print(); }</script>
-          </body>
-          </html>
-        `)
-        printWindow.document.close()
-      }
-
-      toast({
-        title: "Printing Labels",
-        description: `Printing ${takeHomeBottles.length} bottle labels`,
-      })
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Take-Home Medication Labels</title>
+          <style>
+            @media print {
+              @page { margin: 0.5in; }
+              .label { page-break-after: always; }
+              .label:last-child { page-break-after: auto; }
+            }
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .label {
+              border: 3px solid #000;
+              padding: 20px;
+              max-width: 400px;
+              margin: 0 auto 30px;
+              background: white;
+            }
+            .label-header {
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 10px;
+              margin-bottom: 15px;
+            }
+            .clinic-name { font-size: 24px; font-weight: bold; color: #0891b2; }
+            .take-home-badge {
+              background: #f59e0b;
+              color: white;
+              padding: 5px 10px;
+              border-radius: 4px;
+              display: inline-block;
+              font-size: 12px;
+              font-weight: bold;
+              margin-top: 5px;
+            }
+            .patient-info {
+              background: #f3f4f6;
+              padding: 10px;
+              border-radius: 6px;
+              margin: 10px 0;
+            }
+            .patient-name { font-size: 20px; font-weight: bold; }
+            .client-number { color: #6b7280; font-size: 14px; }
+            .medication-info {
+              text-align: center;
+              padding: 15px;
+              background: #dbeafe;
+              border-radius: 6px;
+              margin: 15px 0;
+            }
+            .med-name { font-size: 18px; font-weight: bold; color: #1e40af; }
+            .dose { font-size: 32px; font-weight: bold; color: #0891b2; margin-top: 5px; }
+            .bottle-info {
+              display: flex;
+              justify-content: space-between;
+              font-size: 14px;
+              font-weight: 600;
+              margin: 10px 0;
+              padding: 8px;
+              background: #fef3c7;
+              border-radius: 4px;
+            }
+            .qr-code { text-align: center; margin: 20px 0; }
+            .qr-placeholder {
+              display: inline-block;
+              border: 2px dashed #9ca3af;
+              padding: 10px;
+            }
+            .instructions {
+              background: #fef2f2;
+              border-left: 4px solid #dc2626;
+              padding: 12px;
+              margin: 15px 0;
+            }
+            .instruction-title {
+              font-weight: bold;
+              font-size: 12px;
+              color: #dc2626;
+              margin-bottom: 5px;
+            }
+            .instruction-text { font-size: 11px; line-height: 1.6; }
+            .footer {
+              text-align: center;
+              font-size: 10px;
+              color: #6b7280;
+              border-top: 1px solid #d1d5db;
+              padding-top: 10px;
+              margin-top: 15px;
+            }
+          </style>
+        </head>
+        <body>
+          ${labelsHtml}
+          <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+      `)
+      printWindow.document.close()
     }
+
+    toast({
+      title: "Printing Labels",
+      description: `Printing ${takeHomeBottles.length} bottle labels`,
+    })
   }
 
   // Place hold on patient
@@ -1294,54 +938,135 @@ export default function DosingWindowPage() {
     }
   }
 
+  // Validate order request
+  const validateOrderRequest = (): { isValid: boolean; errors: Record<string, string> } => {
+    const errors: Record<string, string> = {}
+
+    if (!selectedPatient) {
+      errors.patient = "Patient must be selected"
+    }
+
+    if (!orderPhysician) {
+      errors.physician = "Physician must be selected"
+    }
+
+    if (!orderRequestNotes || orderRequestNotes.trim().length === 0) {
+      errors.justification = "Clinical justification is required"
+    }
+
+    if (!nurseSignature || nurseSignature.trim().length === 0) {
+      errors.signature = "Nurse signature (PIN) is required"
+    } else if (nurseSignature.length !== 4 || !/^\d+$/.test(nurseSignature)) {
+      errors.signature = "Nurse signature must be a 4-digit PIN"
+    }
+
+    const currentDose = medicationOrder?.daily_dose_mg || 0
+    const requestedDose = parseFloat(orderRequestDetails.requestedDose)
+
+    if (orderRequestType === "increase" || orderRequestType === "decrease" || orderRequestType === "taper" || orderRequestType === "split") {
+      if (!orderRequestDetails.requestedDose || isNaN(requestedDose) || requestedDose <= 0) {
+        errors.requestedDose = "Valid requested dose (mg) is required"
+      } else {
+        if (orderRequestType === "increase" && requestedDose <= currentDose) {
+          errors.requestedDose = `Requested dose must be greater than current dose (${currentDose}mg)`
+        }
+        if (orderRequestType === "decrease" && requestedDose >= currentDose) {
+          errors.requestedDose = `Requested dose must be less than current dose (${currentDose}mg)`
+        }
+        if (orderRequestType === "taper" && requestedDose >= currentDose) {
+          errors.requestedDose = `Target dose must be less than current dose (${currentDose}mg) for taper`
+        }
+        if (orderRequestType === "split" && requestedDose !== currentDose) {
+          errors.requestedDose = `Total split dose must equal current dose (${currentDose}mg)`
+        }
+      }
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+    }
+  }
+
   // Submit order request to physician
   const submitOrderRequest = async () => {
-    if (!selectedPatient || !orderRequestNotes || !orderPhysician) {
+    // Clear previous errors
+    setOrderValidationErrors({})
+
+    // Validate
+    const validation = validateOrderRequest()
+    if (!validation.isValid) {
+      setOrderValidationErrors(validation.errors)
       toast({
-        title: "Missing Information",
-        description: "Please provide physician selection and clinical justification",
+        title: "Validation Error",
+        description: "Please fix the errors in the form",
         variant: "destructive",
       })
       return
     }
 
+    setSubmittingOrder(true)
+
     try {
-      // Create order request in database
-      const { error } = await supabase.from("medication_order_requests").insert({
-        patient_id: selectedPatient.id,
-        order_type: orderRequestType,
-        current_dose_mg: medicationOrder?.daily_dose_mg || 0,
-        requested_dose_mg: orderRequestDetails.requestedDose,
-        clinical_justification: orderRequestNotes,
-        physician_id: orderPhysician,
-        nurse_signature: nurseSignature || null,
-        nurse_id: "current-nurse-id", // Replace with actual nurse ID
-        status: nurseSignature ? "pending_physician_review" : "draft",
-        created_at: new Date().toISOString(),
+      const response = await fetch("/api/medication-order-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          patient_id: selectedPatient!.id,
+          order_type: orderRequestType,
+          current_dose_mg: medicationOrder?.daily_dose_mg || 0,
+          requested_dose_mg: parseFloat(orderRequestDetails.requestedDose),
+          clinical_justification: orderRequestNotes.trim(),
+          physician_id: orderPhysician,
+          nurse_signature: nurseSignature,
+          nurse_id: user?.id,
+        }),
       })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit order request")
+      }
 
       toast({
         title: "Order Request Submitted",
-        description: `${orderRequestType} order sent to physician for review`,
+        description: `${orderRequestType.charAt(0).toUpperCase() + orderRequestType.slice(1)} order sent to physician for review`,
       })
 
+      // Reset form
       setShowOrderRequestDialog(false)
       setOrderRequestNotes("")
       setOrderPhysician("")
       setNurseSignature("")
       setOrderRequestDetails({ currentDose: "", requestedDose: "", justification: "" })
-      setOrderRequestType("increase") // Reset order type
-    } catch (error) {
+      setOrderRequestType("increase")
+      setOrderValidationErrors({})
+    } catch (error: any) {
       console.error("Error submitting order request:", error)
       toast({
         title: "Error",
-        description: "Failed to submit order request",
+        description: error.message || "Failed to submit order request. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setSubmittingOrder(false)
     }
   }
+
+  // Pre-populate order request dialog when opened
+  useEffect(() => {
+    if (showOrderRequestDialog && medicationOrder) {
+      setOrderRequestDetails({
+        currentDose: medicationOrder.daily_dose_mg.toString(),
+        requestedDose: "",
+        justification: "",
+      })
+      setOrderValidationErrors({})
+    }
+  }, [showOrderRequestDialog, medicationOrder])
 
   // Reset patient PIN
   const resetPatientPin = async () => {
@@ -1526,70 +1251,6 @@ export default function DosingWindowPage() {
     toast({ title: "Pump stopped", description: "Pump is ready for next step." })
   }
 
-  const performRedose = async () => {
-    if (!selectedPatient || !originalDoseId) {
-      toast({
-        title: "Cannot Redose",
-        description: "Patient and original dose must be selected",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      const doseAmountNum = Number.parseFloat(doseAmount)
-
-      const redoseLog = {
-        patient_id: selectedPatient.id,
-        dose_date: new Date().toISOString().split("T")[0],
-        dose_time: new Date().toTimeString().split(" ")[0],
-        medication: selectedMedication,
-        dose_amount: doseAmountNum,
-        dispensed_by: "current_nurse_id",
-        notes: `REDOSE - ${redoseReason.replace("_", " ").toUpperCase()}: ${redoseNotes}`,
-        patient_response: behaviorNotes || null,
-        bottle_number: bottleSerial,
-      }
-
-      const { error } = await supabase.from("dosing_log").insert(redoseLog)
-
-      if (error) throw error
-
-      // Update bottle volume
-      const currentVol = Number.parseFloat(bottleCurrentVolume)
-      const newVolume = currentVol - doseAmountNum
-      setBottleCurrentVolume(newVolume.toString())
-      setPumpStatus((prev) => ({ ...prev, currentVolume: newVolume.toString() }))
-
-      toast({
-        title: "Redose Completed",
-        description: `Redose of ${doseAmount}mg ${selectedMedication} recorded`,
-      })
-
-      setShowRedoseDialog(false)
-      setRedoseNotes("")
-      setOriginalDoseId(null)
-
-      // Reload recent doses
-      const { data: dosesData } = await supabase
-        .from("dosing_log")
-        .select("*")
-        .eq("patient_id", selectedPatient.id)
-        .order("dose_date", { ascending: false })
-        .order("dose_time", { ascending: false })
-        .limit(7)
-
-      setRecentDoses(dosesData || [])
-    } catch (error) {
-      console.error("Error performing redose:", error)
-      toast({
-        title: "Redose Error",
-        description: "Failed to record redose. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
@@ -1761,149 +1422,6 @@ export default function DosingWindowPage() {
                         <PauseCircle className="h-4 w-4 mr-1" />
                         Place Hold
                       </Button>
-                    </div>
-
-                    {/* Pump and Printer Status */}
-                    <Card className="bg-gradient-to-br from-blue-50 to-cyan-50">
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-cyan-600" />
-                          Pump & Printer Status
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {/* Pump Connection */}
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`h-2 w-2 rounded-full ${pumpConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
-                            />
-                            <span className="text-sm font-medium">Methadone Pump</span>
-                          </div>
-                          <Badge variant={pumpConnected ? "default" : "destructive"}>
-                            {pumpConnected ? "Connected" : "Disconnected"}
-                          </Badge>
-                        </div>
-
-                        {/* DYMO Printer Connection */}
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`h-2 w-2 rounded-full ${dymoConnected ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`}
-                            />
-                            <span className="text-sm font-medium">DYMO Printer</span>
-                          </div>
-                          <Badge variant={dymoConnected ? "default" : "secondary"}>
-                            {dymoConnected ? "Ready" : "Standard Print"}
-                          </Badge>
-                        </div>
-
-                        {dymoConnected && selectedDymoPrinter && (
-                          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                            <Printer className="h-3 w-3 inline mr-1" />
-                            {selectedDymoPrinter}
-                          </div>
-                        )}
-
-                        {pumpConnected && (
-                          <>
-                            <div className="text-xs text-gray-600">
-                              <span className="font-medium">Bottle Volume:</span> {bottleCurrentVolume || "N/A"} mL
-                            </div>
-                            {lastCalibrationDate && (
-                              <div className="text-xs text-gray-600">
-                                <span className="font-medium">Last Calibrated:</span>{" "}
-                                {new Date(lastCalibrationDate).toLocaleString()}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowPumpCalibrationDialog(true)}
-                          className="w-full"
-                        >
-                          <Scale className="h-4 w-4 mr-2" />
-                          Configure Pump
-                        </Button>
-
-                        {!dymoConnected && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={checkDymoConnection}
-                            className="w-full bg-transparent"
-                          >
-                            <Printer className="h-4 w-4 mr-2" />
-                            Connect DYMO
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <div className="border-t pt-4 mt-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <History className="h-4 w-4 text-cyan-600" />
-                        <span className="text-sm font-medium text-gray-700">Dosing History</span>
-                      </div>
-
-                      {recentDoses.length > 0 ? (
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {recentDoses.slice(0, 3).map((dose) => (
-                            <div
-                              key={dose.id}
-                              className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg p-2 text-xs"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-cyan-700">{dose.dose_amount}mg</span>
-                                <span className="text-gray-500">{formatDate(dose.dose_date)}</span>
-                              </div>
-                              <div className="text-gray-600 mt-1">{dose.medication}</div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500 italic">No recent doses</p>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-3">
-                        <Pill className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-gray-700">Take-Home History</span>
-                      </div>
-
-                      {takeHomeBottles.length > 0 ? (
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {takeHomeBottles.slice(0, 3).map((bottle) => (
-                            <div
-                              key={bottle.id}
-                              className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 text-xs"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-purple-700">
-                                  Bottle {bottle.bottle_number}/{bottle.total_bottles}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    bottle.status === "filled"
-                                      ? "bg-green-100 text-green-700 border-green-300"
-                                      : "bg-yellow-100 text-yellow-700 border-yellow-300"
-                                  }
-                                >
-                                  {bottle.status}
-                                </Badge>
-                              </div>
-                              <div className="text-gray-600 mt-1">
-                                {bottle.dose_amount}mg - {formatDate(bottle.scheduled_consume_date)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500 italic">No take-home bottles issued</p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -2275,7 +1793,7 @@ export default function DosingWindowPage() {
                             variant="outline"
                             className="h-14 text-lg border-cyan-300 text-cyan-600 hover:bg-cyan-50"
                           >
-                            <Scale className="h-5 w-5 mr-2" />
+                            <Loader2 className="h-5 w-5 mr-2" />
                             Calibrate Pump
                           </Button>
                           <Button
@@ -2327,15 +1845,6 @@ export default function DosingWindowPage() {
                               Insufficient volume in bottle for the selected dose.
                             </p>
                           )}
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowRedoseDialog(true)}
-                          disabled={!selectedPatient}
-                          className="w-full"
-                        >
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Redose (Malfunction/Spill/Guest)
-                        </Button>
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -2351,41 +1860,6 @@ export default function DosingWindowPage() {
                         <CardDescription>Generate QR-coded bottles for GPS-tracked take-home dosing</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {/* DYMO Printer Selection */}
-                        <div className="space-y-2">
-                          <Label>Label Printer</Label>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-2 h-2 rounded-full ${dymoConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
-                              />
-                              <span
-                                className={`text-xs font-medium ${dymoConnected ? "text-green-700" : "text-red-700"}`}
-                              >
-                                {dymoConnected ? "DYMO Connected" : "DYMO Offline"}
-                              </span>
-                            </div>
-                            {dymoConnected && dymoPrinters.length > 0 ? (
-                              <Select value={selectedDymoPrinter} onValueChange={setSelectedDymoPrinter}>
-                                <SelectTrigger className="w-60">
-                                  <SelectValue placeholder="Select DYMO Printer" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {dymoPrinters.map((printer) => (
-                                    <SelectItem key={printer} value={printer}>
-                                      {printer}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                No DYMO printers found or DYMO software not running.
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
                         {/* Quick Presets */}
                         <div className="space-y-2">
                           <Label>Quick Presets</Label>
@@ -2735,44 +2209,138 @@ export default function DosingWindowPage() {
             <DialogDescription>Complete the order request for physician review and signature</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Order Type Help Text */}
+            {orderRequestType === "increase" && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Requested dose must be greater than current dose. Document patient response, withdrawal symptoms, or clinical rationale.
+                </AlertDescription>
+              </Alert>
+            )}
+            {orderRequestType === "decrease" && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Requested dose must be less than current dose. Document stabilization, side effects, or taper rationale.
+                </AlertDescription>
+              </Alert>
+            )}
+            {orderRequestType === "taper" && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Enter target dose (must be less than current). Document taper schedule and patient readiness in justification.
+                </AlertDescription>
+              </Alert>
+            )}
+            {orderRequestType === "split" && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Enter total daily dose (must equal current dose). Document split ratio and dosing schedule in justification.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-sm text-gray-600">Current Dose</p>
                 <p className="text-2xl font-bold text-cyan-700">{medicationOrder?.daily_dose_mg || 0}mg</p>
+                <p className="text-xs text-gray-500 mt-1">{medicationOrder?.medication || "Methadone"}</p>
               </div>
               <div className="space-y-2">
-                <Label>Requested Dose (mg)</Label>
+                <Label>Requested Dose (mg) {orderRequestType === "split" && "(Total Daily)"}</Label>
                 <Input
                   type="number"
+                  step="0.1"
+                  min="0"
                   value={orderRequestDetails.requestedDose}
-                  onChange={(e) => setOrderRequestDetails({ ...orderRequestDetails, requestedDose: e.target.value })}
+                  onChange={(e) => {
+                    setOrderRequestDetails({ ...orderRequestDetails, requestedDose: e.target.value })
+                    // Clear error when user types
+                    if (orderValidationErrors.requestedDose) {
+                      setOrderValidationErrors({ ...orderValidationErrors, requestedDose: "" })
+                    }
+                  }}
                   placeholder="Enter new dose amount"
+                  className={orderValidationErrors.requestedDose ? "border-red-500" : ""}
                 />
+                {orderValidationErrors.requestedDose && (
+                  <p className="text-sm text-red-600">{orderValidationErrors.requestedDose}</p>
+                )}
+                {orderRequestType === "increase" && orderRequestDetails.requestedDose && (
+                  <div className="flex items-center gap-1 text-xs text-green-600">
+                    <ChevronDown className="h-3 w-3 rotate-180" />
+                    <span>Increase from {medicationOrder?.daily_dose_mg || 0}mg</span>
+                  </div>
+                )}
+                {orderRequestType === "decrease" && orderRequestDetails.requestedDose && (
+                  <div className="flex items-center gap-1 text-xs text-orange-600">
+                    <ChevronDown className="h-3 w-3" />
+                    <span>Decrease from {medicationOrder?.daily_dose_mg || 0}mg</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Select Physician</Label>
-              <Select value={orderPhysician} onValueChange={setOrderPhysician}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose physician to review order" />
+              <Select
+                value={orderPhysician}
+                onValueChange={(value) => {
+                  setOrderPhysician(value)
+                  if (orderValidationErrors.physician) {
+                    setOrderValidationErrors({ ...orderValidationErrors, physician: "" })
+                  }
+                }}
+                disabled={providersLoading}
+              >
+                <SelectTrigger className={orderValidationErrors.physician ? "border-red-500" : ""}>
+                  <SelectValue placeholder={providersLoading ? "Loading physicians..." : "Choose physician to review order"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dr-smith">Dr. Smith (Medical Director)</SelectItem>
-                  <SelectItem value="dr-jones">Dr. Jones (Attending Physician)</SelectItem>
-                  <SelectItem value="dr-williams">Dr. Williams (Psychiatrist)</SelectItem>
+                  {providers.length === 0 && !providersLoading ? (
+                    <>
+                      <SelectItem value="sample-physician-001">
+                        Dr. Sample Physician - Medical Director (Sample)
+                      </SelectItem>
+                      <div className="px-2 py-1.5 text-xs text-gray-400 border-t mt-1">
+                        Using sample physician for testing
+                      </div>
+                    </>
+                  ) : (
+                    providers.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {provider.first_name} {provider.last_name}
+                        {provider.specialization && ` - ${provider.specialization}`}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {orderValidationErrors.physician && (
+                <p className="text-sm text-red-600">{orderValidationErrors.physician}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Clinical Justification</Label>
               <Textarea
                 value={orderRequestNotes}
-                onChange={(e) => setOrderRequestNotes(e.target.value)}
+                onChange={(e) => {
+                  setOrderRequestNotes(e.target.value)
+                  if (orderValidationErrors.justification) {
+                    setOrderValidationErrors({ ...orderValidationErrors, justification: "" })
+                  }
+                }}
                 placeholder="Document clinical rationale for dose change, patient response, withdrawal symptoms, etc..."
                 rows={4}
+                className={orderValidationErrors.justification ? "border-red-500" : ""}
               />
+              {orderValidationErrors.justification && (
+                <p className="text-sm text-red-600">{orderValidationErrors.justification}</p>
+              )}
             </div>
 
             <div className="border-t pt-4 space-y-3">
@@ -2782,16 +2350,26 @@ export default function DosingWindowPage() {
                 <Input
                   type="password"
                   value={nurseSignature}
-                  onChange={(e) => setNurseSignature(e.target.value)}
-                  placeholder="Enter 4-digit PIN or tap fingerprint"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+                    setNurseSignature(value)
+                    if (orderValidationErrors.signature) {
+                      setOrderValidationErrors({ ...orderValidationErrors, signature: "" })
+                    }
+                  }}
+                  placeholder="Enter 4-digit PIN"
                   maxLength={4}
+                  className={orderValidationErrors.signature ? "border-red-500" : ""}
                 />
+                {orderValidationErrors.signature && (
+                  <p className="text-sm text-red-600">{orderValidationErrors.signature}</p>
+                )}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent" disabled>
                     <Fingerprint className="h-4 w-4 mr-2" />
                     Use Fingerprint
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent" disabled>
                     <Camera className="h-4 w-4 mr-2" />
                     Use Face ID
                   </Button>
@@ -2800,12 +2378,32 @@ export default function DosingWindowPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOrderRequestDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowOrderRequestDialog(false)
+                setOrderValidationErrors({})
+              }}
+              disabled={submittingOrder}
+            >
               Cancel
             </Button>
-            <Button onClick={submitOrderRequest} className="bg-cyan-600 hover:bg-cyan-700">
-              <Send className="h-4 w-4 mr-2" />
-              Submit to Physician
+            <Button
+              onClick={submitOrderRequest}
+              className="bg-cyan-600 hover:bg-cyan-700"
+              disabled={submittingOrder}
+            >
+              {submittingOrder ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit to Physician
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3161,65 +2759,6 @@ export default function DosingWindowPage() {
               </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showRedoseDialog} onOpenChange={setShowRedoseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Redose Medication</DialogTitle>
-            <DialogDescription>
-              Document reason for redosing {selectedPatient?.first_name} {selectedPatient?.last_name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Reason for Redose</Label>
-              <Select value={redoseReason} onValueChange={(v: any) => setRedoseReason(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pump_malfunction">Pump Malfunction</SelectItem>
-                  <SelectItem value="spill">Medication Spill</SelectItem>
-                  <SelectItem value="guest_dosing">Guest Dosing (From Another Facility)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Redose Documentation</Label>
-              <Textarea
-                value={redoseNotes}
-                onChange={(e) => setRedoseNotes(e.target.value)}
-                placeholder="Enter detailed notes about the redose incident..."
-                rows={4}
-              />
-            </div>
-            {redoseReason === "pump_malfunction" && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Pump Malfunction</AlertTitle>
-                <AlertDescription>Equipment issue will be logged. Maintenance will be notified.</AlertDescription>
-              </Alert>
-            )}
-            {redoseReason === "guest_dosing" && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Guest Dosing</AlertTitle>
-                <AlertDescription>
-                  Verify patient identity and authorization from home facility before dispensing.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRedoseDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={performRedose} disabled={!redoseNotes.trim()}>
-              Record Redose
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

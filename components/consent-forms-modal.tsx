@@ -10,12 +10,32 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, Shield, Heart, Users, AlertTriangle, CheckCircle, Clock, Ligature as Signature } from "lucide-react"
+import type { Patient } from "@/types/patient"
+
+interface ConsentFormData {
+  agreed?: boolean
+  completed?: boolean
+  completedAt?: string
+  patientSignature?: string
+  [key: string]: unknown
+}
+
+interface ConsentCompletionData {
+  consentForms: Record<string, ConsentFormData>
+  completionStats: {
+    requiredCompleted: number
+    totalRequired: number
+    totalCompleted: number
+    totalForms: number
+  }
+  completedAt: string
+}
 
 interface ConsentFormsModalProps {
-  patient: any
+  patient: Patient | { name?: string; id?: string; first_name?: string; last_name?: string }
   isOpen: boolean
   onClose: () => void
-  onComplete: (data: any) => void
+  onComplete: (data: ConsentCompletionData) => void
 }
 
 const consentForms = [
@@ -102,7 +122,7 @@ const consentForms = [
 ]
 
 export function ConsentFormsModal({ patient, isOpen, onClose, onComplete }: ConsentFormsModalProps) {
-  const [consentData, setConsentData] = useState<Record<string, any>>({})
+  const [consentData, setConsentData] = useState<Record<string, ConsentFormData>>({})
   const [currentCategory, setCurrentCategory] = useState("treatment")
   const [signatures, setSignatures] = useState<Record<string, string>>({})
 
@@ -136,7 +156,7 @@ export function ConsentFormsModal({ patient, isOpen, onClose, onComplete }: Cons
     }
   }
 
-  const handleFormComplete = (formId: string, data: any) => {
+  const handleFormComplete = (formId: string, data: ConsentFormData) => {
     setConsentData((prev) => ({
       ...prev,
       [formId]: {
@@ -171,7 +191,7 @@ export function ConsentFormsModal({ patient, isOpen, onClose, onComplete }: Cons
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Consent Forms - {patient?.name}
+            Consent Forms - {patient && "name" in patient ? patient.name : patient && "first_name" in patient ? `${patient.first_name} ${patient.last_name || ""}`.trim() : "Patient"}
           </DialogTitle>
           <DialogDescription>Complete required consent and authorization forms for treatment</DialogDescription>
         </DialogHeader>
@@ -333,7 +353,10 @@ export function ConsentFormsModal({ patient, isOpen, onClose, onComplete }: Cons
                               <span className="font-medium">Form Completed</span>
                             </div>
                             <p className="text-sm text-green-700 mt-1">
-                              Signed on {new Date(consentData[form.id]?.completedAt).toLocaleString()}
+                              Signed on {(() => {
+                                const completedAt = consentData[form.id]?.completedAt
+                                return completedAt ? new Date(completedAt).toLocaleString() : "Unknown date"
+                              })()}
                             </p>
                           </div>
                         )}

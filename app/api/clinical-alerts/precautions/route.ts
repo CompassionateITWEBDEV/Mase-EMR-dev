@@ -5,7 +5,8 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    const { data: precautions, error } = await supabase
+    // Try to fetch with mrn column first
+    let { data: precautions, error } = await supabase
       .from("patient_precautions")
       .select(`
         *,
@@ -19,14 +20,35 @@ export async function GET() {
       .eq("is_active", true)
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    // If error is due to missing mrn column, retry without it
+    if (error && error.message?.includes("mrn")) {
+      console.warn("[API] mrn column not found, fetching without it:", error.message)
+      const retryQuery = await supabase
+        .from("patient_precautions")
+        .select(`
+          *,
+          patients (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+      
+      if (retryQuery.error) throw retryQuery.error
+      precautions = retryQuery.data
+      error = null
+    } else if (error) {
+      throw error
+    }
 
     const formattedPrecautions =
       precautions?.map((p: any) => ({
         id: p.id,
         patient_id: p.patient_id,
         patient_name: p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : "Unknown",
-        mrn: p.patients?.mrn || "N/A",
+        mrn: p.patients?.mrn || null,
         precaution_type: p.precaution_type,
         custom_text: p.custom_text,
         icon: p.icon,

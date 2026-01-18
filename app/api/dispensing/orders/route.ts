@@ -1,15 +1,16 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status") || "active"
+    const supabase = await createClient();
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") || "active";
 
     const { data: orders, error } = await supabase
       .from("medication_order")
-      .select(`
+      .select(
+        `
         id,
         patient_id,
         daily_dose_mg,
@@ -24,41 +25,53 @@ export async function GET(request: Request) {
           mrn,
           dob
         )
-      `)
+      `
+      )
       .eq("status", status)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[v0] Error fetching dose orders:", error.message)
+      console.error("[v0] Error fetching dose orders:", error.message);
       // Return mock data if table doesn't exist
-      return NextResponse.json(getMockDoseOrders())
+      return NextResponse.json(getMockDoseOrders());
     }
 
-    const formattedOrders = (orders || []).map((order) => ({
-      id: order.id,
-      patient_id: order.patient_id,
-      patient_name: order.patient_dispensing?.name || "Unknown Patient",
-      mrn: order.patient_dispensing?.mrn || `MRN${String(order.patient_id).padStart(6, "0")}`,
-      daily_dose_mg: order.daily_dose_mg,
-      max_takehome: order.max_takehome,
-      prescriber_id: order.prescriber_id,
-      status: order.status,
-      start_date: order.start_date,
-      stop_date: order.stop_date,
-      dob: order.patient_dispensing?.dob,
-    }))
+    const formattedOrders = (orders || []).map((order) => {
+      // Handle patient_dispensing as either single object or array from Supabase join
+      const patientDispensing = Array.isArray(order.patient_dispensing)
+        ? order.patient_dispensing[0]
+        : order.patient_dispensing;
 
-    return NextResponse.json(formattedOrders.length > 0 ? formattedOrders : getMockDoseOrders())
+      return {
+        id: order.id,
+        patient_id: order.patient_id,
+        patient_name: patientDispensing?.name || "Unknown Patient",
+        mrn:
+          patientDispensing?.mrn ||
+          `MRN${String(order.patient_id).padStart(6, "0")}`,
+        daily_dose_mg: order.daily_dose_mg,
+        max_takehome: order.max_takehome,
+        prescriber_id: order.prescriber_id,
+        status: order.status,
+        start_date: order.start_date,
+        stop_date: order.stop_date,
+        dob: patientDispensing?.dob,
+      };
+    });
+
+    return NextResponse.json(
+      formattedOrders.length > 0 ? formattedOrders : getMockDoseOrders()
+    );
   } catch (error) {
-    console.error("[v0] Dispensing orders API error:", error)
-    return NextResponse.json(getMockDoseOrders())
+    console.error("[v0] Dispensing orders API error:", error);
+    return NextResponse.json(getMockDoseOrders());
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const body = await request.json()
+    const supabase = await createClient();
+    const body = await request.json();
 
     const { data, error } = await supabase
       .from("medication_order")
@@ -71,17 +84,20 @@ export async function POST(request: Request) {
         start_date: new Date().toISOString().split("T")[0],
       })
       .select()
-      .single()
+      .single();
 
     if (error) {
-      console.error("[v0] Error creating dose order:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("[v0] Error creating dose order:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[v0] Create dose order error:", error)
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    console.error("[v0] Create dose order error:", error);
+    return NextResponse.json(
+      { error: "Failed to create order" },
+      { status: 500 }
+    );
   }
 }
 
@@ -123,5 +139,5 @@ function getMockDoseOrders() {
       start_date: "2024-01-10",
       dob: "1995-03-21",
     },
-  ]
+  ];
 }

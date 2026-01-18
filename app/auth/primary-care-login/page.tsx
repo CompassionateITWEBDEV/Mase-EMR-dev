@@ -36,6 +36,11 @@ export default function PrimaryCareLoginPage() {
 
     setTimeout(() => {
       if (validCredential) {
+        // Enable auth bypass in development mode
+        if (process.env.NODE_ENV === "development") {
+          document.cookie = `dev_bypass_auth=true; path=/; max-age=86400; SameSite=Lax`;
+        }
+        
         toast({
           title: "Login Successful",
           description: `Welcome ${validCredential.role}!`,

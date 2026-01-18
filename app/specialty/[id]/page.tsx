@@ -1,12 +1,23 @@
-"use client"
+"use client";
 
-import { useParams } from "next/navigation"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+// Force dynamic rendering since this page uses React Query hooks
+export const dynamic = "force-dynamic";
+
+import { useParams } from "next/navigation";
+import { useMemo } from "react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Pill,
   Stethoscope,
@@ -20,26 +31,21 @@ import {
   FileText,
   Play,
   CheckCircle,
-} from "lucide-react"
+  Loader2,
+  AlertCircle,
+  TrendingUp,
+} from "lucide-react";
+import type { SpecialtyConfigMap } from "@/types/specialty";
+import { useSpecialtyConfig } from "@/hooks/use-specialty-config";
+import { useQualityMeasures } from "@/hooks/use-quality-measures";
 
-// Specialty configurations
-const specialtyConfigs: Record<
-  string,
-  {
-    name: string
-    icon: any
-    description: string
-    color: string
-    features: string[]
-    workflows: { name: string; description: string }[]
-    templates: { name: string; type: string }[]
-    billingCodes: { code: string; description: string; fee: string }[]
-  }
-> = {
+// Specialty configurations with proper typing
+const specialtyConfigs: SpecialtyConfigMap = {
   "behavioral-health": {
     name: "Behavioral Health / OTP/MAT",
     icon: Pill,
-    description: "Substance use disorder treatment, addiction medicine, OTP programs",
+    description:
+      "Substance use disorder treatment, addiction medicine, OTP programs",
     color: "#0891b2",
     features: [
       "Methadone/Buprenorphine Dispensing",
@@ -52,10 +58,22 @@ const specialtyConfigs: Record<
       "42 CFR Part 2 Compliance",
     ],
     workflows: [
-      { name: "Daily Dispensing", description: "Morning medication dispensing workflow" },
-      { name: "Phase Advancement", description: "Patient progression through treatment phases" },
-      { name: "Take-Home Eligibility", description: "Evaluate and manage take-home privileges" },
-      { name: "Callback Procedure", description: "Random callback and compliance verification" },
+      {
+        name: "Daily Dispensing",
+        description: "Morning medication dispensing workflow",
+      },
+      {
+        name: "Phase Advancement",
+        description: "Patient progression through treatment phases",
+      },
+      {
+        name: "Take-Home Eligibility",
+        description: "Evaluate and manage take-home privileges",
+      },
+      {
+        name: "Callback Procedure",
+        description: "Random callback and compliance verification",
+      },
     ],
     templates: [
       { name: "OTP Initial Assessment", type: "Assessment" },
@@ -66,8 +84,16 @@ const specialtyConfigs: Record<
     ],
     billingCodes: [
       { code: "H0020", description: "Methadone Administration", fee: "$15.00" },
-      { code: "H0033", description: "Oral Medication Administration", fee: "$12.00" },
-      { code: "H0004", description: "Behavioral Health Counseling", fee: "$85.00" },
+      {
+        code: "H0033",
+        description: "Oral Medication Administration",
+        fee: "$12.00",
+      },
+      {
+        code: "H0004",
+        description: "Behavioral Health Counseling",
+        fee: "$85.00",
+      },
       { code: "H0005", description: "Group Counseling", fee: "$35.00" },
     ],
   },
@@ -87,10 +113,22 @@ const specialtyConfigs: Record<
       "Annual Wellness Visits",
     ],
     workflows: [
-      { name: "New Patient Intake", description: "Complete new patient onboarding" },
-      { name: "Annual Wellness Visit", description: "Comprehensive annual health assessment" },
-      { name: "Chronic Care Management", description: "Monthly CCM patient follow-up" },
-      { name: "Preventive Care Alerts", description: "Automated preventive care reminders" },
+      {
+        name: "New Patient Intake",
+        description: "Complete new patient onboarding",
+      },
+      {
+        name: "Annual Wellness Visit",
+        description: "Comprehensive annual health assessment",
+      },
+      {
+        name: "Chronic Care Management",
+        description: "Monthly CCM patient follow-up",
+      },
+      {
+        name: "Preventive Care Alerts",
+        description: "Automated preventive care reminders",
+      },
     ],
     templates: [
       { name: "SOAP Note", type: "Progress Note" },
@@ -100,16 +138,29 @@ const specialtyConfigs: Record<
       { name: "Referral Letter", type: "Letter" },
     ],
     billingCodes: [
-      { code: "99213", description: "Office Visit - Est. Patient, Low", fee: "$95.00" },
-      { code: "99214", description: "Office Visit - Est. Patient, Mod", fee: "$145.00" },
-      { code: "99396", description: "Preventive Visit - 40-64 years", fee: "$185.00" },
+      {
+        code: "99213",
+        description: "Office Visit - Est. Patient, Low",
+        fee: "$95.00",
+      },
+      {
+        code: "99214",
+        description: "Office Visit - Est. Patient, Mod",
+        fee: "$145.00",
+      },
+      {
+        code: "99396",
+        description: "Preventive Visit - 40-64 years",
+        fee: "$185.00",
+      },
       { code: "99490", description: "Chronic Care Management", fee: "$62.00" },
     ],
   },
   psychiatry: {
     name: "Psychiatry / Mental Health",
     icon: Brain,
-    description: "Psychiatric care, mental health treatment, therapy management",
+    description:
+      "Psychiatric care, mental health treatment, therapy management",
     color: "#7c3aed",
     features: [
       "Mental Status Exams (MSE)",
@@ -122,10 +173,22 @@ const specialtyConfigs: Record<
       "Collaborative Care Notes",
     ],
     workflows: [
-      { name: "Psychiatric Evaluation", description: "Comprehensive initial psychiatric assessment" },
-      { name: "Medication Check", description: "Follow-up medication management visit" },
-      { name: "Crisis Intervention", description: "Emergency psychiatric assessment" },
-      { name: "Therapy Progress", description: "Ongoing therapy session documentation" },
+      {
+        name: "Psychiatric Evaluation",
+        description: "Comprehensive initial psychiatric assessment",
+      },
+      {
+        name: "Medication Check",
+        description: "Follow-up medication management visit",
+      },
+      {
+        name: "Crisis Intervention",
+        description: "Emergency psychiatric assessment",
+      },
+      {
+        name: "Therapy Progress",
+        description: "Ongoing therapy session documentation",
+      },
     ],
     templates: [
       { name: "Psychiatric Evaluation", type: "Assessment" },
@@ -135,8 +198,12 @@ const specialtyConfigs: Record<
       { name: "Medication Management Note", type: "Progress Note" },
     ],
     billingCodes: [
-      { code: "90791", description: "Psychiatric Diagnostic Evaluation", fee: "$250.00" },
-      { name: "90832", description: "Psychotherapy, 30 min", fee: "$85.00" },
+      {
+        code: "90791",
+        description: "Psychiatric Diagnostic Evaluation",
+        fee: "$250.00",
+      },
+      { code: "90832", description: "Psychotherapy, 30 min", fee: "$85.00" },
       { code: "90834", description: "Psychotherapy, 45 min", fee: "$125.00" },
       { code: "90837", description: "Psychotherapy, 60 min", fee: "$165.00" },
     ],
@@ -157,8 +224,14 @@ const specialtyConfigs: Record<
       "Gynecological Procedures",
     ],
     workflows: [
-      { name: "Prenatal Visit", description: "Routine prenatal care visit workflow" },
-      { name: "Labor & Delivery", description: "L&D documentation and tracking" },
+      {
+        name: "Prenatal Visit",
+        description: "Routine prenatal care visit workflow",
+      },
+      {
+        name: "Labor & Delivery",
+        description: "L&D documentation and tracking",
+      },
       { name: "Postpartum Check", description: "6-week postpartum follow-up" },
       { name: "Annual GYN Exam", description: "Annual well-woman examination" },
     ],
@@ -170,10 +243,22 @@ const specialtyConfigs: Record<
       { name: "Pap Smear Results", type: "Lab Result" },
     ],
     billingCodes: [
-      { code: "99213", description: "Office Visit - Established", fee: "$95.00" },
-      { code: "59400", description: "Routine OB Care (Global)", fee: "$2,850.00" },
+      {
+        code: "99213",
+        description: "Office Visit - Established",
+        fee: "$95.00",
+      },
+      {
+        code: "59400",
+        description: "Routine OB Care (Global)",
+        fee: "$2,850.00",
+      },
       { code: "58300", description: "IUD Insertion", fee: "$285.00" },
-      { code: "G0101", description: "Cervical/Vaginal Cancer Screen", fee: "$45.00" },
+      {
+        code: "G0101",
+        description: "Cervical/Vaginal Cancer Screen",
+        fee: "$45.00",
+      },
     ],
   },
   cardiology: {
@@ -193,9 +278,18 @@ const specialtyConfigs: Record<
     ],
     workflows: [
       { name: "Cardiac Workup", description: "Complete cardiac evaluation" },
-      { name: "Stress Test", description: "Exercise or pharmacologic stress testing" },
-      { name: "Heart Failure Clinic", description: "CHF management and monitoring" },
-      { name: "Anticoagulation Management", description: "INR monitoring and dosing" },
+      {
+        name: "Stress Test",
+        description: "Exercise or pharmacologic stress testing",
+      },
+      {
+        name: "Heart Failure Clinic",
+        description: "CHF management and monitoring",
+      },
+      {
+        name: "Anticoagulation Management",
+        description: "INR monitoring and dosing",
+      },
     ],
     templates: [
       { name: "Cardiac Consultation", type: "Assessment" },
@@ -206,9 +300,21 @@ const specialtyConfigs: Record<
     ],
     billingCodes: [
       { code: "93000", description: "ECG Complete", fee: "$45.00" },
-      { code: "93015", description: "Cardiovascular Stress Test", fee: "$175.00" },
-      { code: "93306", description: "Echocardiography Complete", fee: "$285.00" },
-      { code: "93458", description: "Cardiac Catheterization", fee: "$1,250.00" },
+      {
+        code: "93015",
+        description: "Cardiovascular Stress Test",
+        fee: "$175.00",
+      },
+      {
+        code: "93306",
+        description: "Echocardiography Complete",
+        fee: "$285.00",
+      },
+      {
+        code: "93458",
+        description: "Cardiac Catheterization",
+        fee: "$1,250.00",
+      },
     ],
   },
   dermatology: {
@@ -230,7 +336,10 @@ const specialtyConfigs: Record<
       { name: "Skin Check", description: "Full body skin examination" },
       { name: "Biopsy Procedure", description: "Skin biopsy with pathology" },
       { name: "Acne Management", description: "Acne treatment protocol" },
-      { name: "Cosmetic Consultation", description: "Aesthetic procedure evaluation" },
+      {
+        name: "Cosmetic Consultation",
+        description: "Aesthetic procedure evaluation",
+      },
     ],
     templates: [
       { name: "Dermatology Exam", type: "Assessment" },
@@ -240,8 +349,16 @@ const specialtyConfigs: Record<
       { name: "Pathology Follow-up", type: "Lab Result" },
     ],
     billingCodes: [
-      { code: "99213", description: "Office Visit - Established", fee: "$95.00" },
-      { code: "11102", description: "Tangential Biopsy - Single", fee: "$125.00" },
+      {
+        code: "99213",
+        description: "Office Visit - Established",
+        fee: "$95.00",
+      },
+      {
+        code: "11102",
+        description: "Tangential Biopsy - Single",
+        fee: "$125.00",
+      },
       { code: "17000", description: "Destruction of Lesion", fee: "$85.00" },
       { code: "96372", description: "Injection - Therapeutic", fee: "$45.00" },
     ],
@@ -277,7 +394,11 @@ const specialtyConfigs: Record<
     billingCodes: [
       { code: "99201", description: "New Patient - Minimal", fee: "$65.00" },
       { code: "99213", description: "Established - Low", fee: "$95.00" },
-      { code: "12001", description: "Simple Laceration Repair", fee: "$145.00" },
+      {
+        code: "12001",
+        description: "Simple Laceration Repair",
+        fee: "$145.00",
+      },
       { code: "71046", description: "Chest X-Ray 2 Views", fee: "$75.00" },
     ],
   },
@@ -297,8 +418,14 @@ const specialtyConfigs: Record<
       "Adolescent Screening (HEADSSS)",
     ],
     workflows: [
-      { name: "Well-Child Visit", description: "Age-appropriate wellness check" },
-      { name: "Immunization Visit", description: "Vaccine administration workflow" },
+      {
+        name: "Well-Child Visit",
+        description: "Age-appropriate wellness check",
+      },
+      {
+        name: "Immunization Visit",
+        description: "Vaccine administration workflow",
+      },
       { name: "Sick Visit", description: "Acute pediatric illness evaluation" },
       { name: "Sports Physical", description: "Pre-participation exam" },
     ],
@@ -319,7 +446,8 @@ const specialtyConfigs: Record<
   podiatry: {
     name: "Podiatry / Foot & Ankle",
     icon: Activity,
-    description: "Podiatric medicine, diabetic foot care, biomechanics, wound care",
+    description:
+      "Podiatric medicine, diabetic foot care, biomechanics, wound care",
     color: "#14b8a6",
     features: [
       "Comprehensive Foot Exams",
@@ -332,7 +460,10 @@ const specialtyConfigs: Record<
       "Neuropathy Screening",
     ],
     workflows: [
-      { name: "Diabetic Foot Exam", description: "Comprehensive diabetic foot assessment" },
+      {
+        name: "Diabetic Foot Exam",
+        description: "Comprehensive diabetic foot assessment",
+      },
       { name: "Wound Care Visit", description: "Chronic wound management" },
       { name: "Nail Procedure", description: "Ingrown nail treatment" },
       { name: "Orthotics Fitting", description: "Custom orthotic evaluation" },
@@ -345,8 +476,16 @@ const specialtyConfigs: Record<
       { name: "Orthotics Prescription", type: "Order" },
     ],
     billingCodes: [
-      { code: "99213", description: "Office Visit - Established", fee: "$95.00" },
-      { code: "11721", description: "Debridement of Nails - 6+", fee: "$65.00" },
+      {
+        code: "99213",
+        description: "Office Visit - Established",
+        fee: "$95.00",
+      },
+      {
+        code: "11721",
+        description: "Debridement of Nails - 6+",
+        fee: "$65.00",
+      },
       { code: "11750", description: "Partial Nail Avulsion", fee: "$185.00" },
       { code: "G0247", description: "Diabetic Foot Exam", fee: "$45.00" },
     ],
@@ -354,7 +493,8 @@ const specialtyConfigs: Record<
   "physical-therapy": {
     name: "Physical Therapy",
     icon: Dumbbell,
-    description: "Musculoskeletal rehabilitation, orthopedic therapy, sports medicine",
+    description:
+      "Musculoskeletal rehabilitation, orthopedic therapy, sports medicine",
     color: "#22c55e",
     features: [
       "Initial Evaluations & Re-evals",
@@ -367,8 +507,14 @@ const specialtyConfigs: Record<
       "Home Exercise Program Builder",
     ],
     workflows: [
-      { name: "PT Evaluation", description: "Initial physical therapy assessment" },
-      { name: "Treatment Session", description: "Ongoing therapy documentation" },
+      {
+        name: "PT Evaluation",
+        description: "Initial physical therapy assessment",
+      },
+      {
+        name: "Treatment Session",
+        description: "Ongoing therapy documentation",
+      },
       { name: "Re-evaluation", description: "Progress re-assessment" },
       { name: "Discharge Planning", description: "PT discharge and HEP" },
     ],
@@ -380,7 +526,11 @@ const specialtyConfigs: Record<
       { name: "PT Discharge Summary", type: "Discharge" },
     ],
     billingCodes: [
-      { code: "97161", description: "PT Eval - Low Complexity", fee: "$145.00" },
+      {
+        code: "97161",
+        description: "PT Eval - Low Complexity",
+        fee: "$145.00",
+      },
       { code: "97162", description: "PT Eval - Moderate", fee: "$175.00" },
       { code: "97110", description: "Therapeutic Exercise", fee: "$45.00" },
       { code: "97140", description: "Manual Therapy", fee: "$48.00" },
@@ -403,9 +553,15 @@ const specialtyConfigs: Record<
     ],
     workflows: [
       { name: "OT Evaluation", description: "Comprehensive OT assessment" },
-      { name: "ADL Training", description: "Activities of daily living session" },
+      {
+        name: "ADL Training",
+        description: "Activities of daily living session",
+      },
       { name: "Hand Therapy", description: "Hand/upper extremity treatment" },
-      { name: "Cognitive Rehab", description: "Cognitive rehabilitation session" },
+      {
+        name: "Cognitive Rehab",
+        description: "Cognitive rehabilitation session",
+      },
     ],
     templates: [
       { name: "OT Initial Evaluation", type: "Assessment" },
@@ -415,7 +571,11 @@ const specialtyConfigs: Record<
       { name: "Equipment Recommendation", type: "Order" },
     ],
     billingCodes: [
-      { code: "97165", description: "OT Eval - Low Complexity", fee: "$145.00" },
+      {
+        code: "97165",
+        description: "OT Eval - Low Complexity",
+        fee: "$145.00",
+      },
       { code: "97166", description: "OT Eval - Moderate", fee: "$175.00" },
       { code: "97530", description: "Therapeutic Activities", fee: "$45.00" },
       { code: "97542", description: "Wheelchair Management", fee: "$48.00" },
@@ -424,7 +584,8 @@ const specialtyConfigs: Record<
   "speech-therapy": {
     name: "Speech Therapy",
     icon: MessageSquare,
-    description: "Speech-language pathology, swallowing disorders, voice therapy",
+    description:
+      "Speech-language pathology, swallowing disorders, voice therapy",
     color: "#a855f7",
     features: [
       "Speech-Language Evaluation",
@@ -437,7 +598,10 @@ const specialtyConfigs: Record<
       "Fluency Disorders",
     ],
     workflows: [
-      { name: "SLP Evaluation", description: "Speech-language initial assessment" },
+      {
+        name: "SLP Evaluation",
+        description: "Speech-language initial assessment",
+      },
       { name: "Dysphagia Eval", description: "Swallowing assessment" },
       { name: "Therapy Session", description: "Ongoing speech therapy" },
       { name: "AAC Training", description: "Augmentative communication setup" },
@@ -452,7 +616,11 @@ const specialtyConfigs: Record<
     billingCodes: [
       { code: "92521", description: "Eval of Speech Fluency", fee: "$125.00" },
       { code: "92522", description: "Eval of Speech Sound", fee: "$145.00" },
-      { code: "92610", description: "Swallowing Function Eval", fee: "$165.00" },
+      {
+        code: "92610",
+        description: "Swallowing Function Eval",
+        fee: "$165.00",
+      },
       { code: "92507", description: "Speech Therapy", fee: "$65.00" },
     ],
   },
@@ -472,8 +640,14 @@ const specialtyConfigs: Record<
       "Wellness Programs",
     ],
     workflows: [
-      { name: "Initial Consultation", description: "New patient chiropractic evaluation" },
-      { name: "Adjustment Visit", description: "Routine adjustment documentation" },
+      {
+        name: "Initial Consultation",
+        description: "New patient chiropractic evaluation",
+      },
+      {
+        name: "Adjustment Visit",
+        description: "Routine adjustment documentation",
+      },
       { name: "Re-examination", description: "Progress re-evaluation" },
       { name: "Maintenance Care", description: "Wellness maintenance visit" },
     ],
@@ -491,13 +665,106 @@ const specialtyConfigs: Record<
       { code: "99203", description: "New Patient E/M", fee: "$125.00" },
     ],
   },
-}
+};
 
 export default function SpecialtyPage() {
-  const params = useParams()
-  const specialtyId = params.id as string
+  const params = useParams();
+  const specialtyId = params.id as string;
 
-  const specialty = specialtyConfigs[specialtyId]
+  // Fetch specialty configuration from API to check enabled status
+  const {
+    data: specialtyConfigData,
+    isLoading: isLoadingConfig,
+    error: configError,
+  } = useSpecialtyConfig({ specialtyId });
+
+  // Fetch quality measures for this specialty
+  const {
+    data: qualityMeasuresData,
+    isLoading: isLoadingMeasures,
+    error: measuresError,
+  } = useQualityMeasures({
+    filters: { specialty: specialtyId },
+  });
+
+  // Get static specialty config (for icons, colors, etc.)
+  const specialty = specialtyConfigs[specialtyId];
+
+  // Check if specialty is enabled in the clinic configuration
+  const isSpecialtyEnabled = useMemo(() => {
+    if (!specialtyConfigData?.specialties) return true; // Default to enabled if no data
+    const configuredSpecialty = specialtyConfigData.specialties.find(
+      (s) => s.specialty_id === specialtyId
+    );
+    return configuredSpecialty?.enabled ?? true;
+  }, [specialtyConfigData, specialtyId]);
+
+  // Get features from API (if available) or fall back to static config
+  const specialtyFeatures = useMemo(() => {
+    if (
+      specialtyConfigData?.features &&
+      specialtyConfigData.features.length > 0
+    ) {
+      return specialtyConfigData.features
+        .filter((f) => f.specialty_id === specialtyId)
+        .map((f) => f.feature_name);
+    }
+    return specialty?.features || [];
+  }, [specialtyConfigData, specialtyId, specialty]);
+
+  // Get quality measures for display
+  const qualityMeasures = useMemo(() => {
+    return qualityMeasuresData?.measures || [];
+  }, [qualityMeasuresData]);
+
+  // Show loading state while checking specialty configuration
+  if (isLoadingConfig) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <DashboardSidebar />
+        <div className="flex-1 ml-64">
+          <DashboardHeader />
+          <main className="p-6">
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                <p className="text-muted-foreground">
+                  Loading specialty configuration...
+                </p>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if API failed
+  if (configError) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <DashboardSidebar />
+        <div className="flex-1 ml-64">
+          <DashboardHeader />
+          <main className="p-6">
+            <Card>
+              <CardContent className="p-12 text-center">
+                <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+                <h2 className="text-xl font-semibold mb-2">
+                  Error Loading Specialty
+                </h2>
+                <p className="text-muted-foreground">
+                  {configError instanceof Error
+                    ? configError.message
+                    : "Failed to load specialty configuration"}
+                </p>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (!specialty) {
     return (
@@ -508,17 +775,21 @@ export default function SpecialtyPage() {
           <main className="p-6">
             <Card>
               <CardContent className="p-12 text-center">
-                <h2 className="text-xl font-semibold mb-2">Specialty Not Found</h2>
-                <p className="text-muted-foreground">The requested specialty "{specialtyId}" is not available.</p>
+                <h2 className="text-xl font-semibold mb-2">
+                  Specialty Not Found
+                </h2>
+                <p className="text-muted-foreground">
+                  The requested specialty "{specialtyId}" is not available.
+                </p>
               </CardContent>
             </Card>
           </main>
         </div>
       </div>
-    )
+    );
   }
 
-  const Icon = specialty.icon
+  const Icon = specialty.icon;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -531,8 +802,7 @@ export default function SpecialtyPage() {
             <div className="flex items-center gap-4 mb-2">
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: specialty.color }}
-              >
+                style={{ backgroundColor: specialty.color }}>
                 <Icon className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -541,11 +811,26 @@ export default function SpecialtyPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <Badge variant="outline" style={{ borderColor: specialty.color, color: specialty.color }}>
-                Active Specialty
+              <Badge
+                variant={isSpecialtyEnabled ? "outline" : "secondary"}
+                style={
+                  isSpecialtyEnabled
+                    ? { borderColor: specialty.color, color: specialty.color }
+                    : undefined
+                }>
+                {isSpecialtyEnabled ? "Active Specialty" : "Inactive Specialty"}
               </Badge>
-              <Badge variant="secondary">{specialty.features.length} Features</Badge>
-              <Badge variant="secondary">{specialty.templates.length} Templates</Badge>
+              <Badge variant="secondary">
+                {specialtyFeatures.length} Features
+              </Badge>
+              <Badge variant="secondary">
+                {specialty.templates.length} Templates
+              </Badge>
+              {qualityMeasures.length > 0 && (
+                <Badge variant="secondary">
+                  {qualityMeasures.length} Quality Measures
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -555,23 +840,37 @@ export default function SpecialtyPage() {
               <TabsTrigger value="workflows">Workflows</TabsTrigger>
               <TabsTrigger value="templates">Templates</TabsTrigger>
               <TabsTrigger value="billing">Billing Codes</TabsTrigger>
+              <TabsTrigger value="quality">Quality Measures</TabsTrigger>
             </TabsList>
 
             <TabsContent value="features">
               <Card>
                 <CardHeader>
                   <CardTitle>Specialty Features</CardTitle>
-                  <CardDescription>Features included with this specialty module</CardDescription>
+                  <CardDescription>
+                    Features included with this specialty module
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {specialty.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                        <CheckCircle className="h-5 w-5" style={{ color: specialty.color }} />
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {specialtyFeatures.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No features configured for this specialty
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {specialtyFeatures.map((feature, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                          <CheckCircle
+                            className="h-5 w-5"
+                            style={{ color: specialty.color }}
+                          />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -582,7 +881,9 @@ export default function SpecialtyPage() {
                   <Card key={idx}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{workflow.name}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {workflow.name}
+                        </CardTitle>
                         <Button size="sm" variant="outline">
                           <Play className="h-4 w-4 mr-2" />
                           Start
@@ -599,20 +900,23 @@ export default function SpecialtyPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Documentation Templates</CardTitle>
-                  <CardDescription>Pre-built templates for this specialty</CardDescription>
+                  <CardDescription>
+                    Pre-built templates for this specialty
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {specialty.templates.map((template, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                      >
+                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer">
                         <div className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-gray-400" />
                           <div>
                             <p className="font-medium">{template.name}</p>
-                            <p className="text-sm text-muted-foreground">{template.type}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {template.type}
+                            </p>
                           </div>
                         </div>
                         <Button size="sm" variant="ghost">
@@ -629,22 +933,114 @@ export default function SpecialtyPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Common Billing Codes</CardTitle>
-                  <CardDescription>CPT/HCPCS codes frequently used in this specialty</CardDescription>
+                  <CardDescription>
+                    CPT/HCPCS codes frequently used in this specialty
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {specialty.billingCodes.map((code, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg border">
                         <div className="flex items-center gap-4">
                           <Badge variant="outline" className="font-mono">
                             {code.code}
                           </Badge>
                           <span>{code.description}</span>
                         </div>
-                        <span className="font-medium text-green-600">{code.fee}</span>
+                        <span className="font-medium text-green-600">
+                          {code.fee}
+                        </span>
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="quality">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quality Measures</CardTitle>
+                  <CardDescription>
+                    Performance metrics and quality indicators for this
+                    specialty
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingMeasures ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                      <span className="text-muted-foreground">
+                        Loading quality measures...
+                      </span>
+                    </div>
+                  ) : measuresError ? (
+                    <div className="flex items-center justify-center py-8 text-destructive">
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      <span>Failed to load quality measures</span>
+                    </div>
+                  ) : qualityMeasures.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No quality measures configured for this specialty</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {qualityMeasures.map((measure) => {
+                        const targetRate = measure.target_rate ?? 80;
+                        const meetsTarget =
+                          measure.performance_rate >= targetRate;
+                        return (
+                          <div
+                            key={measure.id}
+                            className="p-4 rounded-lg border">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <h4 className="font-medium">
+                                  {measure.measure_name}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {measure.measure_id}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={meetsTarget ? "default" : "secondary"}
+                                style={
+                                  meetsTarget
+                                    ? { backgroundColor: specialty.color }
+                                    : undefined
+                                }>
+                                {measure.performance_rate.toFixed(1)}%
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span>
+                                  {measure.numerator} / {measure.denominator}{" "}
+                                  patients
+                                </span>
+                                <span>Target: {targetRate}%</span>
+                              </div>
+                              <Progress
+                                value={Math.min(
+                                  (measure.performance_rate / targetRate) * 100,
+                                  100
+                                )}
+                                className="h-2"
+                              />
+                            </div>
+                            {measure.description && (
+                              <p className="text-sm text-muted-foreground mt-2">
+                                {measure.description}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -652,5 +1048,5 @@ export default function SpecialtyPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }

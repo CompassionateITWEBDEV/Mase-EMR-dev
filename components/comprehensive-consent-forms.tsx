@@ -533,17 +533,23 @@ export function ComprehensiveConsentForms({ patient, isOpen, onClose, onComplete
         </Card>
 
         <Tabs value={currentCategory} onValueChange={setCurrentCategory} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+          <TabsList className="flex flex-wrap w-full gap-2 p-1 h-auto">
             {categories.map((category) => {
               const categoryForms = getFormsByCategory(category.id)
               const completedInCategory = categoryForms.filter((form) => isFormCompleted(form.id)).length
               const IconComponent = category.icon
 
               return (
-                <TabsTrigger key={category.id} value={category.id} className="flex flex-col gap-1 text-xs">
-                  <IconComponent className="h-3 w-3" />
-                  <span className="text-[10px]">{category.name}</span>
-                  <Badge variant="outline" className="text-[9px] px-1">
+                <TabsTrigger 
+                  key={category.id} 
+                  value={category.id} 
+                  className="flex flex-col gap-1.5 px-3 py-2 min-w-[100px] text-xs h-auto"
+                >
+                  <IconComponent className="h-4 w-4" />
+                  <span className="text-xs font-medium leading-tight text-center whitespace-normal break-words">
+                    {category.name}
+                  </span>
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                     {completedInCategory}/{categoryForms.length}
                   </Badge>
                 </TabsTrigger>

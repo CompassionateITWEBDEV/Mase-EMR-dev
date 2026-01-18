@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Target, Plus, Trash2, FileCheck } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
 export default function TreatmentPlanningPage() {
   const [goals, setGoals] = useState([{ id: 1, goal: "", objectives: [""], interventions: [""] }])
@@ -18,8 +19,11 @@ export default function TreatmentPlanningPage() {
   }
 
   return (
-    <div className="flex-1 p-8 ml-64">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="ml-64">
+        <div className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Initial Treatment Plan</h1>
           <p className="text-muted-foreground">Create individualized treatment plan based on ASAM assessment</p>
@@ -205,6 +209,8 @@ export default function TreatmentPlanningPage() {
             <FileCheck className="mr-2 h-4 w-4" />
             Complete & Get Patient Signature
           </Button>
+        </div>
+          </div>
         </div>
       </div>
     </div>

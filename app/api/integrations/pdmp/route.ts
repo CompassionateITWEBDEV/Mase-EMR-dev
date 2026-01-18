@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.NEON_DATABASE_URL!)
-
 export async function GET(request: NextRequest) {
   try {
+    const sql = neon(process.env.NEON_DATABASE_URL!)
     const searchParams = request.nextUrl.searchParams
     const patientId = searchParams.get("patientId")
 
@@ -37,6 +36,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const sql = neon(process.env.NEON_DATABASE_URL!)
     const body = await request.json()
     const { patientId, providerId, requestType, stateCode } = body
 

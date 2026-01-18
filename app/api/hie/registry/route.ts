@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  const supabase = createClient()
+  const supabase = await createClient();
 
   try {
     // Get all active clinics in the MASE network
@@ -11,45 +11,45 @@ export async function GET() {
       .select("*")
       .eq("network_status", "active")
       .eq("hie_enabled", true)
-      .order("clinic_name")
+      .order("clinic_name");
 
-    if (error) throw error
+    if (error) throw error;
 
     // Get directory information for search
     const { data: directory, error: dirError } = await supabase
       .from("hie_clinic_directory")
       .select("*")
-      .eq("is_visible", true)
+      .eq("is_visible", true);
 
-    if (dirError) console.error("Directory error:", dirError)
+    if (dirError) console.error("Directory error:", dirError);
 
     return NextResponse.json({
       clinics: clinics || [],
       directory: directory || [],
       network_stats: {
         total_clinics: clinics?.length || 0,
-        total_states: new Set(clinics?.map((c) => c.state)).size || 0,
+        total_states: new Set(clinics?.map((c: any) => c.state)).size || 0,
       },
-    })
+    });
   } catch (error: any) {
-    console.error("Error fetching HIE registry:", error)
+    console.error("Error fetching HIE registry:", error);
     return NextResponse.json(
       {
         clinics: [],
         directory: [],
         network_stats: { total_clinics: 0, total_states: 0 },
       },
-      { status: 200 },
-    )
+      { status: 200 }
+    );
   }
 }
 
 // Register a new clinic to the network
 export async function POST(request: Request) {
-  const supabase = createClient()
+  const supabase = await createClient();
 
   try {
-    const body = await request.json()
+    const body = await request.json();
     const {
       organization_id,
       clinic_name,
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       email,
       specialties,
       services_offered,
-    } = body
+    } = body;
 
     const { data, error } = await supabase
       .from("mase_clinic_registry")
@@ -89,9 +89,9 @@ export async function POST(request: Request) {
         },
       ])
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     // Also create directory entry
     await supabase.from("hie_clinic_directory").insert([
@@ -110,11 +110,11 @@ export async function POST(request: Request) {
         accepts_referrals: true,
         is_visible: true,
       },
-    ])
+    ]);
 
-    return NextResponse.json({ success: true, clinic: data })
+    return NextResponse.json({ success: true, clinic: data });
   } catch (error: any) {
-    console.error("Error registering clinic:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("Error registering clinic:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

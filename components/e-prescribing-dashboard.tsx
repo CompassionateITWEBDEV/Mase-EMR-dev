@@ -625,15 +625,18 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
             </div>
           ) : (
             <Select
+              name="patient"
               value={formData.patientId}
               onValueChange={(value) => setFormData({ ...formData, patientId: value })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="patient">
                 <SelectValue placeholder="Select patient" />
               </SelectTrigger>
               <SelectContent>
                 <div className="p-2">
                   <Input
+                    id="patient-search"
+                    name="patient-search"
                     placeholder="Search patients..."
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
@@ -658,6 +661,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
         <div>
           <Label htmlFor="medication">Medication *</Label>
           <Select
+            name="medication"
             value={formData.medicationName}
             onValueChange={(value) => {
               const med = medications.find((m) => m.name === value)
@@ -669,7 +673,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
               })
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger id="medication">
               <SelectValue placeholder="Select medication" />
             </SelectTrigger>
             <SelectContent>
@@ -701,6 +705,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
           <Label htmlFor="strength">Strength</Label>
           <Input
             id="strength"
+            name="strength"
             value={formData.strength}
             onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
             placeholder="e.g., 50mg"
@@ -711,6 +716,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
           <Label htmlFor="quantity">Quantity *</Label>
           <Input
             id="quantity"
+            name="quantity"
             type="number"
             value={formData.quantity}
             onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
@@ -722,6 +728,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
           <Label htmlFor="daysSupply">Days Supply</Label>
           <Input
             id="daysSupply"
+            name="daysSupply"
             type="number"
             value={formData.daysSupply}
             onChange={(e) => setFormData({ ...formData, daysSupply: e.target.value })}
@@ -744,8 +751,8 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="refills">Refills</Label>
-          <Select value={formData.refills} onValueChange={(value) => setFormData({ ...formData, refills: value })}>
-            <SelectTrigger>
+          <Select name="refills" value={formData.refills} onValueChange={(value) => setFormData({ ...formData, refills: value })}>
+            <SelectTrigger id="refills">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -765,6 +772,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
             <Skeleton className="h-10 w-full" />
           ) : (
             <Select
+              name="pharmacy"
               value={formData.pharmacyId}
               onValueChange={(value) => {
                 const pharmacy = pharmacies.find((p) => p.id === value)
@@ -775,7 +783,7 @@ function NewPrescriptionForm({ onClose, onSuccess }: { onClose: () => void; onSu
                 })
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id="pharmacy">
                 <SelectValue placeholder="Select pharmacy" />
               </SelectTrigger>
               <SelectContent>

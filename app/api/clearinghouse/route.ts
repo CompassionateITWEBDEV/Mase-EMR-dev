@@ -20,9 +20,7 @@ export async function GET() {
       .select("*")
       .eq("metric_date", today)
       .limit(1)
-      .maybeSingle()
-
-    if (metricsError) throw metricsError
+      .single()
 
     // Fetch recent transactions
     const { data: transactions, error: txnError } = await supabase

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
-import crypto from "crypto"
+import { createHash } from "crypto"
 
 // Calculate distance between two GPS coordinates (Haversine formula)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const { qr_code_data, patient_id, gps_location, facial_biometric_data, seal_photo_url, device_info } = body
 
     // Verify QR code hash
-    const qrCodeHash = crypto.createHash("sha256").update(qr_code_data).digest("hex")
+    const qrCodeHash = createHash("sha256").update(qr_code_data).digest("hex")
 
     // Find the bottle
     const { data: bottle, error: bottleError } = await supabase

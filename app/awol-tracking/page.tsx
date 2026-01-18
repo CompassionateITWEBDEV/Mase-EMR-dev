@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { AlertTriangle, Users, MapPin, Clock, Phone, FileText, CheckCircle2 } from "lucide-react"
+import { useState } from "react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertTriangle, Users, MapPin, Clock, Phone, FileText, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 export default function AWOLTrackingPage() {
-  const [reportDialogOpen, setReportDialogOpen] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
@@ -30,7 +30,6 @@ export default function AWOLTrackingPage() {
       <div className="flex-1 ml-64">
         <DashboardHeader
           title="AWOL/Runaway Patient Tracking"
-          description="Track and manage patients who leave treatment against medical advice"
         />
 
         <div className="p-6 space-y-6">
@@ -370,5 +369,5 @@ export default function AWOLTrackingPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

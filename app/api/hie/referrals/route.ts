@@ -1,49 +1,55 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const supabase = createClient()
-  const { searchParams } = new URL(request.url)
-  const status = searchParams.get("status")
-  const direction = searchParams.get("direction") // 'outgoing' or 'incoming'
+  const supabase = await createClient();
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status");
+  const direction = searchParams.get("direction"); // 'outgoing' or 'incoming'
 
   try {
     // Get current clinic
-    const { data: registry } = await supabase.from("mase_clinic_registry").select("id").limit(1).single()
+    const { data: registry } = await supabase
+      .from("mase_clinic_registry")
+      .select("id")
+      .limit(1)
+      .single();
 
     let query = supabase.from("hie_referrals").select(`
         *,
         patient:patients(id, first_name, last_name, date_of_birth, phone),
         referring_clinic:mase_clinic_registry!hie_referrals_referring_clinic_id_fkey(clinic_name, city, state, phone),
         receiving_clinic:mase_clinic_registry!hie_referrals_receiving_clinic_id_fkey(clinic_name, city, state, phone)
-      `)
+      `);
 
     if (direction === "outgoing") {
-      query = query.eq("referring_clinic_id", registry?.id)
+      query = query.eq("referring_clinic_id", registry?.id);
     } else if (direction === "incoming") {
-      query = query.eq("receiving_clinic_id", registry?.id)
+      query = query.eq("receiving_clinic_id", registry?.id);
     }
 
     if (status) {
-      query = query.eq("referral_status", status)
+      query = query.eq("referral_status", status);
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false }).limit(100)
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json({ referrals: data || [] })
+    return NextResponse.json({ referrals: data || [] });
   } catch (error: any) {
-    console.error("Error fetching referrals:", error)
-    return NextResponse.json({ referrals: [] }, { status: 200 })
+    console.error("Error fetching referrals:", error);
+    return NextResponse.json({ referrals: [] }, { status: 200 });
   }
 }
 
 export async function POST(request: Request) {
-  const supabase = createClient()
+  const supabase = await createClient();
 
   try {
-    const body = await request.json()
+    const body = await request.json();
     const {
       receiving_clinic_id,
       patient_id,
@@ -59,16 +65,16 @@ export async function POST(request: Request) {
       clinical_summary,
       urgency,
       preferred_appointment_date,
-    } = body
+    } = body;
 
     // Get referring clinic (current clinic)
     const { data: registry, error: regError } = await supabase
       .from("mase_clinic_registry")
       .select("id")
       .limit(1)
-      .single()
+      .single();
 
-    if (regError) throw regError
+    if (regError) throw regError;
 
     // Verify patient consent
     const { data: consent, error: consentError } = await supabase
@@ -77,9 +83,12 @@ export async function POST(request: Request) {
       .eq("patient_id", patient_id)
       .eq("consent_status", "active")
       .contains("authorized_clinics", [receiving_clinic_id])
-      .single()
+      .single();
 
-    const referral_number = `REF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    const referral_number = `REF-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)
+      .toUpperCase()}`;
 
     const { data, error } = await supabase
       .from("hie_referrals")
@@ -106,9 +115,9 @@ export async function POST(request: Request) {
         },
       ])
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     // Log the referral
     await supabase.from("hie_audit_log").insert([
@@ -122,11 +131,11 @@ export async function POST(request: Request) {
         authorization_verified: !!consent,
         consent_id: consent?.id,
       },
-    ])
+    ]);
 
-    return NextResponse.json({ success: true, referral: data })
+    return NextResponse.json({ success: true, referral: data });
   } catch (error: any) {
-    console.error("Error creating referral:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("Error creating referral:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

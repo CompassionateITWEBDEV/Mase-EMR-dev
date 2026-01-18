@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,8 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import useSWR from "swr"
+import { useAuth } from "@/lib/auth/rbac-hooks"
+import { createClient } from "@/lib/supabase/client"
 import {
   Stethoscope,
   Plus,
@@ -699,15 +701,66 @@ export default function ClinicalNotesPage() {
   const [currentNote, setCurrentNote] = useState("")
   const [selectedPatient, setSelectedPatient] = useState("")
   const [selectedNoteType, setSelectedNoteType] = useState("progress")
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().split("T")[0])
+  const [noteTime, setNoteTime] = useState(new Date().toTimeString().slice(0, 5))
   const [aiAction, setAiAction] = useState<string | null>(null)
   const [showAiDialog, setShowAiDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState("editor")
   const [showNewNoteDialog, setShowNewNoteDialog] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<{ patient?: string; note?: string; date?: string; time?: string }>({})
+  const [currentProviderId, setCurrentProviderId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const supabase = createClient()
 
   const { data, error, isLoading, mutate } = useSWR("/api/clinical-notes", fetcher)
-  const { data: patientsData } = useSWR("/api/patients", fetcher)
+  const { data: patientsData, error: patientsError, isLoading: patientsLoading, mutate: mutatePatients } = useSWR("/api/patients", fetcher)
+
+  // Fetch provider ID on mount
+  useEffect(() => {
+    const fetchProviderId = async () => {
+      if (!user) {
+        console.log("[Clinical Notes] No user found, provider ID will be set by API")
+        return
+      }
+      
+      try {
+        // Check if user is in staff table
+        const { data: staffData, error: staffError } = await supabase
+          .from("staff")
+          .select("id")
+          .eq("id", user.id)
+          .single()
+
+        if (staffData && !staffError) {
+          console.log("[Clinical Notes] Found provider ID from staff table:", staffData.id)
+          setCurrentProviderId(staffData.id)
+          return
+        }
+
+        // Check if user is in providers table
+        const { data: providerData, error: providerError } = await supabase
+          .from("providers")
+          .select("id")
+          .eq("id", user.id)
+          .single()
+
+        if (providerData && !providerError) {
+          console.log("[Clinical Notes] Found provider ID from providers table:", providerData.id)
+          setCurrentProviderId(providerData.id)
+        } else {
+          console.log("[Clinical Notes] Provider ID not found in staff or providers tables, API will handle authentication")
+          // Don't set an error - let the API handle provider ID lookup
+        }
+      } catch (err) {
+        console.error("[Clinical Notes] Error fetching provider ID:", err)
+        // Don't block saving - API can handle provider ID lookup
+      }
+    }
+
+    fetchProviderId()
+  }, [user, supabase])
 
   const handleAiAssist = useCallback(
     async (action: string) => {
@@ -740,40 +793,98 @@ export default function ClinicalNotesPage() {
     [currentNote, selectedNoteType],
   )
 
+  const validateForm = (): boolean => {
+    const errors: { patient?: string; note?: string; date?: string; time?: string } = {}
+    
+    if (!selectedPatient) {
+      errors.patient = "Please select a patient"
+    }
+    
+    if (!currentNote.trim()) {
+      errors.note = "Please enter note content"
+    }
+    
+    if (!noteDate) {
+      errors.date = "Please select a date"
+    } else {
+      // Validate date is not in the future
+      const selectedDate = new Date(noteDate)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999) // End of today
+      if (selectedDate > today) {
+        errors.date = "Date cannot be in the future"
+      }
+    }
+    
+    if (!noteTime) {
+      errors.time = "Please select a time"
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handleSaveNote = async () => {
-    if (!selectedPatient || !currentNote.trim()) {
-      toast.error("Please select a patient and enter note content")
+    // Clear previous validation errors
+    setValidationErrors({})
+    
+    // Validate form
+    if (!validateForm()) {
+      toast.error("Please fix the form errors before saving")
       return
     }
 
     setSaving(true)
     try {
+      // Combine date and time into ISO string
+      const noteDateTime = noteDate && noteTime 
+        ? new Date(`${noteDate}T${noteTime}`).toISOString()
+        : new Date().toISOString()
+
+      const requestBody: any = {
+        patient_id: selectedPatient,
+        note_type: selectedNoteType,
+        note_date: noteDateTime,
+        subjective: currentNote,
+        objective: "",
+        assessment: "",
+        plan: "",
+      }
+
+      // Include provider_id if we have it, otherwise let API handle it
+      if (currentProviderId) {
+        requestBody.provider_id = currentProviderId
+      }
+
+      console.log("[Clinical Notes] Saving note with data:", { ...requestBody, subjective: currentNote.substring(0, 50) + "..." })
+
       const response = await fetch("/api/clinical-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_id: selectedPatient,
-          note_type: selectedNoteType,
-          subjective: currentNote,
-          objective: "",
-          assessment: "",
-          plan: "",
-        }),
+        body: JSON.stringify(requestBody),
       })
+
+      const result = await response.json()
 
       if (response.ok) {
         setSaveSuccess(true)
         toast.success("Note saved successfully")
+        // Reset form
         setCurrentNote("")
         setSelectedPatient("")
+        setNoteDate(new Date().toISOString().split("T")[0])
+        setNoteTime(new Date().toTimeString().slice(0, 5))
+        setValidationErrors({})
         mutate()
         setTimeout(() => setSaveSuccess(false), 3000)
       } else {
-        toast.error("Failed to save note")
+        const errorMessage = result.error || "Failed to save note"
+        console.error("[Clinical Notes] Save failed:", errorMessage)
+        toast.error(errorMessage)
       }
     } catch (err) {
-      console.error("Save error:", err)
-      toast.error("Failed to save note")
+      console.error("[Clinical Notes] Save error:", err)
+      toast.error("Failed to save note. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -987,7 +1098,20 @@ export default function ClinicalNotesPage() {
                             <Brain className="mr-2 h-4 w-4" />
                             AI Assist
                           </Button>
-                          <Button size="sm" onClick={handleSaveNote} disabled={saving || !selectedPatient}>
+                          <Button 
+                            size="sm" 
+                            onClick={handleSaveNote} 
+                            disabled={saving || !selectedPatient || !currentNote.trim()}
+                            title={
+                              !selectedPatient 
+                                ? "Please select a patient" 
+                                : !currentNote.trim() 
+                                ? "Please enter note content"
+                                : saving
+                                ? "Saving..."
+                                : "Save note"
+                            }
+                          >
                             {saving ? (
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : saveSuccess ? (
@@ -1004,18 +1128,65 @@ export default function ClinicalNotesPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium">Patient</label>
-                          <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select patient..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {patients.map((patient: any) => (
-                                <SelectItem key={patient.id} value={patient.id}>
-                                  {patient.first_name} {patient.last_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {patientsLoading ? (
+                            <div className="mt-1">
+                              <Skeleton className="h-10 w-full" />
+                            </div>
+                          ) : patientsError ? (
+                            <div className="mt-1 space-y-2">
+                              <Select disabled>
+                                <SelectTrigger className="mt-1 border-red-300">
+                                  <SelectValue placeholder="Failed to load patients" />
+                                </SelectTrigger>
+                              </Select>
+                              <div className="flex items-center gap-2 text-sm text-red-600">
+                                <AlertCircle className="h-4 w-4" />
+                                <span>Failed to load patients</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => mutatePatients()}
+                                  className="h-6 px-2 text-xs"
+                                >
+                                  Retry
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Select 
+                              value={selectedPatient} 
+                              onValueChange={(value) => {
+                                setSelectedPatient(value)
+                                // Clear validation error when patient is selected
+                                if (validationErrors.patient) {
+                                  setValidationErrors({ ...validationErrors, patient: undefined })
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select patient..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {patients.length === 0 ? (
+                                  <div className="p-2 text-sm text-muted-foreground text-center">
+                                    No patients found
+                                  </div>
+                                ) : (
+                                  patients.map((patient: any) => (
+                                    <SelectItem key={patient.id} value={patient.id}>
+                                      {patient.first_name} {patient.last_name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {validationErrors.patient && (
+                            <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-4 w-4" />
+                              {validationErrors.patient}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="text-sm font-medium">Note Type</label>
@@ -1045,14 +1216,71 @@ export default function ClinicalNotesPage() {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Date</label>
+                          <Input
+                            type="date"
+                            value={noteDate}
+                            onChange={(e) => {
+                              setNoteDate(e.target.value)
+                              // Clear validation error when date is selected
+                              if (validationErrors.date) {
+                                setValidationErrors({ ...validationErrors, date: undefined })
+                              }
+                            }}
+                            className={`mt-1 ${validationErrors.date ? "border-red-300" : ""}`}
+                          />
+                          {validationErrors.date && (
+                            <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-4 w-4" />
+                              {validationErrors.date}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Time</label>
+                          <Input
+                            type="time"
+                            value={noteTime}
+                            onChange={(e) => {
+                              setNoteTime(e.target.value)
+                              // Clear validation error when time is selected
+                              if (validationErrors.time) {
+                                setValidationErrors({ ...validationErrors, time: undefined })
+                              }
+                            }}
+                            className={`mt-1 ${validationErrors.time ? "border-red-300" : ""}`}
+                          />
+                          {validationErrors.time && (
+                            <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-4 w-4" />
+                              {validationErrors.time}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
                       <div>
                         <label className="text-sm font-medium">Clinical Note</label>
                         <Textarea
                           placeholder="Start typing your clinical note or select a template from the left panel..."
                           value={currentNote}
-                          onChange={(e) => setCurrentNote(e.target.value)}
-                          className="min-h-[300px] mt-2 font-mono text-sm"
+                          onChange={(e) => {
+                            setCurrentNote(e.target.value)
+                            // Clear validation error when note content is entered
+                            if (validationErrors.note) {
+                              setValidationErrors({ ...validationErrors, note: undefined })
+                            }
+                          }}
+                          className={`min-h-[300px] mt-2 font-mono text-sm ${validationErrors.note ? "border-red-300" : ""}`}
                         />
+                        {validationErrors.note && (
+                          <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {validationErrors.note}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex items-center justify-between text-sm text-muted-foreground">

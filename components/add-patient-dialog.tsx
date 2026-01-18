@@ -36,6 +36,8 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
     lastName: "",
     dateOfBirth: "",
     gender: "",
+    programType: "",
+    customProgramType: "",
     phone: "",
     email: "",
     address: "",
@@ -51,9 +53,43 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate program type is selected
+    if (!formData.programType) {
+      toast.error("Please select a program type")
+      return
+    }
+    
+    // If custom program type is selected, validate custom input
+    if (formData.programType === "custom" && !formData.customProgramType.trim()) {
+      toast.error("Please enter a custom program type")
+      return
+    }
+    
+    // Validate date of birth
+    if (!formData.dateOfBirth) {
+      toast.error("Please enter a date of birth")
+      return
+    }
+    
+    // Check if date is in the future
+    const dob = new Date(formData.dateOfBirth + 'T00:00:00')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (dob > today) {
+      toast.error("Date of birth cannot be in the future")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
+      // Use custom program type if "custom" is selected, otherwise use the selected program type
+      const finalProgramType = formData.programType === "custom" 
+        ? formData.customProgramType.trim() 
+        : formData.programType;
+
       const response = await fetch("/api/patients", {
         method: "POST",
         headers: {
@@ -64,6 +100,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
           last_name: formData.lastName,
           date_of_birth: formData.dateOfBirth,
           gender: formData.gender,
+          program_type: finalProgramType || null,
           phone: formData.phone,
           email: formData.email || null,
           address: formData.address || null,
@@ -87,6 +124,8 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
         lastName: "",
         dateOfBirth: "",
         gender: "",
+        programType: "",
+        customProgramType: "",
         phone: "",
         email: "",
         address: "",
@@ -96,10 +135,15 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
         insuranceId: "",
       })
 
+      // Call onSuccess callback to refresh the patient list
       if (onSuccess) {
-        onSuccess()
+        // Small delay to ensure the API has processed the new patient
+        setTimeout(() => {
+          onSuccess()
+        }, 300)
       }
 
+      // Also refresh the router to ensure cache is cleared
       router.refresh()
     } catch (error) {
       console.error("Error adding patient:", error)
@@ -123,6 +167,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="firstName">First Name *</Label>
               <Input
                 id="firstName"
+                name="firstName"
                 required
                 value={formData.firstName}
                 onChange={(e) => handleInputChange("firstName", e.target.value)}
@@ -132,6 +177,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="lastName">Last Name *</Label>
               <Input
                 id="lastName"
+                name="lastName"
                 required
                 value={formData.lastName}
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
@@ -144,6 +190,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="dateOfBirth">Date of Birth *</Label>
               <Input
                 id="dateOfBirth"
+                name="dateOfBirth"
                 type="date"
                 required
                 value={formData.dateOfBirth}
@@ -152,8 +199,8 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
-              <Select onValueChange={(value) => handleInputChange("gender", value)}>
-                <SelectTrigger>
+              <Select name="gender" onValueChange={(value) => handleInputChange("gender", value)}>
+                <SelectTrigger id="gender">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -169,20 +216,87 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="programType">Program Type *</Label>
+              <Select 
+                name="programType"
+                required
+                value={formData.programType} 
+                onValueChange={(value) => {
+                  handleInputChange("programType", value);
+                  // Clear custom program type when switching away from custom
+                  if (value !== "custom") {
+                    handleInputChange("customProgramType", "");
+                  }
+                }}>
+                <SelectTrigger id="programType">
+                  <SelectValue placeholder="Select program type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="otp">OTP (Opioid Treatment Program)</SelectItem>
+                  <SelectItem value="mat">MAT (Medication-Assisted Treatment)</SelectItem>
+                  <SelectItem value="primary_care">Primary Care</SelectItem>
+                  <SelectItem value="sub">SUB (Substance Use)</SelectItem>
+                  <SelectItem value="beh">BEH (Behavioral Health)</SelectItem>
+                  <SelectItem value="custom">Custom Program</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.programType === "custom" && (
+                <Input
+                  id="customProgramType"
+                  name="customProgramType"
+                  placeholder="Enter custom program type"
+                  value={formData.customProgramType}
+                  onChange={(e) => handleInputChange("customProgramType", e.target.value)}
+                  required
+                />
+              )}
+              {formData.programType && (
+                <p className="text-xs text-muted-foreground">
+                  Patient number will be assigned: {
+                    formData.programType === "otp" ? "OTP-XXXX" :
+                    formData.programType === "mat" ? "MAT-XXXX" :
+                    formData.programType === "primary_care" ? "PC-XXXX" :
+                    formData.programType === "sub" ? "SUB-XXXX" :
+                    formData.programType === "beh" ? "BEH-XXXX" :
+                    formData.programType === "custom" && formData.customProgramType.trim() 
+                      ? `${formData.customProgramType.trim().substring(0, 3).toUpperCase()}-XXXX` 
+                      : "XXXX"
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="phone">Phone *</Label>
               <Input
                 id="phone"
+                name="phone"
                 type="tel"
                 required
                 placeholder="(555) 123-4567"
                 value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
+                onChange={(e) => {
+                  // Remove all non-digit characters
+                  const value = e.target.value.replace(/\D/g, "");
+                  // Format as (XXX) XXX-XXXX
+                  const formatted =
+                    value.length > 6
+                      ? `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`
+                      : value.length > 3
+                      ? `(${value.slice(0, 3)}) ${value.slice(3)}`
+                      : value;
+                  handleInputChange("phone", formatted);
+                }}
+                maxLength={14} // (XXX) XXX-XXXX format
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="patient@email.com"
                 value={formData.email}
@@ -195,6 +309,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
             <Label htmlFor="address">Address</Label>
             <Textarea
               id="address"
+              name="address"
               placeholder="Street address, city, state, zip"
               value={formData.address}
               onChange={(e) => handleInputChange("address", e.target.value)}
@@ -206,6 +321,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
               <Input
                 id="emergencyContactName"
+                name="emergencyContactName"
                 placeholder="Contact name"
                 value={formData.emergencyContactName}
                 onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
@@ -215,10 +331,23 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
               <Input
                 id="emergencyContactPhone"
+                name="emergencyContactPhone"
                 type="tel"
                 placeholder="(555) 123-4567"
                 value={formData.emergencyContactPhone}
-                onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
+                onChange={(e) => {
+                  // Remove all non-digit characters
+                  const value = e.target.value.replace(/\D/g, "");
+                  // Format as (XXX) XXX-XXXX
+                  const formatted =
+                    value.length > 6
+                      ? `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`
+                      : value.length > 3
+                      ? `(${value.slice(0, 3)}) ${value.slice(3)}`
+                      : value;
+                  handleInputChange("emergencyContactPhone", formatted);
+                }}
+                maxLength={14} // (XXX) XXX-XXXX format
               />
             </div>
           </div>
@@ -226,8 +355,8 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="insuranceProvider">Insurance Provider</Label>
-              <Select onValueChange={(value) => handleInputChange("insuranceProvider", value)}>
-                <SelectTrigger>
+              <Select name="insuranceProvider" onValueChange={(value) => handleInputChange("insuranceProvider", value)}>
+                <SelectTrigger id="insuranceProvider">
                   <SelectValue placeholder="Select insurance" />
                 </SelectTrigger>
                 <SelectContent>
@@ -247,6 +376,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
               <Label htmlFor="insuranceId">Insurance ID</Label>
               <Input
                 id="insuranceId"
+                name="insuranceId"
                 placeholder="Insurance member ID"
                 value={formData.insuranceId}
                 onChange={(e) => handleInputChange("insuranceId", e.target.value)}

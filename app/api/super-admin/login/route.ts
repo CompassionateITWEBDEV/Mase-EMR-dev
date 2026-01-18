@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { createServiceClient } from "@/lib/supabase/service-role"
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const { email, password } = await request.json()
 
     console.log("[v0] Super admin login attempt for:", email)

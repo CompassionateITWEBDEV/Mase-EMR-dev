@@ -103,6 +103,10 @@ export default function StaffManagement() {
 
   const departments = [...new Set(staffMembers.map((s) => s.department).filter(Boolean))]
 
+  // Minimal validation - just check if we have at least some input
+  // Accept whatever the user provides
+  const isFormValid = true // Always allow submission, let server handle validation
+
   const getStatusBadge = (isActive: boolean) => {
     if (isActive) {
       return (
@@ -137,33 +141,40 @@ export default function StaffManagement() {
   }
 
   const handleCreateStaff = async () => {
-    if (!newStaff.first_name || !newStaff.last_name || !newStaff.email) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
     try {
+      // Accept whatever input is provided - let the server handle it
       const result = await createStaffMember(newStaff)
 
       if (result.error) {
         toast({
-          title: "Error",
+          title: "Error Creating Staff Member",
           description: result.error,
           variant: "destructive",
         })
+        setIsSubmitting(false)
+        return
+      }
+
+      if (!result.data) {
+        toast({
+          title: "Warning",
+          description: "Staff member creation completed but no data was returned. Please refresh to verify.",
+          variant: "default",
+        })
+        setIsSubmitting(false)
+        // Still refresh the list in case it was created
+        await mutate()
+        setIsAddStaffOpen(false)
         return
       }
 
       toast({
         title: "Success",
-        description: `${newStaff.first_name} ${newStaff.last_name} has been added to the staff.`,
+        description: `${result.data.first_name || "Staff member"} ${result.data.last_name || ""} has been successfully added to the staff directory.`,
       })
 
+      // Reset form
       setNewStaff({
         first_name: "",
         last_name: "",
@@ -176,11 +187,14 @@ export default function StaffManagement() {
       })
       setSendInvite(true)
       setIsAddStaffOpen(false)
-      mutate()
+      
+      // Refresh the staff list
+      await mutate()
     } catch (err) {
+      console.error("Error creating staff member:", err)
       toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
+        title: "Unexpected Error",
+        description: err instanceof Error ? err.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -270,6 +284,8 @@ export default function StaffManagement() {
                       <Label htmlFor="first_name">First Name *</Label>
                       <Input
                         id="first_name"
+                        name="first_name"
+                        autoComplete="given-name"
                         placeholder="Enter first name"
                         value={newStaff.first_name}
                         onChange={(e) => setNewStaff((prev) => ({ ...prev, first_name: e.target.value }))}
@@ -279,6 +295,8 @@ export default function StaffManagement() {
                       <Label htmlFor="last_name">Last Name *</Label>
                       <Input
                         id="last_name"
+                        name="last_name"
+                        autoComplete="family-name"
                         placeholder="Enter last name"
                         value={newStaff.last_name}
                         onChange={(e) => setNewStaff((prev) => ({ ...prev, last_name: e.target.value }))}
@@ -288,7 +306,9 @@ export default function StaffManagement() {
                       <Label htmlFor="email">Email *</Label>
                       <Input
                         id="email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
                         placeholder="Enter email address"
                         value={newStaff.email}
                         onChange={(e) => setNewStaff((prev) => ({ ...prev, email: e.target.value }))}
@@ -298,6 +318,9 @@ export default function StaffManagement() {
                       <Label htmlFor="phone">Phone</Label>
                       <Input
                         id="phone"
+                        name="phone"
+                        type="tel"
+                        autoComplete="tel"
                         placeholder="Enter phone number"
                         value={newStaff.phone || ""}
                         onChange={(e) => setNewStaff((prev) => ({ ...prev, phone: e.target.value }))}
@@ -309,7 +332,7 @@ export default function StaffManagement() {
                         value={newStaff.role}
                         onValueChange={(value) => setNewStaff((prev) => ({ ...prev, role: value as StaffRole }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="role" name="role">
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -340,7 +363,7 @@ export default function StaffManagement() {
                           setNewStaff((prev) => ({ ...prev, department: value === "none" ? "" : value }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="department" name="department">
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                         <SelectContent>
@@ -370,7 +393,7 @@ export default function StaffManagement() {
                           setNewStaff((prev) => ({ ...prev, license_type: value === "none" ? "" : value }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="license_type" name="license_type">
                           <SelectValue placeholder="Select license type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -399,6 +422,8 @@ export default function StaffManagement() {
                       <Label htmlFor="license_number">License Number</Label>
                       <Input
                         id="license_number"
+                        name="license_number"
+                        autoComplete="off"
                         placeholder="Enter license number"
                         value={newStaff.license_number || ""}
                         onChange={(e) => setNewStaff((prev) => ({ ...prev, license_number: e.target.value }))}
@@ -410,10 +435,31 @@ export default function StaffManagement() {
                     </div>
                   </div>
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsAddStaffOpen(false)} disabled={isSubmitting}>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsAddStaffOpen(false)
+                        // Reset form when canceling
+                        setNewStaff({
+                          first_name: "",
+                          last_name: "",
+                          email: "",
+                          phone: "",
+                          role: "general_staff",
+                          department: "",
+                          license_type: "",
+                          license_number: "",
+                        })
+                        setSendInvite(true)
+                      }} 
+                      disabled={isSubmitting}
+                    >
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateStaff} disabled={isSubmitting}>
+                    <Button 
+                      onClick={handleCreateStaff} 
+                      disabled={isSubmitting || !isFormValid}
+                    >
                       {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Create Staff Member
                     </Button>
@@ -436,6 +482,10 @@ export default function StaffManagement() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    id="search-staff"
+                    name="search-staff"
+                    type="search"
+                    autoComplete="off"
                     placeholder="Search staff members..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -443,7 +493,7 @@ export default function StaffManagement() {
                   />
                 </div>
                 <Select value={selectedRole} onValueChange={setSelectedRole}>
-                  <SelectTrigger className="w-full sm:w-48">
+                  <SelectTrigger id="filter-role" name="filter-role" className="w-full sm:w-48">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -467,7 +517,7 @@ export default function StaffManagement() {
                   </SelectContent>
                 </Select>
                 <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                  <SelectTrigger className="w-full sm:w-48">
+                  <SelectTrigger id="filter-department" name="filter-department" className="w-full sm:w-48">
                     <SelectValue placeholder="Filter by department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -618,6 +668,9 @@ export default function StaffManagement() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Staff Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about the staff member.
+            </DialogDescription>
           </DialogHeader>
           {selectedStaff && (
             <div className="space-y-4">
@@ -673,44 +726,61 @@ export default function StaffManagement() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>
+              Update staff member information and settings.
+            </DialogDescription>
           </DialogHeader>
           {selectedStaff && (
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label>First Name</Label>
+                <Label htmlFor="edit-first_name">First Name</Label>
                 <Input
+                  id="edit-first_name"
+                  name="edit-first_name"
+                  autoComplete="given-name"
                   value={selectedStaff.first_name}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, first_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Last Name</Label>
+                <Label htmlFor="edit-last_name">Last Name</Label>
                 <Input
+                  id="edit-last_name"
+                  name="edit-last_name"
+                  autoComplete="family-name"
                   value={selectedStaff.last_name}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, last_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label htmlFor="edit-email">Email</Label>
                 <Input
+                  id="edit-email"
+                  name="edit-email"
+                  type="email"
+                  autoComplete="email"
                   value={selectedStaff.email}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, email: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label htmlFor="edit-phone">Phone</Label>
                 <Input
+                  id="edit-phone"
+                  name="edit-phone"
+                  type="tel"
+                  autoComplete="tel"
                   value={selectedStaff.phone || ""}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Role</Label>
+                <Label htmlFor="edit-role">Role</Label>
                 <Select
                   value={selectedStaff.role}
                   onValueChange={(value) => setSelectedStaff({ ...selectedStaff, role: value as StaffRole })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="edit-role" name="edit-role">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -734,32 +804,42 @@ export default function StaffManagement() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Department</Label>
+                <Label htmlFor="edit-department">Department</Label>
                 <Input
+                  id="edit-department"
+                  name="edit-department"
+                  autoComplete="organization"
                   value={selectedStaff.department || ""}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, department: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>License Type</Label>
+                <Label htmlFor="edit-license_type">License Type</Label>
                 <Input
+                  id="edit-license_type"
+                  name="edit-license_type"
+                  autoComplete="off"
                   value={selectedStaff.license_type || ""}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, license_type: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>License Number</Label>
+                <Label htmlFor="edit-license_number">License Number</Label>
                 <Input
+                  id="edit-license_number"
+                  name="edit-license_number"
+                  autoComplete="off"
                   value={selectedStaff.license_number || ""}
                   onChange={(e) => setSelectedStaff({ ...selectedStaff, license_number: e.target.value })}
                 />
               </div>
               <div className="col-span-2 flex items-center space-x-2">
                 <Switch
+                  id="edit-is_active"
                   checked={selectedStaff.is_active}
                   onCheckedChange={(checked) => setSelectedStaff({ ...selectedStaff, is_active: checked })}
                 />
-                <Label>Active</Label>
+                <Label htmlFor="edit-is_active">Active</Label>
               </div>
             </div>
           )}

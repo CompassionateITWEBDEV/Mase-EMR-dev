@@ -1,13 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -16,154 +28,237 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Users, Plus, Trash2, UserPlus, Shield, MessageSquare } from "lucide-react"
-import { toast } from "sonner"
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Users,
+  Plus,
+  Trash2,
+  UserPlus,
+  Shield,
+  MessageSquare,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface Patient {
-  id: string
-  first_name: string
-  last_name: string
-  date_of_birth: string
+  id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth?: string;
 }
 
 interface Provider {
-  id: string
-  first_name: string
-  last_name: string
-  role: string
-  specialization?: string
+  id: string;
+  first_name: string;
+  last_name: string;
+  role?: string;
+  specialization?: string;
+}
+
+interface CareTeamPermissions {
+  read: boolean;
+  write: boolean;
+  admin: boolean;
 }
 
 interface CareTeamMember {
-  id: string
-  provider_id: string
-  role: string
-  permissions: any
-  joined_at: string
-  is_active: boolean
-  providers: Provider
+  id: string;
+  provider_id: string;
+  role: string;
+  permissions: CareTeamPermissions;
+  joined_at: string;
+  is_active: boolean;
+  providers: Provider;
 }
 
 interface CareTeam {
-  id: string
-  patient_id: string
-  team_name: string
-  primary_provider_id: string
-  created_at: string
-  is_active: boolean
-  patients: Patient
-  primary_provider: Provider
-  care_team_members: CareTeamMember[]
+  id: string;
+  patient_id: string;
+  team_name: string;
+  primary_provider_id: string;
+  created_at: string;
+  is_active: boolean;
+  patients: Patient;
+  primary_provider: Provider;
+  care_team_members: CareTeamMember[];
 }
 
 interface CareTeamManagementProps {
-  currentProviderId: string
-  canManageTeams: boolean
+  currentProviderId: string;
+  canManageTeams: boolean;
 }
 
-export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTeamManagementProps) {
-  const [careTeams, setCareTeams] = useState<CareTeam[]>([])
-  const [availableProviders, setAvailableProviders] = useState<Provider[]>([])
-  const [availablePatients, setAvailablePatients] = useState<Patient[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false)
-  const [isEditTeamOpen, setIsEditTeamOpen] = useState(false)
-  const [selectedTeam, setSelectedTeam] = useState<CareTeam | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
+export function CareTeamManagement({
+  currentProviderId,
+  canManageTeams,
+}: CareTeamManagementProps) {
+  const [careTeams, setCareTeams] = useState<CareTeam[]>([]);
+  const [availableProviders, setAvailableProviders] = useState<Provider[]>([]);
+  const [availablePatients, setAvailablePatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [isEditTeamOpen, setIsEditTeamOpen] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<CareTeam | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [newTeam, setNewTeam] = useState({
     patientId: "",
     teamName: "",
     primaryProviderId: "",
     members: [] as Array<{
-      providerId: string
-      role: string
+      providerId: string;
+      role: string;
       permissions: {
-        read: boolean
-        write: boolean
-        admin: boolean
-      }
+        read: boolean;
+        write: boolean;
+        admin: boolean;
+      };
     }>,
-  })
+  });
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   const fetchCareTeams = useCallback(async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from("care_teams")
-        .select(`
+        .select(
+          `
           *,
           patients(
             id,
             first_name,
             last_name
           ),
+          primary_provider:providers!primary_provider_id(
+            id,
+            first_name,
+            last_name,
+            specialization
+          ),
           care_team_members(
             id,
             role,
+            is_active,
+            permissions,
             providers(
               id,
               first_name,
               last_name,
-              specialty
+              specialization
             )
           )
-        `)
-        .order("created_at", { ascending: false })
+        `
+        )
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
-      setCareTeams(data || [])
+      if (error) throw error;
+      
+      // Map the data to ensure primary_provider is correctly set
+      // Supabase returns the aliased relationship
+      const mappedData = (data || []).map((team: CareTeam & { primary_provider?: Provider | Provider[] | null }) => {
+        // Handle the primary_provider alias - it might be an array or object
+        const primaryProvider = Array.isArray(team.primary_provider) 
+          ? team.primary_provider[0] 
+          : team.primary_provider;
+        
+        return {
+          ...team,
+          primary_provider: primaryProvider || null,
+        } as CareTeam;
+      });
+      
+      setCareTeams(mappedData);
     } catch (error) {
-      console.error("Error fetching care teams:", error)
+      console.error("Error fetching care teams:", error);
+      toast.error(
+        error instanceof Error
+          ? `Failed to load care teams: ${error.message}`
+          : "Failed to load care teams"
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [supabase])
+  }, [supabase]);
 
   const fetchAvailableProviders = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("providers")
-        .select("id, first_name, last_name, specialty")
-        .eq("is_active", true)
+        .select("id, first_name, last_name, specialization")
+        .eq("is_active", true);
 
-      if (error) throw error
-      setAvailableProviders(data || [])
+      if (error) throw error;
+      setAvailableProviders(data || []);
     } catch (error) {
-      console.error("Error fetching providers:", error)
+      console.error("Error fetching providers:", error);
+      toast.error(
+        error instanceof Error
+          ? `Failed to load providers: ${error.message}`
+          : "Failed to load providers"
+      );
     }
-  }, [supabase])
+  }, [supabase]);
 
   const fetchAvailablePatients = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      // Try with status field first, fallback to is_active if status doesn't exist
+      let query = supabase
         .from("patients")
-        .select("id, first_name, last_name, patient_number")
-        .eq("status", "active")
+        .select("id, first_name, last_name, date_of_birth");
 
-      if (error) throw error
-      setAvailablePatients(data || [])
+      // Try status field first
+      const { data: statusData, error: statusError } = await query
+        .eq("status", "active")
+        .limit(1);
+
+      if (statusError || !statusData || statusData.length === 0) {
+        // Fallback to is_active field
+        const { data, error } = await supabase
+          .from("patients")
+          .select("id, first_name, last_name, date_of_birth")
+          .eq("is_active", true);
+
+        if (error) throw error;
+        setAvailablePatients(data || []);
+      } else {
+        // Use status field
+        const { data, error } = await supabase
+          .from("patients")
+          .select("id, first_name, last_name, date_of_birth")
+          .eq("status", "active");
+
+        if (error) throw error;
+        setAvailablePatients(data || []);
+      }
     } catch (error) {
-      console.error("Error fetching patients:", error)
+      console.error("Error fetching patients:", error);
+      toast.error(
+        error instanceof Error
+          ? `Failed to load patients: ${error.message}`
+          : "Failed to load patients"
+      );
     }
-  }, [supabase])
+  }, [supabase]);
 
   useEffect(() => {
-    fetchCareTeams()
-    fetchAvailableProviders()
-    fetchAvailablePatients()
-  }, [fetchCareTeams, fetchAvailableProviders, fetchAvailablePatients])
+    fetchCareTeams();
+    fetchAvailableProviders();
+    fetchAvailablePatients();
+  }, [fetchCareTeams, fetchAvailableProviders, fetchAvailablePatients]);
 
   const createCareTeam = async () => {
     if (!newTeam.patientId || !newTeam.teamName || !newTeam.primaryProviderId) {
-      toast.error("Please fill in all required fields")
-      return
+      toast.error("Please fill in all required fields");
+      return;
     }
 
+    setIsCreatingTeam(true);
     try {
       // Create the care team
       const { data: team, error: teamError } = await supabase
@@ -174,9 +269,11 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
           primary_provider_id: newTeam.primaryProviderId,
         })
         .select()
-        .single()
+        .single();
 
-      if (teamError) throw teamError
+      if (teamError) {
+        throw new Error(teamError.message || "Failed to create care team");
+      }
 
       // Add team members
       if (newTeam.members.length > 0) {
@@ -185,47 +282,62 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
           provider_id: member.providerId,
           role: member.role,
           permissions: member.permissions,
-        }))
+        }));
 
-        const { error: membersError } = await supabase.from("care_team_members").insert(members)
+        const { error: membersError } = await supabase
+          .from("care_team_members")
+          .insert(members);
 
-        if (membersError) throw membersError
+        if (membersError) {
+          throw new Error(membersError.message || "Failed to add team members");
+        }
 
         // Send notifications to new team members
-        const notifications = newTeam.members.map((member) => ({
-          patient_id: newTeam.patientId,
-          care_team_id: team.id,
-          recipient_id: member.providerId,
-          sender_id: currentProviderId,
-          notification_type: "case_assignment",
-          title: `Care Team Assignment - ${newTeam.teamName}`,
-          message: `You have been assigned to the care team for a new patient case.`,
-          priority: "normal",
-          action_url: `/patients/${newTeam.patientId}/communications`,
-        }))
+        try {
+          const notifications = newTeam.members.map((member) => ({
+            patient_id: newTeam.patientId,
+            care_team_id: team.id,
+            recipient_id: member.providerId,
+            sender_id: currentProviderId,
+            notification_type: "case_assignment",
+            title: `Care Team Assignment - ${newTeam.teamName}`,
+            message: `You have been assigned to the care team for a new patient case.`,
+            priority: "normal",
+            action_url: `/patients/${newTeam.patientId}/communications`,
+          }));
 
-        await supabase.from("team_notifications").insert(notifications)
+          await supabase.from("team_notifications").insert(notifications);
+        } catch (notifError) {
+          // Don't fail the entire operation if notifications fail
+          console.warn("Failed to send notifications:", notifError);
+        }
       }
 
-      toast.success("Care team created successfully")
-      setIsCreateTeamOpen(false)
+      toast.success("Care team created successfully");
+      setIsCreateTeamOpen(false);
       setNewTeam({
         patientId: "",
         teamName: "",
         primaryProviderId: "",
         members: [],
-      })
-      fetchCareTeams()
+      });
+      await fetchCareTeams();
     } catch (error) {
-      console.error("Error creating care team:", error)
-      toast.error("Failed to create care team")
+      console.error("Error creating care team:", error);
+      toast.error(
+        error instanceof Error
+          ? `Failed to create care team: ${error.message}`
+          : "Failed to create care team"
+      );
+    } finally {
+      setIsCreatingTeam(false);
     }
-  }
+  };
 
   const addTeamMember = (providerId: string, role: string) => {
     if (newTeam.members.some((m) => m.providerId === providerId)) {
-      toast.error("Provider is already a team member")
-      return
+      toast.error("Provider is already a team member");
+      return;
     }
 
     setNewTeam((prev) => ({
@@ -242,44 +354,55 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
           },
         },
       ],
-    }))
-  }
+    }));
+    
+    // Close the Add Member dialog after adding
+    setIsAddMemberOpen(false);
+    toast.success("Team member added successfully");
+  };
 
   const removeTeamMember = (providerId: string) => {
     setNewTeam((prev) => ({
       ...prev,
       members: prev.members.filter((m) => m.providerId !== providerId),
-    }))
-  }
+    }));
+  };
 
-  const updateMemberPermissions = (providerId: string, permissions: any) => {
+  const updateMemberPermissions = (providerId: string, permissions: CareTeamPermissions) => {
     setNewTeam((prev) => ({
       ...prev,
-      members: prev.members.map((m) => (m.providerId === providerId ? { ...m, permissions } : m)),
-    }))
-  }
+      members: prev.members.map((m) =>
+        m.providerId === providerId ? { ...m, permissions } : m
+      ),
+    }));
+  };
 
   const deactivateTeam = async (teamId: string) => {
     try {
-      const { error } = await supabase.from("care_teams").update({ is_active: false }).eq("id", teamId)
+      const { error } = await supabase
+        .from("care_teams")
+        .update({ is_active: false })
+        .eq("id", teamId);
 
-      if (error) throw error
-      toast.success("Care team deactivated")
-      fetchCareTeams()
+      if (error) throw error;
+      toast.success("Care team deactivated");
+      fetchCareTeams();
     } catch (error) {
-      console.error("Error deactivating team:", error)
-      toast.error("Failed to deactivate team")
+      console.error("Error deactivating team:", error);
+      toast.error("Failed to deactivate team");
     }
-  }
+  };
 
   const filteredTeams = careTeams.filter(
     (team) =>
       team.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${team.patients.first_name} ${team.patients.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      `${team.patients.first_name} ${team.patients.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+  );
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading care teams...</div>
+    return <div className="flex justify-center p-8">Loading care teams...</div>;
   }
 
   return (
@@ -304,7 +427,9 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Care Team</DialogTitle>
-                <DialogDescription>Assign a multidisciplinary team to collaborate on patient care</DialogDescription>
+                <DialogDescription>
+                  Assign a multidisciplinary team to collaborate on patient care
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -312,8 +437,9 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                     <Label>Patient</Label>
                     <Select
                       value={newTeam.patientId}
-                      onValueChange={(value) => setNewTeam((prev) => ({ ...prev, patientId: value }))}
-                    >
+                      onValueChange={(value) =>
+                        setNewTeam((prev) => ({ ...prev, patientId: value }))
+                      }>
                       <SelectTrigger>
                         <SelectValue placeholder="Select patient" />
                       </SelectTrigger>
@@ -330,7 +456,12 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                     <Label>Team Name</Label>
                     <Input
                       value={newTeam.teamName}
-                      onChange={(e) => setNewTeam((prev) => ({ ...prev, teamName: e.target.value }))}
+                      onChange={(e) =>
+                        setNewTeam((prev) => ({
+                          ...prev,
+                          teamName: e.target.value,
+                        }))
+                      }
                       placeholder="Enter team name"
                     />
                   </div>
@@ -339,15 +470,20 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                   <Label>Primary Provider</Label>
                   <Select
                     value={newTeam.primaryProviderId}
-                    onValueChange={(value) => setNewTeam((prev) => ({ ...prev, primaryProviderId: value }))}
-                  >
+                    onValueChange={(value) =>
+                      setNewTeam((prev) => ({
+                        ...prev,
+                        primaryProviderId: value,
+                      }))
+                    }>
                     <SelectTrigger>
                       <SelectValue placeholder="Select primary provider" />
                     </SelectTrigger>
                     <SelectContent>
                       {availableProviders.map((provider) => (
                         <SelectItem key={provider.id} value={provider.id}>
-                          {provider.first_name} {provider.last_name} ({provider.specialty})
+                          {provider.first_name} {provider.last_name} (
+                          {provider.specialization || "N/A"})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -357,7 +493,7 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <Label>Team Members</Label>
-                    <Dialog>
+                    <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
                           <UserPlus className="mr-2 h-4 w-4" />
@@ -367,40 +503,65 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Add Team Member</DialogTitle>
+                          <DialogDescription>
+                            Select a provider to add to the care team
+                          </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto">
                           {availableProviders
                             .filter((p) => p.id !== newTeam.primaryProviderId)
-                            .filter((p) => !newTeam.members.some((m) => m.providerId === p.id))
-                            .map((provider) => (
-                              <div
-                                key={provider.id}
-                                className="flex items-center justify-between p-3 border rounded-lg"
-                              >
-                                <div>
-                                  <p className="font-medium">
-                                    {provider.first_name} {provider.last_name}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">{provider.specialty}</p>
+                            .filter(
+                              (p) =>
+                                !newTeam.members.some(
+                                  (m) => m.providerId === p.id
+                                )
+                            )
+                            .length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              No available providers to add
+                            </p>
+                          ) : (
+                            availableProviders
+                              .filter((p) => p.id !== newTeam.primaryProviderId)
+                              .filter(
+                                (p) =>
+                                  !newTeam.members.some(
+                                    (m) => m.providerId === p.id
+                                  )
+                              )
+                              .map((provider) => (
+                                <div
+                                  key={provider.id}
+                                  className="flex items-center justify-between p-3 border rounded-lg">
+                                  <div>
+                                    <p className="font-medium">
+                                      {provider.first_name} {provider.last_name}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {provider.specialization || "N/A"}
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        addTeamMember(provider.id, "secondary")
+                                      }>
+                                      Add as Secondary
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        addTeamMember(provider.id, "consultant")
+                                      }>
+                                      Add as Consultant
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => addTeamMember(provider.id, "secondary")}
-                                  >
-                                    Add as Secondary
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => addTeamMember(provider.id, "consultant")}
-                                  >
-                                    Add as Consultant
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                              ))
+                          )}
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -408,11 +569,15 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
 
                   <div className="space-y-3">
                     {newTeam.members.map((member) => {
-                      const provider = availableProviders.find((p) => p.id === member.providerId)
-                      if (!provider) return null
+                      const provider = availableProviders.find(
+                        (p) => p.id === member.providerId
+                      );
+                      if (!provider) return null;
 
                       return (
-                        <div key={member.providerId} className="border rounded-lg p-4">
+                        <div
+                          key={member.providerId}
+                          className="border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -426,11 +591,17 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                                   {provider.first_name} {provider.last_name}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {provider.specialty} • {member.role}
+                                  {provider.specialization || "N/A"} •{" "}
+                                  {member.role}
                                 </p>
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => removeTeamMember(member.providerId)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                removeTeamMember(member.providerId)
+                              }>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -442,11 +613,13 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                                 onCheckedChange={(checked) =>
                                   updateMemberPermissions(member.providerId, {
                                     ...member.permissions,
-                                    read: checked,
+                                    read: checked === true,
                                   })
                                 }
                               />
-                              <Label htmlFor={`${member.providerId}-read`} className="text-sm">
+                              <Label
+                                htmlFor={`${member.providerId}-read`}
+                                className="text-sm">
                                 Read Access
                               </Label>
                             </div>
@@ -457,11 +630,13 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                                 onCheckedChange={(checked) =>
                                   updateMemberPermissions(member.providerId, {
                                     ...member.permissions,
-                                    write: checked,
+                                    write: checked === true,
                                   })
                                 }
                               />
-                              <Label htmlFor={`${member.providerId}-write`} className="text-sm">
+                              <Label
+                                htmlFor={`${member.providerId}-write`}
+                                className="text-sm">
                                 Write Access
                               </Label>
                             </div>
@@ -472,26 +647,33 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                                 onCheckedChange={(checked) =>
                                   updateMemberPermissions(member.providerId, {
                                     ...member.permissions,
-                                    admin: checked,
+                                    admin: checked === true,
                                   })
                                 }
                               />
-                              <Label htmlFor={`${member.providerId}-admin`} className="text-sm">
+                              <Label
+                                htmlFor={`${member.providerId}-admin`}
+                                className="text-sm">
                                 Admin Access
                               </Label>
                             </div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateTeamOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateTeamOpen(false)}
+                  disabled={isCreatingTeam}>
                   Cancel
                 </Button>
-                <Button onClick={createCareTeam}>Create Team</Button>
+                <Button onClick={createCareTeam} disabled={isCreatingTeam}>
+                  {isCreatingTeam ? "Creating..." : "Create Team"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -503,9 +685,13 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
           <Card>
             <CardContent className="p-8 text-center">
               <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Care Teams Found</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                No Care Teams Found
+              </h3>
               <p className="text-muted-foreground">
-                {canManageTeams ? "Create your first care team to get started." : "No care teams match your search."}
+                {canManageTeams
+                  ? "Create your first care team to get started."
+                  : "No care teams match your search."}
               </p>
             </CardContent>
           </Card>
@@ -519,22 +705,29 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                     <div>
                       <h3>{team.team_name}</h3>
                       <p className="text-sm font-normal text-muted-foreground">
-                        Patient: {team.patients.first_name} {team.patients.last_name}
+                        Patient: {team.patients.first_name}{" "}
+                        {team.patients.last_name}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Badge variant="secondary">{team.care_team_members.length + 1} members</Badge>
+                    <Badge variant="secondary">
+                      {team.care_team_members.length + 1} members
+                    </Badge>
                     {canManageTeams && (
-                      <Button variant="ghost" size="sm" onClick={() => deactivateTeam(team.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deactivateTeam(team.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
                 </CardTitle>
                 <CardDescription>
-                  Primary Provider: {team.primary_provider.first_name} {team.primary_provider.last_name} (
-                  {team.primary_provider.specialty})
+                  Primary Provider: {team.primary_provider.first_name}{" "}
+                  {team.primary_provider.last_name} (
+                  {team.primary_provider.specialization || "N/A"})
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -545,7 +738,9 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                       {team.care_team_members
                         .filter((member) => member.is_active)
                         .map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                          <div
+                            key={member.id}
+                            className="flex items-center gap-3 p-3 border rounded-lg">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback>
                                 {member.providers.first_name[0]}
@@ -554,16 +749,19 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
                             </Avatar>
                             <div className="flex-1">
                               <p className="font-medium text-sm">
-                                {member.providers.first_name} {member.providers.last_name}
+                                {member.providers.first_name}{" "}
+                                {member.providers.last_name}
                               </p>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
-                                  {member.providers.specialty}
+                                  {member.providers.specialization || "N/A"}
                                 </Badge>
                                 <Badge variant="secondary" className="text-xs">
                                   {member.role}
                                 </Badge>
-                                {member.permissions.admin && <Shield className="h-3 w-3 text-primary" />}
+                                {member.permissions.admin && (
+                                  <Shield className="h-3 w-3 text-primary" />
+                                )}
                               </div>
                             </div>
                           </div>
@@ -585,5 +783,5 @@ export function CareTeamManagement({ currentProviderId, canManageTeams }: CareTe
         )}
       </div>
     </div>
-  )
+  );
 }
