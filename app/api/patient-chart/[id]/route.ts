@@ -8,26 +8,26 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: "Missing patient id", code: "missing_patient_id" }, { status: 400 })
   }
 
-  const supabase = createServiceClient()
-
-  const { data: patient, error: patientError } = await supabase
-    .from("patients")
-    .select("*")
-    .eq("id", patientId)
-    .single()
-
-  if (patientError) {
-    const status = patientError.code === "PGRST116" ? 404 : 500
-    return NextResponse.json(
-      {
-        error: patientError.message || "Failed to load patient",
-        code: patientError.code || "patient_fetch_failed",
-      },
-      { status },
-    )
-  }
-
   try {
+    const supabase = createServiceClient()
+
+    const { data: patient, error: patientError } = await supabase
+      .from("patients")
+      .select("*")
+      .eq("id", patientId)
+      .single()
+
+    if (patientError) {
+      const status = patientError.code === "PGRST116" ? 404 : 500
+      return NextResponse.json(
+        {
+          error: patientError.message || "Failed to load patient",
+          code: patientError.code || "patient_fetch_failed",
+        },
+        { status },
+      )
+    }
+
     const [vitalSignsResult, medicationsResult, assessmentsResult, encountersResult, dosingLogResult, consentsResult] =
       await Promise.all([
         supabase
@@ -76,6 +76,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     ].filter(Boolean)
 
     if (queryErrors.length > 0) {
+      console.error("Patient chart query errors", queryErrors)
       return NextResponse.json(
         {
           error: "Failed to load patient chart data",

@@ -148,7 +148,13 @@ export default function PatientChartPage() {
     try {
       console.log("[v0] Fetching patient data from API...")
       const res = await fetch(`/api/patient-chart/${patientId}`)
-      const data = await res.json()
+      let data: any = null
+
+      try {
+        data = await res.json()
+      } catch (parseError) {
+        console.error("Error parsing patient chart response:", parseError)
+      }
 
       if (!res.ok) {
         const message = data?.error || "Failed to load patient chart data"
