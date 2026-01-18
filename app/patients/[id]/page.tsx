@@ -24,9 +24,9 @@ type PatientRecord = {
   emergency_contact_phone?: string | null
   insurance_provider?: string | null
   insurance_id?: string | null
-  status?: string | null
-  risk_level?: string | null
-  program_type?: string | null
+  status: string | null
+  risk_level: string | null
+  program_type: string | null
 }
 
 type PatientInsuranceRecord = {

@@ -20,7 +20,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
           emergency_contact_name,
           emergency_contact_phone,
           insurance_provider,
-          insurance_id
+          insurance_id,
+          status,
+          risk_level,
+          program_type
         `,
       )
       .eq("id", params.id)
