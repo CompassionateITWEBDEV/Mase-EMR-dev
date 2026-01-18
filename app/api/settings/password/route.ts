@@ -7,37 +7,19 @@ const sql = neon(process.env.NEON_DATABASE_URL!)
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { currentPassword, newPassword, userEmail } = body
+    const { currentPassword, newPassword } = body
 
     console.log("[v0] Password change request received")
 
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json({ error: "Current and new passwords are required" }, { status: 400 })
-    }
-
-    const resolvedEmail =
-      userEmail || request.headers.get("x-user-email") || request.headers.get("x-admin-email")
-
-    if (!resolvedEmail) {
-      return NextResponse.json({ error: "User email is required" }, { status: 400 })
-    }
+    // Get user from session (for now using super admin email as example)
+    const userEmail = "admin@maseemr.com" // TODO: Get from session/auth
 
     // Verify current password
-    const userResult = await sql`
-      SELECT id, password_hash, 'user_accounts' as source
-      FROM user_accounts
-      WHERE email = ${resolvedEmail}
+    const result = await sql`
+      SELECT id, password_hash 
+      FROM super_admins 
+      WHERE email = ${userEmail}
     `
-
-    const superAdminResult = userResult.length
-      ? []
-      : await sql`
-          SELECT id, password_hash, 'super_admins' as source
-          FROM super_admins
-          WHERE email = ${resolvedEmail}
-        `
-
-    const result = userResult.length ? userResult : superAdminResult
 
     if (!result || result.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -54,22 +36,13 @@ export async function POST(request: Request) {
     const newPasswordHash = await bcrypt.hash(newPassword, 10)
 
     // Update password
-    if (user.source === "user_accounts") {
-      await sql`
-        UPDATE user_accounts
-        SET password_hash = ${newPasswordHash},
-          updated_at = NOW()
-        WHERE id = ${user.id}
-      `
-    } else {
-      await sql`
-        UPDATE super_admins 
-        SET password_hash = ${newPasswordHash}
-        WHERE id = ${user.id}
-      `
-    }
+    await sql`
+      UPDATE super_admins 
+      SET password_hash = ${newPasswordHash}
+      WHERE id = ${user.id}
+    `
 
-    console.log("[v0] Password changed successfully for:", resolvedEmail)
+    console.log("[v0] Password changed successfully for:", userEmail)
 
     return NextResponse.json({
       success: true,

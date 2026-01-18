@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import { randomUUID } from "crypto"
 
 const sql = neon(process.env.NEON_DATABASE_URL!)
 
@@ -39,27 +38,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { patientId, toNumber, messageBody } = body
 
-    if (!toNumber || !messageBody) {
-      return NextResponse.json(
-        { success: false, error: "toNumber and messageBody are required" },
-        { status: 400 },
-      )
-    }
-
-    const fromNumber = process.env.TWILIO_PHONE_NUMBER || null
-
     const [sms] = await sql`
       INSERT INTO sms_messages (
         patient_id,
         direction,
-        from_number,
         to_number,
         message_body,
         status
       ) VALUES (
         ${patientId},
         'outbound',
-        ${fromNumber},
         ${toNumber},
         ${messageBody},
         'queued'
@@ -67,20 +55,13 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `
 
-    const twilioSid = `SM${randomUUID().replace(/-/g, "")}`
-    const [sentSms] = await sql`
-      UPDATE sms_messages
-      SET status = 'sent',
-        sent_at = NOW(),
-        twilio_sid = ${twilioSid}
-      WHERE id = ${sms.id}
-      RETURNING *
-    `
+    // TODO: Integrate with Twilio API
+    // const twilioResponse = await sendTwilioSMS(...)
 
     return NextResponse.json({
       success: true,
-      sms: sentSms,
-      message: "SMS sent successfully",
+      sms,
+      message: "SMS queued for sending",
     })
   } catch (error: any) {
     console.error("[v0] Error sending SMS:", error)

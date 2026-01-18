@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import { randomUUID } from "crypto"
 
 const sql = neon(process.env.NEON_DATABASE_URL!)
 
@@ -47,13 +46,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { patientId, recipientFax, subject, fileUrl, pageCount } = body
 
-    if (!recipientFax || !fileUrl) {
-      return NextResponse.json(
-        { success: false, error: "recipientFax and fileUrl are required" },
-        { status: 400 },
-      )
-    }
-
     // Insert outbound fax
     const [fax] = await sql`
       INSERT INTO fax_messages (
@@ -76,20 +68,13 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `
 
-    const vonageMessageId = `VON${randomUUID().replace(/-/g, "")}`
-    const [sentFax] = await sql`
-      UPDATE fax_messages
-      SET status = 'sent',
-        sent_at = NOW(),
-        vonage_message_id = ${vonageMessageId}
-      WHERE id = ${fax.id}
-      RETURNING *
-    `
+    // TODO: Integrate with Vonage API to send fax
+    // const vonageResponse = await sendVonageFax(...)
 
     return NextResponse.json({
       success: true,
-      fax: sentFax,
-      message: "Fax sent successfully",
+      fax,
+      message: "Fax queued for sending",
     })
   } catch (error: any) {
     console.error("[v0] Error sending fax:", error)

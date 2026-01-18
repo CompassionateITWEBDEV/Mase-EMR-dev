@@ -585,16 +585,118 @@ export default function OffsiteDosing() {
           </div>
         </TabsContent>
 
-        {/* Kits Tab - placeholder replacement */}
         <TabsContent value="kits" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Medication Kits Management</h2>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Kit
+            </Button>
+          </div>
+
+          {/* Active Kits */}
           <Card>
             <CardHeader>
-              <CardTitle>Medication Kits Management</CardTitle>
-              <CardDescription>Prepare and track pre-dispensed medication kits for transport</CardDescription>
+              <CardTitle>Active Medication Kits</CardTitle>
+              <CardDescription>Pre-dispensed medication kits currently in use at facilities</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Medication kits interface - Create new kits, track bottle inventory, and manage returns
+              <div className="space-y-4">
+                {activeKits.map((kit) => (
+                  <div key={kit.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Package className="h-5 w-5 text-blue-600" />
+                          <h3 className="font-semibold">{kit.kit_number}</h3>
+                          <Badge variant={kit.kit_status === "in_use" ? "default" : "secondary"}>
+                            {kit.kit_status.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{kit.patient_name}</p>
+                        <p className="text-sm text-muted-foreground">{kit.location_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{kit.medication}</p>
+                        <p className="text-xs text-muted-foreground">{kit.number_of_bottles} bottles</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground mb-1">Duration</p>
+                        <p className="font-medium">{kit.start_date} to {kit.end_date}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Progress</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full" 
+                              style={{ width: `${(kit.doses_administered / (kit.doses_administered + kit.doses_remaining)) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="font-medium text-xs">{kit.doses_administered}/{kit.doses_administered + kit.doses_remaining}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1">Next Dose</p>
+                        <p className="font-medium">{kit.next_dose}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-3">
+                      <Button size="sm" variant="outline">
+                        <FileCheck className="mr-1 h-4 w-4" />
+                        View Details
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <QrCode className="mr-1 h-4 w-4" />
+                        Print Labels
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <ShoppingCart className="mr-1 h-4 w-4" />
+                        Request Callback
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Kit Inventory Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Kit Inventory Status</CardTitle>
+              <CardDescription>Available bottles and supplies for kit preparation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <Package className="h-8 w-8 text-blue-500" />
+                    <Badge>In Stock</Badge>
+                  </div>
+                  <p className="text-2xl font-bold">247</p>
+                  <p className="text-sm text-muted-foreground">Available Bottles</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <Truck className="h-8 w-8 text-orange-500" />
+                    <Badge variant="secondary">In Transit</Badge>
+                  </div>
+                  <p className="text-2xl font-bold">18</p>
+                  <p className="text-sm text-muted-foreground">Kits in Transport</p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <AlertTriangle className="h-8 w-8 text-red-500" />
+                    <Badge variant="destructive">Low Stock</Badge>
+                  </div>
+                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-sm text-muted-foreground">Items Need Reorder</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1028,19 +1130,175 @@ export default function OffsiteDosing() {
           </Card>
         </TabsContent>
 
-        {/* Transport Tab - placeholder replacement */}
         <TabsContent value="transport">
-          <Card>
-            <CardHeader>
-              <CardTitle>Transport Management</CardTitle>
-              <CardDescription>Track medication transport to and from facilities with chain of custody</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Transport tracking interface - GPS tracking, temperature logs, and delivery confirmation
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            {/* Active Transports */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Transports</CardTitle>
+                <CardDescription>Real-time tracking of medication deliveries with chain of custody</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    {
+                      id: "TRN-001",
+                      driver: "Michael Johnson",
+                      destination: "Sunrise Senior Living",
+                      kits: 2,
+                      status: "en_route",
+                      departure: "08:45 AM",
+                      eta: "09:30 AM",
+                      temperature: "72°F",
+                      location: "2.3 miles away",
+                    },
+                    {
+                      id: "TRN-002",
+                      driver: "Sarah Martinez",
+                      destination: "Riverside Rehabilitation",
+                      kits: 1,
+                      status: "at_facility",
+                      departure: "07:30 AM",
+                      eta: "Arrived",
+                      temperature: "70°F",
+                      location: "On-site",
+                    },
+                  ].map((transport) => (
+                    <div key={transport.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Truck className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{transport.id}</h3>
+                              <Badge variant={transport.status === "en_route" ? "default" : "secondary"}>
+                                {transport.status.replace(/_/g, " ")}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Driver: {transport.driver}</p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          <MapPin className="mr-1 h-4 w-4" />
+                          Track Live
+                        </Button>
+                      </div>
+
+                      <div className="grid md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground mb-1">Destination</p>
+                          <p className="font-medium">{transport.destination}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Kits</p>
+                          <p className="font-medium">{transport.kits} medication kits</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Temperature</p>
+                          <p className="font-medium flex items-center gap-1">
+                            {transport.temperature}
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">ETA</p>
+                          <p className="font-medium">{transport.eta}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-blue-50 rounded flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm text-blue-900">{transport.location}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chain of Custody Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Chain of Custody Records</CardTitle>
+                <CardDescription>Complete audit trail of medication transfers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    {
+                      time: "08:45 AM",
+                      action: "Transport Started",
+                      person: "Michael Johnson (Driver)",
+                      location: "Main Clinic",
+                      signature: "✓ Verified",
+                    },
+                    {
+                      time: "08:40 AM",
+                      action: "Kits Loaded",
+                      person: "Sarah Chen, RN (Dispensing)",
+                      location: "Main Clinic",
+                      signature: "✓ Verified",
+                    },
+                    {
+                      time: "08:35 AM",
+                      action: "Temperature Check",
+                      person: "Automated System",
+                      location: "Transport Container",
+                      signature: "72°F - Within Range",
+                    },
+                    {
+                      time: "08:30 AM",
+                      action: "Kit Preparation Complete",
+                      person: "Sarah Chen, RN",
+                      location: "Dispensing Room",
+                      signature: "✓ Verified",
+                    },
+                  ].map((record, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 border rounded">
+                      <div className="flex-shrink-0 w-16 text-sm text-muted-foreground">{record.time}</div>
+                      <div className="flex-1">
+                        <p className="font-medium">{record.action}</p>
+                        <p className="text-sm text-muted-foreground">{record.person} • {record.location}</p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <Badge variant="outline">{record.signature}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Transport History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Deliveries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {[
+                    { id: "TRN-000", date: "Jan 14, 2025", facility: "Highland Care Center", kits: 3, status: "completed" },
+                    { id: "TRN-999", date: "Jan 13, 2025", facility: "Oak Ridge Nursing", kits: 2, status: "completed" },
+                    { id: "TRN-998", date: "Jan 12, 2025", facility: "Riverside Rehabilitation", kits: 1, status: "completed" },
+                  ].map((delivery) => (
+                    <div key={delivery.id} className="flex items-center justify-between p-3 border rounded">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <div>
+                          <p className="font-medium">{delivery.id}</p>
+                          <p className="text-sm text-muted-foreground">{delivery.date} • {delivery.facility}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{delivery.kits} kits</span>
+                        <Button size="sm" variant="outline">View Report</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
