@@ -143,18 +143,25 @@ export default function PatientChartPage() {
   const fetchPatientData = async (patientId: string) => {
     console.log("[v0] fetchPatientData called with patientId:", patientId)
     setLoading(true)
+    setAlerts([])
 
     try {
       console.log("[v0] Fetching patient data from API...")
-      const response = await fetch(`/api/patient-chart/${patientId}`)
+      const res = await fetch(`/api/patient-chart/${patientId}`)
+      let data: any = null
 
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
-        throw new Error(errorBody?.error || "Failed to fetch patient chart data")
+      try {
+        data = await res.json()
+      } catch (parseError) {
+        console.error("Error parsing patient chart response:", parseError)
       }
 
-      const data = await response.json()
-      const patientData = data?.patient ?? null
+      if (!res.ok) {
+        const message = data?.error || "Failed to load patient chart data"
+        throw new Error(message)
+      }
+
+      const patientData = data.patient as Patient | null
 
       if (!patientData) {
         throw new Error("Patient not found")
@@ -162,8 +169,9 @@ export default function PatientChartPage() {
 
       setSelectedPatient(patientData)
 
-      const vitalsData = data?.vitalSigns ?? []
-      setVitalSigns(vitalsData)
+      const vitalsData = data.vital_signs as VitalSign[]
+
+      setVitalSigns(vitalsData || [])
 
       const criticalVitals = vitalsData?.filter(
         (v) =>
@@ -189,14 +197,13 @@ export default function PatientChartPage() {
         ])
       }
 
-      setMedications(data?.medications ?? [])
-      setAssessments(data?.assessments ?? [])
-      setEncounters(data?.encounters ?? [])
-      setDosingLog(data?.dosingLog ?? [])
-      setConsents(data?.consents ?? [])
+      setMedications((data.medications as Medication[]) || [])
+      setAssessments(data.assessments || [])
+      setEncounters(data.encounters || [])
+      setDosingLog(data.dosing_log || [])
+      setConsents(data.hie_patient_consents || [])
     } catch (error) {
       console.error("Error fetching patient data:", error)
-      toast.error("Failed to load patient chart data")
       setSelectedPatient(null)
       setVitalSigns([])
       setMedications([])
@@ -204,6 +211,9 @@ export default function PatientChartPage() {
       setEncounters([])
       setDosingLog([])
       setConsents([])
+      toast.error("Unable to load patient chart data.", {
+        description: "Please try again or select another patient.",
+      })
     } finally {
       setLoading(false)
     }

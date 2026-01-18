@@ -1,24 +1,15 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
+import { createServiceClient } from "@/lib/supabase/service-role"
 
-type Params = {
-  params: {
-    id: string
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const patientId = params.id
+
+  if (!patientId) {
+    return NextResponse.json({ error: "Missing patient id", code: "missing_patient_id" }, { status: 400 })
   }
-}
-
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-export async function GET(_: Request, { params }: Params) {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return NextResponse.json({ error: "Missing Supabase configuration." }, { status: 500 })
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
-    const patientId = params.id
+    const supabase = createServiceClient()
 
     const { data: patient, error: patientError } = await supabase
       .from("patients")
@@ -27,54 +18,55 @@ export async function GET(_: Request, { params }: Params) {
       .single()
 
     if (patientError) {
-      return NextResponse.json({ error: patientError.message }, { status: 500 })
+      const status = patientError.code === "PGRST116" ? 404 : 500
+      return NextResponse.json(
+        {
+          error: patientError.message || "Failed to load patient",
+          code: patientError.code || "patient_fetch_failed",
+        },
+        { status },
+      )
     }
 
-    const [
-      vitalSignsResult,
-      medicationsResult,
-      assessmentsResult,
-      encountersResult,
-      dosingLogResult,
-      consentsResult,
-    ] = await Promise.all([
-      supabase
-        .from("vital_signs")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("measurement_date", { ascending: false })
-        .limit(30),
-      supabase
-        .from("medications")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("assessments")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-        .limit(10),
-      supabase
-        .from("encounters")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("encounter_date", { ascending: false })
-        .limit(10),
-      supabase
-        .from("dosing_log")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("dose_date", { ascending: false })
-        .limit(30),
-      supabase
-        .from("hie_patient_consents")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false }),
-    ])
+    const [vitalSignsResult, medicationsResult, assessmentsResult, encountersResult, dosingLogResult, consentsResult] =
+      await Promise.all([
+        supabase
+          .from("vital_signs")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("measurement_date", { ascending: false })
+          .limit(30),
+        supabase
+          .from("medications")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("assessments")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("encounters")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("encounter_date", { ascending: false })
+          .limit(10),
+        supabase
+          .from("dosing_log")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("dose_date", { ascending: false })
+          .limit(30),
+        supabase
+          .from("hie_patient_consents")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false }),
+      ])
 
-    const errors = [
+    const queryErrors = [
       vitalSignsResult.error,
       medicationsResult.error,
       assessmentsResult.error,
@@ -83,21 +75,31 @@ export async function GET(_: Request, { params }: Params) {
       consentsResult.error,
     ].filter(Boolean)
 
-    if (errors.length > 0) {
-      return NextResponse.json({ error: "Failed to load patient chart data." }, { status: 500 })
+    if (queryErrors.length > 0) {
+      console.error("Patient chart query errors", queryErrors)
+      return NextResponse.json(
+        {
+          error: "Failed to load patient chart data",
+          code: "patient_chart_fetch_failed",
+        },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json({
       patient,
-      vitalSigns: vitalSignsResult.data || [],
+      vital_signs: vitalSignsResult.data || [],
       medications: medicationsResult.data || [],
       assessments: assessmentsResult.data || [],
       encounters: encountersResult.data || [],
-      dosingLog: dosingLogResult.data || [],
-      consents: consentsResult.data || [],
+      dosing_log: dosingLogResult.data || [],
+      hie_patient_consents: consentsResult.data || [],
     })
   } catch (error) {
-    console.error("[v0] Patient chart API error:", error)
-    return NextResponse.json({ error: "Failed to fetch patient chart data." }, { status: 500 })
+    console.error("Error fetching patient chart data", error)
+    return NextResponse.json(
+      { error: "Unexpected error loading patient chart", code: "patient_chart_unexpected" },
+      { status: 500 },
+    )
   }
 }
