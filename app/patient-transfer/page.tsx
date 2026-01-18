@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { createClient } from "@/lib/supabase/client"
-import { FileText, Download, Send, User } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect } from "react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { createClient } from "@/lib/supabase/client";
+import { FileText, Download, Send, User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const DOCUMENT_TYPES = [
   "Demographics & Insurance",
@@ -28,53 +28,53 @@ const DOCUMENT_TYPES = [
   "Consents & Authorizations",
   "42 CFR Part 2 Consent",
   "Discharge Summary",
-]
+];
 
 export default function PatientTransferPage() {
-  const [patients, setPatients] = useState<any[]>([])
-  const [selectedPatient, setSelectedPatient] = useState("")
-  const [transferTo, setTransferTo] = useState("")
-  const [externalFacilityName, setExternalFacilityName] = useState("")
-  const [contactPerson, setContactPerson] = useState("")
-  const [contactPhone, setContactPhone] = useState("")
-  const [contactEmail, setContactEmail] = useState("")
-  const [transferReason, setTransferReason] = useState("")
-  const [selectedDocs, setSelectedDocs] = useState<string[]>(DOCUMENT_TYPES)
-  const [loading, setLoading] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const { toast } = useToast()
+  const [patients, setPatients] = useState<any[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState("");
+  const [transferTo, setTransferTo] = useState("");
+  const [externalFacilityName, setExternalFacilityName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [selectedDocs, setSelectedDocs] = useState<string[]>(DOCUMENT_TYPES);
+  const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   useEffect(() => {
     async function getCurrentUser() {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getUser();
       if (user) {
-        setCurrentUserId(user.id)
+        setCurrentUserId(user.id);
       }
     }
-    getCurrentUser()
-  }, [])
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
-    fetchPatients()
-  }, [])
+    fetchPatients();
+  }, []);
 
   async function fetchPatients() {
-    const { data, error } = await supabase.from("patients").select("*").order("last_name", { ascending: true })
+    const { data, error } = await supabase.from("patients").select("*").order("last_name", { ascending: true });
 
     if (!error && data) {
-      setPatients(data)
+      setPatients(data);
     }
   }
 
-  const patient = patients.find((p) => p.id === selectedPatient)
+  const patient = patients.find((p) => p.id === selectedPatient);
 
   const toggleDoc = (doc: string) => {
-    setSelectedDocs((prev) => (prev.includes(doc) ? prev.filter((d) => d !== doc) : [...prev, doc]))
-  }
+    setSelectedDocs((prev) => (prev.includes(doc) ? prev.filter((d) => d !== doc) : [...prev, doc]));
+  };
 
   async function generateTransferPacket() {
     if (!selectedPatient || !transferTo) {
@@ -82,8 +82,8 @@ export default function PatientTransferPage() {
         title: "Validation Error",
         description: "Please select a patient and enter transfer destination",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (!currentUserId) {
@@ -91,11 +91,11 @@ export default function PatientTransferPage() {
         title: "Authentication Error",
         description: "You must be logged in to generate transfer packets",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       const transferPacket = {
@@ -110,23 +110,23 @@ export default function PatientTransferPage() {
         transfer_reason: transferReason,
         documents_included: selectedDocs,
         generated_by: currentUserId,
-      }
+      };
 
-      console.log("[v0] Transfer packet generated:", transferPacket)
+      console.log("[v0] Transfer packet generated:", transferPacket);
 
       toast({
         title: "Transfer Packet Generated",
         description: `Complete transfer packet ready for ${patient?.first_name} ${patient?.last_name}`,
-      })
+      });
     } catch (error) {
-      console.error("Transfer packet error:", error)
+      console.error("Transfer packet error:", error);
       toast({
         title: "Generation Failed",
         description: "An error occurred while generating the transfer packet",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -334,5 +334,6 @@ export default function PatientTransferPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }
+

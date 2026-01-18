@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -38,23 +38,7 @@ import {
   AlertTriangle,
   Pill,
   Activity,
-  Upload,
-  Eye,
-  FileImage,
-  FileCheck,
-  Trash2,
-  Send,
-  Building2,
-  Fan as Fax,
-  Globe,
-  Copy,
-  QrCode,
-  Download,
-  ExternalLink,
-  Inbox,
-  SendHorizontal,
 } from "lucide-react"
-import { upload } from "@vercel/blob/client"
 
 interface Patient {
   id: string
@@ -77,49 +61,6 @@ interface OrientationItem {
   icon: any
 }
 
-interface UploadedDocument {
-  id: string
-  type: string
-  fileName: string
-  fileUrl: string
-  uploadedAt: string
-  status: "pending" | "verified" | "rejected"
-  notes?: string
-}
-
-interface ReleaseOfInformation {
-  id: string
-  patient_id: string
-  requesting_facility: string
-  facility_contact: string
-  facility_phone: string
-  facility_fax: string
-  facility_email: string
-  purpose: string
-  information_types: string[]
-  effective_date: string
-  expiration_date: string
-  status: "pending" | "signed" | "expired" | "revoked"
-  signed_at?: string
-  signed_by?: string
-  created_at: string
-}
-
-interface ExternalTransferRequest {
-  id: string
-  patient_name: string
-  patient_dob: string
-  sending_facility: string
-  contact_person: string
-  contact_phone: string
-  contact_email: string
-  transfer_reason: string
-  documents: { name: string; url: string; type: string }[]
-  status: "pending" | "received" | "processed" | "rejected"
-  submitted_at: string
-  notes?: string
-}
-
 export default function PatientIntake() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -129,34 +70,12 @@ export default function PatientIntake() {
   const [showNewPatientForm, setShowNewPatientForm] = useState(false)
   const [completedItems, setCompletedItems] = useState<number[]>([])
   const [orientationProgress, setOrientationProgress] = useState(0)
+  const [selectedPolicyId, setSelectedPolicyId] = useState<number | null>(null)
 
   // PMP state
   const [pmpLoading, setPmpLoading] = useState(false)
   const [pmpResults, setPmpResults] = useState<any>(null)
   const [pmpConfig, setPmpConfig] = useState<any>(null)
-
-  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([])
-  const [uploadingDocument, setUploadingDocument] = useState<string | null>(null)
-  const [documentPreview, setDocumentPreview] = useState<string | null>(null)
-  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
-
-  const [releaseOfInfoForms, setReleaseOfInfoForms] = useState<ReleaseOfInformation[]>([])
-  const [newReleaseForm, setNewReleaseForm] = useState({
-    requesting_facility: "",
-    facility_contact: "",
-    facility_phone: "",
-    facility_fax: "",
-    facility_email: "",
-    purpose: "transfer",
-    information_types: [] as string[],
-    effective_date: new Date().toISOString().split("T")[0],
-    expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-  })
-  const [showReleaseForm, setShowReleaseForm] = useState(false)
-  const [externalTransfers, setExternalTransfers] = useState<ExternalTransferRequest[]>([])
-  const [transferPortalLink, setTransferPortalLink] = useState("")
-  const [faxNumber, setFaxNumber] = useState("")
-  const [sendingFax, setSendingFax] = useState(false)
 
   const { toast } = useToast()
   const supabase = createBrowserClient()
@@ -197,41 +116,32 @@ export default function PatientIntake() {
     patient_handbook_receipt: "pending",
   })
 
-  const documentTypes = [
-    { id: "photo_id", label: "Photo ID (Driver's License/State ID)", icon: FileImage, required: true },
-    { id: "insurance_card_front", label: "Insurance Card (Front)", icon: CreditCard, required: true },
-    { id: "insurance_card_back", label: "Insurance Card (Back)", icon: CreditCard, required: false },
-    { id: "transfer_packet", label: "Transfer Documents/Records", icon: FileText, required: false },
-    { id: "prior_auth", label: "Prior Authorization", icon: FileCheck, required: false },
-    { id: "medical_records", label: "Medical Records", icon: FileText, required: false },
-    { id: "consent_forms", label: "Signed Consent Forms", icon: FileCheck, required: false },
-    { id: "other", label: "Other Documents", icon: FileText, required: false },
-  ]
-
-  const informationTypes = [
-    { id: "demographics", label: "Demographics & Contact Information" },
-    { id: "insurance", label: "Insurance Information" },
-    { id: "medical_history", label: "Medical History" },
-    { id: "medications", label: "Medication List & Dosing History" },
-    { id: "lab_results", label: "Laboratory Results" },
-    { id: "uds_results", label: "Urine Drug Screen Results" },
-    { id: "treatment_plans", label: "Treatment Plans" },
-    { id: "progress_notes", label: "Progress Notes" },
-    { id: "assessments", label: "Clinical Assessments (ASAM, etc.)" },
-    { id: "discharge_summary", label: "Discharge Summary" },
-    { id: "substance_use", label: "Substance Use Records (42 CFR Part 2)" },
-    { id: "mental_health", label: "Mental Health Records" },
-  ]
-
   useEffect(() => {
     loadPMPConfig()
   }, [])
 
   const loadPMPConfig = async () => {
-    const { data } = await supabase.from("pdmp_config").select("*").single()
+    try {
+      const { data, error } = await supabase
+        .from("pdmp_config")
+        .select("*")
+        .maybeSingle()
 
-    if (data) {
-      setPmpConfig(data)
+      if (error) {
+        // Table doesn't exist or query failed - this is fine, just continue without PMP config
+        // Only log if it's not a "not found" type error
+        if (error.code !== "PGRST116") {
+          console.warn("[v0] PDMP config query error:", error.message)
+        }
+        return
+      }
+
+      if (data) {
+        setPmpConfig(data)
+      }
+    } catch (error) {
+      // Silently handle errors - PMP config is optional
+      // Don't log to avoid console spam
     }
   }
 
@@ -285,7 +195,7 @@ export default function PatientIntake() {
     }
   }
 
-  // Search patients from database
+  // Search patients from database using API route to bypass RLS
   const searchPatients = async (term: string) => {
     if (!term || term.length < 2) {
       setPatients([])
@@ -294,17 +204,23 @@ export default function PatientIntake() {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("*")
-        .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,phone.ilike.%${term}%`)
-        .limit(10)
+      const response = await fetch(`/api/patients?search=${encodeURIComponent(term)}&limit=10`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to search patients")
+      }
 
-      if (error) throw error
-      setPatients(data || [])
+      const data = await response.json()
+      setPatients(data.patients || [])
     } catch (err) {
       console.error("Error searching patients:", err)
       setPatients([])
+      toast({
+        title: "Search Error",
+        description: err instanceof Error ? err.message : "Failed to search patients. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -369,24 +285,53 @@ export default function PatientIntake() {
 
   // Save orientation progress
   const saveOrientationProgress = async () => {
-    if (!selectedPatient) return
+    if (!selectedPatient) {
+      toast({
+        title: "No Patient Selected",
+        description: "Please select a patient before saving progress",
+        variant: "destructive",
+      })
+      return
+    }
 
     setSaving(true)
     try {
-      // Save to patient_chart_items or create an intake record
-      const { error } = await supabase.from("otp_admissions").upsert({
-        patient_id: selectedPatient.id,
-        admission_date: new Date().toISOString().split("T")[0],
-        status: orientationProgress === 100 ? "active" : "pending_orientation",
-        program_type: "OTP",
-        medication: assessmentData.primary_substance || "pending",
+      const response = await fetch("/api/intake/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          patient_id: selectedPatient.id,
+          admission_date: new Date().toISOString().split("T")[0],
+          status: orientationProgress === 100 ? "active" : "pending_orientation",
+          program_type: "OTP",
+          primary_substance: assessmentData.primary_substance || null,
+          medication: assessmentData.primary_substance || "pending",
+          orientation_progress: orientationProgress,
+          completed_items: completedItems,
+          documentation_status: documentationStatus,
+          assessment_data: assessmentData,
+        }),
       })
 
-      if (error) throw error
-      toast({ title: "Success", description: "Progress saved successfully!" })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save progress")
+      }
+
+      toast({
+        title: "Success",
+        description: `Progress saved successfully! ${Math.round(orientationProgress)}% complete.`,
+      })
     } catch (err) {
       console.error("Error saving progress:", err)
-      toast({ title: "Error", description: "Failed to save progress", variant: "destructive" })
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save progress. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -406,17 +351,44 @@ export default function PatientIntake() {
 
     setSaving(true)
     try {
-      const { error } = await supabase.from("otp_admissions").upsert({
-        patient_id: selectedPatient.id,
-        admission_date: new Date().toISOString().split("T")[0],
-        status: "active",
-        program_type: "OTP",
-        primary_substance: assessmentData.primary_substance,
-        medication: "pending_evaluation",
+      // Use the API route to save all progress data and update admission status
+      const response = await fetch("/api/intake/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          patient_id: selectedPatient.id,
+          admission_date: new Date().toISOString().split("T")[0],
+          status: "active", // Set to active when completing intake
+          program_type: "OTP",
+          primary_substance: assessmentData.primary_substance || null,
+          medication: assessmentData.primary_substance || "pending_evaluation",
+          orientation_progress: 100, // Ensure it's marked as complete
+          completed_items: completedItems,
+          documentation_status: documentationStatus,
+          assessment_data: assessmentData,
+        }),
       })
 
-      if (error) throw error
-      toast({ title: "Success", description: "Intake completed! Patient is now active." })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to complete intake")
+      }
+
+      toast({ 
+        title: "Success", 
+        description: "Intake completed! Patient is now active and will appear in the Intake Queue." 
+      })
+
+      // Dispatch event to refresh intake queue if it's open
+      window.dispatchEvent(new CustomEvent<{ patientId: string; patientName: string }>("intake-completed", {
+        detail: {
+          patientId: selectedPatient.id,
+          patientName: `${selectedPatient.first_name} ${selectedPatient.last_name}`
+        }
+      }))
 
       // Reset form
       setSelectedPatient(null)
@@ -430,151 +402,90 @@ export default function PatientIntake() {
         mental_health_screening: "",
         social_determinants: "",
       })
-      setUploadedDocuments([]) // Reset documents
+      setDocumentationStatus({
+        consent_for_treatment: "pending",
+        hipaa_authorization: "pending",
+        financial_agreement: "pending",
+        emergency_contact_form: "pending",
+        photo_id_verification: "pending",
+        insurance_card_copy: "pending",
+        hhn_enrollment: "pending",
+        patient_handbook_receipt: "pending",
+      })
     } catch (err) {
       console.error("Error completing intake:", err)
-      toast({ title: "Error", description: "Failed to complete intake", variant: "destructive" })
+      toast({ 
+        title: "Error", 
+        description: err instanceof Error ? err.message : "Failed to complete intake", 
+        variant: "destructive" 
+      })
     } finally {
       setSaving(false)
     }
   }
 
-  const handleItemComplete = (itemId: number) => {
-    if (!completedItems.includes(itemId)) {
-      const newCompleted = [...completedItems, itemId]
-      setCompletedItems(newCompleted)
-      setOrientationProgress((newCompleted.length / orientationChecklist.length) * 100)
-    } else {
-      const newCompleted = completedItems.filter((id) => id !== itemId)
-      setCompletedItems(newCompleted)
-      setOrientationProgress((newCompleted.length / orientationChecklist.length) * 100)
-    }
-  }
-
-  const updateDocStatus = (doc: keyof typeof documentationStatus, status: string) => {
-    setDocumentationStatus((prev) => ({ ...prev, [doc]: status }))
-  }
-
-  const handleDocumentUpload = async (documentType: string, file: File) => {
+  const handleItemComplete = async (itemId: number) => {
     if (!selectedPatient) {
       toast({
         title: "No Patient Selected",
-        description: "Please select or create a patient first",
+        description: "Please select a patient before checking items",
         variant: "destructive",
       })
       return
     }
 
-    setUploadingDocument(documentType)
+    let newCompleted: number[]
+    if (!completedItems.includes(itemId)) {
+      newCompleted = [...completedItems, itemId]
+    } else {
+      newCompleted = completedItems.filter((id) => id !== itemId)
+    }
+    
+    const newProgress = (newCompleted.length / orientationChecklist.length) * 100
+    
+    // Update state immediately for responsive UI
+    setCompletedItems(newCompleted)
+    setOrientationProgress(newProgress)
 
+    // Auto-save progress in the background
     try {
-      // Upload to Vercel Blob
-      const blob = await upload(`patient-documents/${selectedPatient.id}/${documentType}/${file.name}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload-document",
-      })
-
-      // Save document reference to database
-      const { data, error } = await supabase
-        .from("ai_document_processing")
-        .insert({
+      const response = await fetch("/api/intake/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           patient_id: selectedPatient.id,
-          document_type: documentType,
-          file_url: blob.url,
-          processing_status: "pending",
-          source_type: "intake",
+          admission_date: new Date().toISOString().split("T")[0],
+          status: newProgress === 100 ? "active" : "pending_orientation",
+          program_type: "OTP",
+          primary_substance: assessmentData.primary_substance || null,
+          medication: assessmentData.primary_substance || "pending",
+          orientation_progress: newProgress,
+          completed_items: newCompleted,
+          documentation_status: documentationStatus,
+          assessment_data: assessmentData,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Error auto-saving progress:", errorData.error)
+        // Don't show error toast for auto-save - just log it
+      } else {
+        console.log("[Intake] Progress auto-saved:", {
+          progress: newProgress,
+          items: newCompleted.length,
         })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      const newDoc: UploadedDocument = {
-        id: data.id,
-        type: documentType,
-        fileName: file.name,
-        fileUrl: blob.url,
-        uploadedAt: new Date().toISOString(),
-        status: "pending",
       }
-
-      setUploadedDocuments((prev) => [...prev.filter((d) => d.type !== documentType), newDoc])
-
-      // Update documentation status
-      if (documentType === "photo_id") {
-        updateDocStatus("photo_id_verification", "completed")
-      } else if (documentType.includes("insurance")) {
-        updateDocStatus("insurance_card_copy", "completed")
-      }
-
-      toast({
-        title: "Document Uploaded",
-        description: `${file.name} has been uploaded successfully`,
-      })
     } catch (err) {
-      console.error("Error uploading document:", err)
-      toast({
-        title: "Upload Failed",
-        description: "Failed to upload document. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setUploadingDocument(null)
+      console.error("Error auto-saving progress:", err)
+      // Silently fail for auto-save - user can manually save if needed
     }
   }
 
-  const loadPatientDocuments = async (patientId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("ai_document_processing")
-        .select("*")
-        .eq("patient_id", patientId)
-        .eq("source_type", "intake")
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      if (data) {
-        const docs: UploadedDocument[] = data.map((doc) => ({
-          id: doc.id,
-          type: doc.document_type,
-          fileName: doc.file_url.split("/").pop() || "document",
-          fileUrl: doc.file_url,
-          uploadedAt: doc.created_at,
-          status:
-            doc.processing_status === "completed"
-              ? "verified"
-              : doc.processing_status === "failed"
-                ? "rejected"
-                : "pending",
-        }))
-        setUploadedDocuments(docs)
-      }
-    } catch (err) {
-      console.error("Error loading documents:", err)
-    }
-  }
-
-  const handleDeleteDocument = async (docId: string, docType: string) => {
-    try {
-      const { error } = await supabase.from("ai_document_processing").delete().eq("id", docId)
-
-      if (error) throw error
-
-      setUploadedDocuments((prev) => prev.filter((d) => d.id !== docId))
-
-      toast({
-        title: "Document Deleted",
-        description: "Document has been removed",
-      })
-    } catch (err) {
-      console.error("Error deleting document:", err)
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete document",
-        variant: "destructive",
-      })
-    }
+  const updateDocStatus = (doc: keyof typeof documentationStatus, status: string) => {
+    setDocumentationStatus((prev) => ({ ...prev, [doc]: status }))
   }
 
   useEffect(() => {
@@ -584,13 +495,124 @@ export default function PatientIntake() {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  useEffect(() => {
-    if (selectedPatient) {
-      loadPatientDocuments(selectedPatient.id)
-      loadExternalTransfers()
-      generateTransferPortalLink()
-    }
-  }, [selectedPatient])
+  // Policy content for each orientation checklist item
+  const orientationPolicies: Record<number, string> = {
+    1: `MASE EMR welcomes every patient with respect, compassion, and a commitment to delivering high-quality rehabilitation services for individuals facing substance use challenges. The purpose of MASE EMR is to provide exceptional care while protecting the dignity, self-respect, and overall well-being of every patient who enters the program. All staff members are trained in addiction treatment and remain dedicated to supporting patients through recovery in a professional, safe, and supportive environment.
+
+MASE EMR encourages patients to engage in recovery support systems, including participation in 12-Step programs such as Alcoholics Anonymous (AA), Narcotics Anonymous (NA), Al-Anon, and Nar-Anon. MASE EMR recognizes that addiction impacts not only the individual but also families and support systems; therefore, appropriate family involvement is strongly encouraged as part of the recovery process.
+
+MASE EMR acknowledges that recovery can be difficult, and patients are reminded that they do not have to face the process alone. The program emphasizes teamwork between patients and clinical staff, ensuring each patient receives guidance, tools, and resources needed to create a stable, long-term recovery path.
+
+As part of enrollment, every patient is informed of their rights and responsibilities and must acknowledge understanding of the program expectations. Patients are required to attend scheduled treatment sessions, participate actively in treatment services, follow program rules and conditions, and meet weekly payment requirements when applicable. Failure to comply with treatment requirements may result in progressive compliance actions and may lead to discharge or termination from the program, particularly when prohibited behaviors occur as outlined within program discharge procedures.
+
+MASE EMR also maintains structured program descriptions to support administrative and clinical operations and to ensure compliance with national accreditation standards. These descriptions outline treatment policies and procedures that guide staff responsibilities and promote consistent and effective care delivery throughout the organization.`,
+    2: `MASE EMR is committed to supporting individuals experiencing opioid use disorder and other substance-related challenges through a structured treatment program designed to promote stabilization, recovery, and long-term wellness. During admission and orientation, all patients will receive a detailed explanation of services available, treatment phases, and the expectations required for continued participation in the program.
+
+MASE EMR provides comprehensive services that may include medication-assisted treatment (MAT), counseling, behavioral health interventions, recovery support services, referral coordination, and ongoing monitoring to support patient progress. Each patient's treatment plan is individualized and developed collaboratively with clinical staff to address medical, psychological, behavioral, and social needs.
+
+Patients are informed that treatment is delivered in phases, and progression through phases depends on attendance, compliance, stability, and demonstrated engagement in recovery efforts. Treatment phases are structured to support patients as they move from early stabilization toward maintenance and long-term recovery. Patients may be required to complete assessments, participate in counseling sessions, meet with medical providers, complete periodic reviews, and follow clinical recommendations throughout each phase.
+
+MASE EMR also explains patient expectations as a standard requirement of program participation. Patients are expected to attend appointments as scheduled, comply with medication dosing procedures, participate in counseling, follow program rules and behavioral standards, provide required screening samples, and maintain respectful conduct toward staff and other patients. Patients are required to meet financial obligations when applicable and comply with treatment planning activities.
+
+Failure to meet program expectations may result in progressive compliance actions, including treatment plan adjustments, increased supervision, restriction of privileges, or discharge, depending on the severity and frequency of noncompliance. Patients are informed that continued enrollment in the program depends on active participation and adherence to program requirements.
+
+MASE EMR ensures that this program overview is communicated clearly, reviewed when needed, and documented in the patient's record to confirm understanding and ensure treatment transparency.`,
+    3: `MASE EMR requires that every patient receiving services for the first time is provided with a facility tour during intake or as soon as practical after admission. The tour is conducted by authorized staff and is designed to help patients feel comfortable in the environment while ensuring they understand important safety procedures and facility expectations.
+
+During the tour, staff will show the patient the main service areas, including reception and check-in areas, waiting areas, counseling rooms, medical or dosing areas (if applicable), restrooms, and any additional areas designated for patient use. Patients will also be advised of areas that are restricted or staff-only in order to maintain confidentiality, safety, and proper clinic operations.
+
+As part of the tour, staff will clearly identify all emergency exits and explain how patients should exit the facility in the event of an emergency. Patients will be informed of the location of fire exits, evacuation routes, assembly points (if applicable), and any emergency signage that supports safe evacuation. Staff will also explain key emergency procedures, such as what to do during a fire alarm, severe weather event, or other emergency situation.
+
+Patients will be instructed to follow staff directions during emergencies and to never block hallways, doorways, or exit routes. MASE EMR ensures that safety information is communicated in a clear and supportive manner and that patients are encouraged to ask questions during the tour.
+
+Completion of the facility tour shall be documented in the patient record or intake checklist to confirm that the patient has been informed of key areas and emergency exit procedures.`,
+    4: `MASE EMR issues a patient identification card to every enrolled patient to support accurate identification, safe service delivery, and secure access to program services. The identification card includes a patient photograph and core identifiers used to confirm the patient's identity during visits and at key service points.
+
+As part of intake or as soon as reasonably possible after enrollment, authorized staff verify the patient's identity according to program requirements and obtain a photo for the ID card. The patient is instructed to present the ID card at check-in and whenever staff request identity confirmation for services, including clinical appointments, documentation completion, and medication-related processes when applicable.
+
+MASE EMR maintains a consistent process for replacing lost, stolen, or damaged ID cards and for addressing any suspected misuse. Issuance of the ID card, replacements, and any identity concerns are documented in the patient's record or intake checklist to ensure accountability and continuity of operations.`,
+    5: `MASE EMR is committed to protecting patient rights and ensuring each patient is informed of their responsibilities while receiving services. Patients are treated with dignity and respect and are informed of privacy and confidentiality rights in accordance with applicable laws and program standards, including HIPAA-related privacy protections where applicable.
+
+During admission and orientation, staff review patient rights in a clear manner, including the patient's right to be informed about services, participate in treatment planning, ask questions, and voice concerns without retaliation. Staff also review patient responsibilities such as maintaining respectful behavior, providing accurate information, attending scheduled appointments, following safety rules, and cooperating with clinical recommendations and treatment planning activities.
+
+MASE EMR confirms understanding by allowing time for patient questions and documenting acknowledgement of the Rights and Responsibilities review. When needed, staff re-educate patients on these expectations during treatment, especially when there are concerns related to compliance, conduct, attendance, or confidentiality.`,
+    6: `MASE EMR provides an accessible grievance process so patients can submit complaints, concerns, or service-related issues without fear of retaliation. This process supports transparency, patient safety, and service improvement while ensuring complaints are addressed respectfully and consistently.
+
+At orientation, patients are informed that grievances may be submitted verbally, in writing, or through HHN (HomeHealthNotify) when available. Staff explain how grievances are received, how they are reviewed, and how patients can request assistance if they need help submitting a complaint or describing their concern.
+
+MASE EMR documents grievances according to program procedure, reviews them promptly, and communicates outcomes to the patient within established timelines. Patterns of complaints are tracked for quality improvement, and retaliation is prohibited; any concerns related to retaliation are investigated and addressed immediately.`,
+    7: `MASE EMR uses HHN (HomeHealthNotify) to strengthen patient communication, improve appointment adherence, and support care coordination. Patients are introduced to HHN during orientation when HHN is part of the program workflow or the patient's plan of care.
+
+During intake, staff assist the patient with account setup and confirm the patient can access the system using their device when possible. Staff demonstrate the core features the patient will use, such as appointment reminders, secure messaging, forms, and program notifications, and they explain how HHN supports treatment continuity.
+
+MASE EMR reinforces expectations for privacy and appropriate use, including the importance of protecting login credentials and using secure communication practices. Completion of HHN orientation, as well as any barriers (no phone, technical limitations, declined use), is documented so the care team can provide alternatives when required.`,
+    8: `MASE EMR provides medication education to ensure patients understand Medication-Assisted Treatment (MAT) options, expected benefits, and safety considerations. Education is delivered in a patient-centered manner to support informed decision-making and reduce medication-related risk.
+
+Clinical staff review how MAT supports recovery, what patients may expect during treatment, and how medications may interact with other substances or prescriptions. Patients are educated on safe medication use, missed dose guidance (as applicable), potential side effects, overdose prevention, and safe storage practices to protect the patient and others.
+
+MASE EMR confirms understanding by encouraging questions and using teach-back or verbal confirmation methods when appropriate. Medication education and the patient's understanding are documented in the medical record, including any written materials provided and any additional counseling needed based on risk factors.`,
+    9: `MASE EMR conducts drug and toxicology screening as a clinical tool to support treatment planning, patient safety, and program integrity. Patients are informed that screening is used to guide care decisions, monitor progress, and identify support needs, not to shame or punish patients.
+
+During orientation, staff explain screening procedures, including how samples are collected, how specimen integrity is maintained, and what the patient should expect during the screening process. Patients are informed of general screening expectations, including frequency as determined by program protocol and clinical need, and how results will be reviewed in a therapeutic and confidential manner.
+
+MASE EMR explains that refusal to test, tampering, or adulteration may trigger clinical review and compliance actions consistent with program policy. Screening completion, results handling, and follow-up clinical actions are documented to ensure consistent application of protocol and continuity of care.`,
+    10: `MASE EMR provides patients with a structured treatment schedule to promote continuity of care and consistent engagement. Patients are informed that attendance is a key part of successful treatment and that missed appointments may impact progress and service eligibility.
+
+At orientation, staff review the patient's appointment schedule, including medical visits, counseling sessions, group participation when applicable, and support service appointments such as case management. Staff explain check-in procedures, expectations for punctuality, how to notify the clinic when rescheduling is needed, and how missed appointments are addressed.
+
+MASE EMR documents the schedule review and patient understanding, including any accommodations or barriers such as transportation, work hours, or childcare needs. Attendance patterns are monitored, and repeated missed visits trigger follow-up planning to address barriers and support compliance with treatment expectations.`,
+    11: `MASE EMR prioritizes safety by educating patients on emergency procedures and facility protocols during orientation. This includes guidance on how patients should respond during events such as fire alarms, medical emergencies, severe weather incidents, or disruptive situations.
+
+Staff review the facility's Emergency Action Plan expectations and explain that patients must follow staff direction during emergencies. Patients are informed that emergency communication may include EAP codes or announcements and that patient cooperation is essential for safe evacuation, safe sheltering, and coordination with emergency responders.
+
+MASE EMR documents completion of safety education and reinforces safety expectations throughout treatment as needed. Safety-related incidents, drills when applicable, and patient noncompliance with safety rules are addressed through clinical review and program procedures to maintain a safe environment for all.`,
+    12: `MASE EMR informs all patients about support services available to reduce barriers to care and strengthen recovery stability. Support services may include case management, referrals, and peer support resources designed to address social needs and improve treatment engagement.
+
+During orientation, staff explain how patients can access case management for help with healthcare coordination, community referrals, benefits navigation, transportation needs, housing resources, employment support, and other practical barriers that affect treatment participation. Patients are also informed of peer support services when available, including recovery coaching and linkage to community-based recovery resources.
+
+MASE EMR documents the support services discussion, including whether the patient requests services and what referrals are initiated. Follow-up is incorporated into the treatment plan so services remain coordinated, measurable, and aligned with patient goals.`,
+    13: `MASE EMR protects confidentiality and ensures patients understand how their information is used and shared. Patients are informed that protected health information is handled in accordance with applicable privacy laws and program standards, and that releases of information require appropriate consent unless otherwise permitted or required by law.
+
+During orientation, staff review confidentiality and consent forms in plain language, explaining what information may be shared, the purpose of sharing, who will receive it, and how long the authorization remains valid. Patients are informed of their right to decline optional releases and of the process for revoking authorizations as permitted.
+
+MASE EMR ensures signed consents are properly stored and retrievable in the patient record. Documentation reflects which forms were signed, declined, or deferred, and staff review confidentiality requirements again whenever care coordination needs change or new releases are requested.`,
+    14: `MASE EMR offers educational programming to support recovery, wellness, and long-term stability. Patients are informed that education is an important part of treatment and can enhance coping skills, relapse prevention strategies, and understanding of recovery supports.
+
+During orientation, staff describe available workshops and training opportunities, including topics such as relapse prevention, coping strategies, medication safety, wellness planning, recovery resources, and other skill-building sessions offered by the program. Patients are informed of participation expectations, schedules, and how educational activities may be integrated into their individualized treatment plan.
+
+MASE EMR documents educational program orientation and records patient participation as required by program procedure. Educational participation may be reviewed during treatment planning to ensure the patient is receiving appropriate supports and to address gaps in knowledge or skills impacting recovery progress.`,
+    15: `MASE EMR provides patients with clear financial information so they understand fees, insurance processes, and payment expectations. Financial transparency supports uninterrupted care and reduces confusion that can interfere with consistent participation in treatment.
+
+During intake or early in admission, staff review insurance verification (when applicable), patient financial responsibilities, billing cycles, payment schedules, and available payment arrangement options. Patients are informed of who to contact for billing questions and how to report changes in insurance or financial circumstances.
+
+MASE EMR documents financial discussions and any agreements made, including payment arrangements and follow-up actions. When financial barriers are identified, the program follows established procedures to provide guidance, explore options, and prevent avoidable interruptions in care while remaining consistent with policy.`,
+    16: `MASE EMR provides each patient with a Patient Handbook to ensure they understand program structure, services, rules, and expectations. The handbook serves as a consistent reference for patients throughout treatment and supports accountability for both patients and staff.
+
+At orientation, staff review key sections of the handbook with the patient, including program overview, attendance expectations, conduct standards, confidentiality practices, drug screening expectations, medication safety rules when applicable, grievance procedures, safety procedures, and discharge/termination processes. Patients are encouraged to ask questions and request clarification at any time.
+
+MASE EMR documents handbook receipt and the review of core topics as part of the orientation process. When handbook policies are updated, patients are informed according to program procedure, and updated acknowledgments are obtained when required.`,
+    17: `MASE EMR offers telehealth services when appropriate to support access to care, continuity, and convenience while maintaining clinical quality and privacy standards. Patients are informed that telehealth availability depends on clinical appropriateness, service type, program policy, and patient ability to participate safely and privately.
+
+During orientation, staff explain which services may be offered remotely, how telehealth visits are scheduled, and the technology requirements for participation. Patients are instructed on privacy expectations, including using a private location when possible, confirming identity during remote sessions, and understanding limitations when a patient is in an unsafe or non-private environment.
+
+MASE EMR documents telehealth education, patient eligibility, and any required consents. Staff also explain what to do if technology fails and how urgent concerns are handled, ensuring the patient understands telehealth is not a substitute for emergency care.`,
+    18: `MASE EMR educates patients on take-home medication privileges and monitoring requirements to promote safety, adherence, and diversion prevention. Patients are informed that take-home eligibility is based on clinical stability, compliance, safety considerations, and program criteria, and that privileges may change based on ongoing assessment.
+
+During orientation and ongoing treatment, staff explain the responsibilities associated with take-home medication, including safe storage, protection from theft, and prohibition against sharing or diversion. Patients are informed of reporting requirements for lost or stolen medication and the clinical review process that may follow such reports.
+
+When HHN video monitoring is required, patients receive instruction on how to complete submissions, required timing, and compliance expectations. MASE EMR documents the education provided, the patient's understanding, and any monitoring outcomes, and the program reviews compliance regularly to determine whether monitoring should continue, increase, or decrease.`,
+    19: `MASE EMR provides patients with clear contact information so they can access support, scheduling assistance, and clinical guidance when needed. Patients are informed of primary communication channels and how to reach the clinic for routine matters.
+
+At orientation, staff provide contact information for scheduling, clinical services, counseling support when applicable, billing, and technical support related to HHN if used. Patients are informed of expected response processes, appropriate uses of messaging systems, and what information should or should not be sent through non-secure channels.
+
+MASE EMR also reviews after-hours guidance and clarifies when patients should contact emergency services instead of the clinic. Patient receipt of contact information and understanding of after-hours expectations are documented to support safe and timely access to care.`,
+    20: `MASE EMR completes follow-up planning at the conclusion of orientation to ensure continuity of care and clear next steps. Patients are provided with confirmed appointment dates and expectations so they leave intake with a structured plan for continued engagement.
+
+Staff review upcoming appointments for medical services, counseling, case management, group sessions, and any required monitoring or screenings. The patient is encouraged to summarize key expectations such as attendance, check-in procedures, communication methods, and any immediate treatment responsibilities, so understanding is verified before the patient leaves.
+
+MASE EMR documents follow-up planning, including scheduled appointments, patient understanding, and any identified barriers such as transportation, work conflicts, or technology limitations. When barriers are present, staff coordinate supports or adjustments according to program procedure to reduce missed visits and improve treatment success.`,
+    // Add policies for other items as needed
+  }
 
   const orientationChecklist: OrientationItem[] = [
     {
@@ -665,19 +687,57 @@ export default function PatientIntake() {
     setSearchTerm("")
     setPatients([])
 
-    // Load existing documents
-    await loadPatientDocuments(patient.id)
-
-    // Load release of information forms
-    await loadReleaseOfInfoForms(patient.id)
-
-    // Generate transfer portal link
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-    const token = btoa(`${patient.id}:${Date.now()}`)
-    setTransferPortalLink(`${baseUrl}/external-transfer?token=${token}`)
+    // Load saved progress if it exists
+    await loadSavedProgress(patient.id)
 
     // Auto-run PMP check
     await runPMPCheck(patient)
+  }
+
+  // Load saved progress from API
+  const loadSavedProgress = async (patientId: string) => {
+    try {
+      const response = await fetch(`/api/intake/progress?patient_id=${patientId}`)
+      
+      if (!response.ok) {
+        // No saved progress found, that's okay - start fresh
+        return
+      }
+
+      const data = await response.json()
+      
+      if (data.progress) {
+        const progress = data.progress
+        
+        // Restore orientation progress
+        if (progress.orientation_progress !== undefined && progress.orientation_progress !== null) {
+          setOrientationProgress(progress.orientation_progress)
+        }
+        
+        // Restore completed checklist items
+        if (progress.completed_items && Array.isArray(progress.completed_items)) {
+          setCompletedItems(progress.completed_items)
+        }
+        
+        // Restore documentation status
+        if (progress.documentation_status && typeof progress.documentation_status === 'object') {
+          setDocumentationStatus(progress.documentation_status)
+        }
+        
+        // Restore assessment data
+        if (progress.assessment_data && typeof progress.assessment_data === 'object') {
+          setAssessmentData(progress.assessment_data)
+        }
+        
+        console.log("[Intake] Loaded saved progress:", {
+          progress: progress.orientation_progress,
+          items: progress.completed_items?.length || 0,
+        })
+      }
+    } catch (err) {
+      console.error("Error loading saved progress:", err)
+      // Silently fail - it's okay if there's no saved progress
+    }
   }
 
   const getPMPAlertBadge = (alertLevel: string) => {
@@ -694,207 +754,6 @@ export default function PatientIntake() {
         return <Badge variant="secondary">No Alerts</Badge>
     }
   }
-
-  const createReleaseOfInfo = async () => {
-    if (!selectedPatient) {
-      toast({
-        title: "No Patient Selected",
-        description: "Please select a patient first",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!newReleaseForm.requesting_facility || newReleaseForm.information_types.length === 0) {
-      toast({
-        title: "Missing Information",
-        description: "Please provide facility name and select information types",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setSaving(true)
-    try {
-      const { data, error } = await supabase
-        .from("patient_sharing_authorizations")
-        .insert({
-          patient_id: selectedPatient.id,
-          authorization_type: "release_of_information",
-          purpose: newReleaseForm.purpose,
-          information_types: {
-            facility_name: newReleaseForm.requesting_facility,
-            facility_contact: newReleaseForm.facility_contact,
-            facility_phone: newReleaseForm.facility_phone,
-            facility_fax: newReleaseForm.facility_fax,
-            facility_email: newReleaseForm.facility_email,
-            types: newReleaseForm.information_types,
-          },
-          effective_date: newReleaseForm.effective_date,
-          expiration_date: newReleaseForm.expiration_date,
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      toast({
-        title: "Release of Information Created",
-        description: "The authorization form has been created and is ready for signature",
-      })
-
-      setShowReleaseForm(false)
-      setNewReleaseForm({
-        requesting_facility: "",
-        facility_contact: "",
-        facility_phone: "",
-        facility_fax: "",
-        facility_email: "",
-        purpose: "transfer",
-        information_types: [],
-        effective_date: new Date().toISOString().split("T")[0],
-        expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      })
-
-      // Reload release forms
-      loadReleaseOfInfoForms(selectedPatient.id)
-    } catch (err) {
-      console.error("Error creating release of information:", err)
-      toast({
-        title: "Error",
-        description: "Failed to create release of information",
-        variant: "destructive",
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const loadReleaseOfInfoForms = async (patientId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("patient_sharing_authorizations")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      if (data) {
-        const forms: ReleaseOfInformation[] = data.map((item) => ({
-          id: item.id,
-          patient_id: item.patient_id,
-          requesting_facility: item.information_types?.facility_name || "",
-          facility_contact: item.information_types?.facility_contact || "",
-          facility_phone: item.information_types?.facility_phone || "",
-          facility_fax: item.information_types?.facility_fax || "",
-          facility_email: item.information_types?.facility_email || "",
-          purpose: item.purpose || "transfer",
-          information_types: item.information_types?.types || [],
-          effective_date: item.effective_date,
-          expiration_date: item.expiration_date,
-          status: item.is_active
-            ? new Date(item.expiration_date) < new Date()
-              ? "expired"
-              : item.signed_consent_url
-                ? "signed"
-                : "pending"
-            : "revoked",
-          signed_at: item.created_at,
-          created_at: item.created_at,
-        }))
-        setReleaseOfInfoForms(forms)
-      }
-    } catch (err) {
-      console.error("Error loading release of information forms:", err)
-    }
-  }
-
-  const generateTransferPortalLink = () => {
-    if (!selectedPatient) return
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-    const token = btoa(`${selectedPatient.id}:${Date.now()}`)
-    setTransferPortalLink(`${baseUrl}/external-transfer?token=${token}`)
-  }
-
-  const sendFaxRequest = async () => {
-    if (!selectedPatient || !faxNumber) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a patient and enter a fax number",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setSendingFax(true)
-    try {
-      const { error } = await supabase.from("fax_outbox").insert({
-        recipient_fax_number: faxNumber,
-        recipient_name: newReleaseForm.requesting_facility || "Transfer Request",
-        patient_id: selectedPatient.id,
-        document_type: "transfer_request",
-        notes: `Transfer document request for patient ${selectedPatient.first_name} ${selectedPatient.last_name}`,
-        status: "pending",
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Fax Request Sent",
-        description: "Transfer document request has been queued for faxing",
-      })
-      setFaxNumber("")
-    } catch (err) {
-      console.error("Error sending fax:", err)
-      toast({
-        title: "Fax Failed",
-        description: "Failed to send fax request",
-        variant: "destructive",
-      })
-    } finally {
-      setSendingFax(false)
-    }
-  }
-
-  const loadExternalTransfers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("fax_inbox")
-        .select("*")
-        .eq("document_type", "transfer_documents")
-        .order("received_at", { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-
-      if (data) {
-        const transfers: ExternalTransferRequest[] = data.map((item) => ({
-          id: item.id,
-          patient_name: item.ai_extracted_data?.patient_name || "Unknown",
-          patient_dob: item.ai_extracted_data?.patient_dob || "",
-          sending_facility: item.ai_extracted_data?.facility_name || item.sender_fax_number,
-          contact_person: item.ai_extracted_data?.contact_person || "",
-          contact_phone: item.sender_fax_number || "",
-          contact_email: "",
-          transfer_reason: item.ai_extracted_data?.transfer_reason || "",
-          documents: [{ name: "Transfer Document", url: item.file_url, type: "fax" }],
-          status: item.status === "processed" ? "processed" : item.status === "assigned" ? "received" : "pending",
-          submitted_at: item.received_at,
-          notes: item.notes,
-        }))
-        setExternalTransfers(transfers)
-      }
-    } catch (err) {
-      console.error("Error loading external transfers:", err)
-    }
-  }
-
-  // Load external transfers on mount
-  useEffect(() => {
-    loadExternalTransfers()
-  }, [])
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -952,6 +811,8 @@ export default function PatientIntake() {
                 <CardContent className="space-y-4">
                   <div className="relative">
                     <Input
+                      id="patient-search"
+                      name="patient-search"
                       placeholder="Search by name or phone..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -1003,35 +864,42 @@ export default function PatientIntake() {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>First Name *</Label>
+                        <Label htmlFor="new-patient-first-name">First Name *</Label>
                         <Input
+                          id="new-patient-first-name"
+                          name="first_name"
                           value={newPatient.first_name}
                           onChange={(e) => setNewPatient((prev) => ({ ...prev, first_name: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Last Name *</Label>
+                        <Label htmlFor="new-patient-last-name">Last Name *</Label>
                         <Input
+                          id="new-patient-last-name"
+                          name="last_name"
                           value={newPatient.last_name}
                           onChange={(e) => setNewPatient((prev) => ({ ...prev, last_name: e.target.value }))}
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Date of Birth *</Label>
+                      <Label htmlFor="new-patient-dob">Date of Birth *</Label>
                       <Input
+                        id="new-patient-dob"
+                        name="date_of_birth"
                         type="date"
                         value={newPatient.date_of_birth}
                         onChange={(e) => setNewPatient((prev) => ({ ...prev, date_of_birth: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Gender</Label>
+                      <Label htmlFor="new-patient-gender">Gender</Label>
                       <Select
+                        name="gender"
                         value={newPatient.gender}
                         onValueChange={(value) => setNewPatient((prev) => ({ ...prev, gender: value }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="new-patient-gender">
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1043,37 +911,49 @@ export default function PatientIntake() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Phone</Label>
+                      <Label htmlFor="new-patient-phone">Phone</Label>
                       <Input
+                        id="new-patient-phone"
+                        name="phone"
+                        type="tel"
                         value={newPatient.phone}
                         onChange={(e) => setNewPatient((prev) => ({ ...prev, phone: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Email</Label>
+                      <Label htmlFor="new-patient-email">Email</Label>
                       <Input
+                        id="new-patient-email"
+                        name="email"
                         type="email"
                         value={newPatient.email}
                         onChange={(e) => setNewPatient((prev) => ({ ...prev, email: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Address</Label>
+                      <Label htmlFor="new-patient-address">Address</Label>
                       <Textarea
+                        id="new-patient-address"
+                        name="address"
                         value={newPatient.address}
                         onChange={(e) => setNewPatient((prev) => ({ ...prev, address: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Emergency Contact Name</Label>
+                      <Label htmlFor="new-patient-emergency-contact-name">Emergency Contact Name</Label>
                       <Input
+                        id="new-patient-emergency-contact-name"
+                        name="emergency_contact_name"
                         value={newPatient.emergency_contact_name}
                         onChange={(e) => setNewPatient((prev) => ({ ...prev, emergency_contact_name: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Emergency Contact Phone</Label>
+                      <Label htmlFor="new-patient-emergency-contact-phone">Emergency Contact Phone</Label>
                       <Input
+                        id="new-patient-emergency-contact-phone"
+                        name="emergency_contact_phone"
+                        type="tel"
                         value={newPatient.emergency_contact_phone}
                         onChange={(e) =>
                           setNewPatient((prev) => ({ ...prev, emergency_contact_phone: e.target.value }))
@@ -1125,7 +1005,6 @@ export default function PatientIntake() {
                         onClick={() => {
                           setSelectedPatient(null)
                           setPmpResults(null)
-                          setUploadedDocuments([]) // Clear documents when patient changes
                         }}
                       >
                         Change
@@ -1272,21 +1151,107 @@ export default function PatientIntake() {
                   </CardContent>
                 </Card>
               ) : (
-                <Tabs defaultValue="demographics" className="space-y-4">
-                  <TabsList className="grid grid-cols-7 w-full">
-                    <TabsTrigger value="demographics">Demographics</TabsTrigger>
-                    <TabsTrigger value="clinical">Clinical</TabsTrigger>
-                    <TabsTrigger value="documents">Documents</TabsTrigger>
-                    <TabsTrigger value="release">Release of Info</TabsTrigger>
-                    <TabsTrigger value="external-transfer">External Transfer</TabsTrigger>
+                <Tabs defaultValue="orientation" className="space-y-4">
+                  <TabsList className="grid grid-cols-4 w-full">
                     <TabsTrigger value="orientation">Orientation</TabsTrigger>
+                    <TabsTrigger value="clinical">Clinical Assessment</TabsTrigger>
                     <TabsTrigger value="documentation">Documentation</TabsTrigger>
+                    <TabsTrigger value="summary">Summary</TabsTrigger>
                   </TabsList>
 
-                  {/* Existing TabsContent for demographics, clinical, documents, orientation, documentation */}
-                  <TabsContent value="demographics">
-                    {/* This tab is intentionally left blank as demographics are displayed in the sidebar */}
+                  {/* Orientation Tab */}
+                  <TabsContent value="orientation">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Checklist - Left Side */}
+                      <div className="lg:col-span-2">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Orientation Checklist</CardTitle>
+                            <CardDescription>Complete each item as you progress through orientation</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {orientationChecklist.map((item) => {
+                                const Icon = item.icon
+                                const isCompleted = completedItems.includes(item.id)
+                                const hasPolicy = orientationPolicies[item.id] !== undefined
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                                      isCompleted ? "bg-green-50 border-green-200" : "hover:bg-muted/50"
+                                    } ${selectedPolicyId === item.id ? "ring-2 ring-primary border-primary" : ""}`}
+                                  >
+                                    <Checkbox 
+                                      checked={isCompleted} 
+                                      onCheckedChange={() => handleItemComplete(item.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <Icon
+                                      className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isCompleted ? "text-green-600" : "text-muted-foreground"}`}
+                                    />
+                                    <div 
+                                      className={`flex-1 ${hasPolicy ? "cursor-pointer" : ""}`}
+                                      onClick={(e) => {
+                                        if (hasPolicy) {
+                                          e.stopPropagation()
+                                          setSelectedPolicyId(selectedPolicyId === item.id ? null : item.id)
+                                        }
+                                      }}
+                                    >
+                                      <p className={`font-medium ${isCompleted ? "text-green-700" : ""}`}>
+                                        {item.id}. {item.title}
+                                        {hasPolicy && (
+                                          <FileText className="inline h-4 w-4 ml-2 text-primary" />
+                                        )}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                                    </div>
+                                    {isCompleted && <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Policy Viewer - Right Side */}
+                      <div className="lg:col-span-1">
+                        <Card className="sticky top-6 max-h-[calc(100vh-8rem)] flex flex-col">
+                          <CardHeader className="flex-shrink-0">
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="h-5 w-5" />
+                              Policy
+                            </CardTitle>
+                            <CardDescription>
+                              {selectedPolicyId 
+                                ? orientationChecklist.find(item => item.id === selectedPolicyId)?.title 
+                                : "Select an item to view policy"}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-1 overflow-y-auto">
+                            {selectedPolicyId && orientationPolicies[selectedPolicyId] ? (
+                              <div className="prose prose-sm max-w-none">
+                                <div className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
+                                  {orientationPolicies[selectedPolicyId]}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8 text-muted-foreground">
+                                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                <p className="text-sm">
+                                  Click on a checklist item with a document icon to view its policy.
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
                   </TabsContent>
+
+                  {/* Clinical Assessment Tab */}
                   <TabsContent value="clinical">
                     <Card>
                       <CardHeader>
@@ -1295,12 +1260,13 @@ export default function PatientIntake() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
-                          <Label>Primary Substance</Label>
+                          <Label htmlFor="primary-substance">Primary Substance</Label>
                           <Select
+                            name="primary_substance"
                             value={assessmentData.primary_substance}
                             onValueChange={(v) => setAssessmentData((prev) => ({ ...prev, primary_substance: v }))}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger id="primary-substance">
                               <SelectValue placeholder="Select primary substance" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1316,12 +1282,13 @@ export default function PatientIntake() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Duration of Use</Label>
+                          <Label htmlFor="duration-of-use">Duration of Use</Label>
                           <Select
+                            name="duration_of_use"
                             value={assessmentData.duration_of_use}
                             onValueChange={(v) => setAssessmentData((prev) => ({ ...prev, duration_of_use: v }))}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger id="duration-of-use">
                               <SelectValue placeholder="Select duration" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1334,8 +1301,10 @@ export default function PatientIntake() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Medical History</Label>
+                          <Label htmlFor="medical-history">Medical History</Label>
                           <Textarea
+                            id="medical-history"
+                            name="medical_history"
                             placeholder="Enter relevant medical history..."
                             value={assessmentData.medical_history}
                             onChange={(e) =>
@@ -1344,8 +1313,10 @@ export default function PatientIntake() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Mental Health Screening Notes</Label>
+                          <Label htmlFor="mental-health-screening">Mental Health Screening Notes</Label>
                           <Textarea
+                            id="mental-health-screening"
+                            name="mental_health_screening"
                             placeholder="Enter mental health screening notes..."
                             value={assessmentData.mental_health_screening}
                             onChange={(e) =>
@@ -1354,8 +1325,10 @@ export default function PatientIntake() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Social Determinants of Health</Label>
+                          <Label htmlFor="social-determinants">Social Determinants of Health</Label>
                           <Textarea
+                            id="social-determinants"
+                            name="social_determinants"
                             placeholder="Housing, employment, support system..."
                             value={assessmentData.social_determinants}
                             onChange={(e) =>
@@ -1367,775 +1340,7 @@ export default function PatientIntake() {
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="documents" className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Upload className="h-5 w-5 text-teal-600" />
-                          Patient Document Upload
-                        </CardTitle>
-                        <CardDescription>
-                          Upload patient identification, insurance cards, and transfer documents
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {!selectedPatient ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>Please select a patient first to upload documents</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-6">
-                            {/* Document Upload Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {documentTypes.map((docType) => {
-                                const uploadedDoc = uploadedDocuments.find((d) => d.type === docType.id)
-                                const isUploading = uploadingDocument === docType.id
-                                const DocIcon = docType.icon
-
-                                return (
-                                  <div
-                                    key={docType.id}
-                                    className={`border rounded-lg p-4 transition-colors ${
-                                      uploadedDoc
-                                        ? "border-green-200 bg-green-50/50"
-                                        : docType.required
-                                          ? "border-orange-200 bg-orange-50/30"
-                                          : "border-gray-200"
-                                    }`}
-                                  >
-                                    <div className="flex items-start justify-between mb-3">
-                                      <div className="flex items-center gap-2">
-                                        <DocIcon
-                                          className={`h-5 w-5 ${uploadedDoc ? "text-green-600" : "text-gray-500"}`}
-                                        />
-                                        <div>
-                                          <p className="font-medium text-sm">{docType.label}</p>
-                                          {docType.required && !uploadedDoc && (
-                                            <span className="text-xs text-orange-600">Required</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      {uploadedDoc && (
-                                        <Badge
-                                          variant={
-                                            uploadedDoc.status === "verified"
-                                              ? "default"
-                                              : uploadedDoc.status === "rejected"
-                                                ? "destructive"
-                                                : "secondary"
-                                          }
-                                          className="text-xs"
-                                        >
-                                          {uploadedDoc.status === "verified" && (
-                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                          )}
-                                          {uploadedDoc.status}
-                                        </Badge>
-                                      )}
-                                    </div>
-
-                                    {uploadedDoc ? (
-                                      <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                          <FileCheck className="h-4 w-4 text-green-600" />
-                                          <span className="truncate flex-1">{uploadedDoc.fileName}</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 bg-transparent"
-                                            onClick={() => window.open(uploadedDoc.fileUrl, "_blank")}
-                                          >
-                                            <Eye className="h-3 w-3 mr-1" />
-                                            View
-                                          </Button>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleDeleteDocument(uploadedDoc.id, docType.id)}
-                                          >
-                                            <Trash2 className="h-3 w-3 text-red-500" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div>
-                                        <input
-                                          type="file"
-                                          ref={(el) => {
-                                            fileInputRefs.current[docType.id] = el
-                                          }}
-                                          className="hidden"
-                                          accept="image/*,.pdf"
-                                          onChange={(e) => {
-                                            const file = e.target.files?.[0]
-                                            if (file) handleDocumentUpload(docType.id, file)
-                                          }}
-                                        />
-                                        <Button
-                                          variant="outline"
-                                          className="w-full bg-transparent"
-                                          disabled={isUploading}
-                                          onClick={() => fileInputRefs.current[docType.id]?.click()}
-                                        >
-                                          {isUploading ? (
-                                            <>
-                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                              Uploading...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Upload className="h-4 w-4 mr-2" />
-                                              Upload File
-                                            </>
-                                          )}
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-
-                            {/* Upload Progress Summary */}
-                            <Card className="bg-gray-50">
-                              <CardContent className="pt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium">Document Upload Progress</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {
-                                      uploadedDocuments.filter((d) =>
-                                        documentTypes.find((dt) => dt.id === d.type && dt.required),
-                                      ).length
-                                    }{" "}
-                                    / {documentTypes.filter((d) => d.required).length} required
-                                  </span>
-                                </div>
-                                <Progress
-                                  value={
-                                    (uploadedDocuments.filter((d) =>
-                                      documentTypes.find((dt) => dt.id === d.type && dt.required),
-                                    ).length /
-                                      documentTypes.filter((d) => d.required).length) *
-                                    100
-                                  }
-                                  className="h-2"
-                                />
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {documentTypes
-                                    .filter((d) => d.required)
-                                    .map((docType) => {
-                                      const uploaded = uploadedDocuments.find((d) => d.type === docType.id)
-                                      return (
-                                        <Badge
-                                          key={docType.id}
-                                          variant={uploaded ? "default" : "secondary"}
-                                          className={uploaded ? "bg-green-100 text-green-800" : ""}
-                                        >
-                                          {uploaded ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                                          {docType.label.split("(")[0].trim()}
-                                        </Badge>
-                                      )
-                                    })}
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            {/* Camera Capture Option */}
-                            <Card>
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                  <Camera className="h-4 w-4" />
-                                  Quick Capture
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <p className="text-sm text-muted-foreground mb-3">
-                                  Use your device camera to quickly capture ID and insurance cards
-                                </p>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1 bg-transparent"
-                                    onClick={() => {
-                                      const input = document.createElement("input")
-                                      input.type = "file"
-                                      input.accept = "image/*"
-                                      input.capture = "environment"
-                                      input.onchange = (e) => {
-                                        const file = (e.target as HTMLInputElement).files?.[0]
-                                        if (file) handleDocumentUpload("photo_id", file)
-                                      }
-                                      input.click()
-                                    }}
-                                  >
-                                    <Camera className="h-4 w-4 mr-2" />
-                                    Capture Photo ID
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1 bg-transparent"
-                                    onClick={() => {
-                                      const input = document.createElement("input")
-                                      input.type = "file"
-                                      input.accept = "image/*"
-                                      input.capture = "environment"
-                                      input.onchange = (e) => {
-                                        const file = (e.target as HTMLInputElement).files?.[0]
-                                        if (file) handleDocumentUpload("insurance_card_front", file)
-                                      }
-                                      input.click()
-                                    }}
-                                  >
-                                    <Camera className="h-4 w-4 mr-2" />
-                                    Capture Insurance
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="release" className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="flex items-center gap-2">
-                              <Shield className="h-5 w-5 text-blue-600" />
-                              Consent to Release of Information
-                            </CardTitle>
-                            <CardDescription>
-                              Create authorization forms to legally request and receive patient transfer records from
-                              other facilities
-                            </CardDescription>
-                          </div>
-                          <Button onClick={() => setShowReleaseForm(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            New Release Authorization
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        {/* 42 CFR Part 2 Notice */}
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                          <div className="flex gap-3">
-                            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <h4 className="font-medium text-amber-800">42 CFR Part 2 Compliance Notice</h4>
-                              <p className="text-sm text-amber-700 mt-1">
-                                Federal law (42 CFR Part 2) requires specific patient consent before disclosing
-                                substance use disorder treatment records. All release authorizations must include the
-                                prohibition on redisclosure statement.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* New Release Form */}
-                        {showReleaseForm && (
-                          <Card className="border-blue-200 bg-blue-50/50">
-                            <CardHeader>
-                              <CardTitle className="text-lg">New Release of Information Authorization</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                  <Label>Requesting Facility Name *</Label>
-                                  <Input
-                                    placeholder="Enter facility name"
-                                    value={newReleaseForm.requesting_facility}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, requesting_facility: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Contact Person</Label>
-                                  <Input
-                                    placeholder="Contact name"
-                                    value={newReleaseForm.facility_contact}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, facility_contact: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Phone Number</Label>
-                                  <Input
-                                    placeholder="(555) 123-4567"
-                                    value={newReleaseForm.facility_phone}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, facility_phone: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Fax Number</Label>
-                                  <Input
-                                    placeholder="(555) 123-4568"
-                                    value={newReleaseForm.facility_fax}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, facility_fax: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Email Address</Label>
-                                  <Input
-                                    type="email"
-                                    placeholder="records@facility.com"
-                                    value={newReleaseForm.facility_email}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, facility_email: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Purpose of Release</Label>
-                                  <Select
-                                    value={newReleaseForm.purpose}
-                                    onValueChange={(value) => setNewReleaseForm({ ...newReleaseForm, purpose: value })}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="transfer">Patient Transfer</SelectItem>
-                                      <SelectItem value="continuity_of_care">Continuity of Care</SelectItem>
-                                      <SelectItem value="referral">Referral</SelectItem>
-                                      <SelectItem value="coordination">Care Coordination</SelectItem>
-                                      <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Effective Date</Label>
-                                  <Input
-                                    type="date"
-                                    value={newReleaseForm.effective_date}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, effective_date: e.target.value })
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Expiration Date</Label>
-                                  <Input
-                                    type="date"
-                                    value={newReleaseForm.expiration_date}
-                                    onChange={(e) =>
-                                      setNewReleaseForm({ ...newReleaseForm, expiration_date: e.target.value })
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Information to Release *</Label>
-                                <div className="grid md:grid-cols-2 gap-2 mt-2">
-                                  {informationTypes.map((type) => (
-                                    <div key={type.id} className="flex items-center gap-2">
-                                      <Checkbox
-                                        id={type.id}
-                                        checked={newReleaseForm.information_types.includes(type.id)}
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            setNewReleaseForm({
-                                              ...newReleaseForm,
-                                              information_types: [...newReleaseForm.information_types, type.id],
-                                            })
-                                          } else {
-                                            setNewReleaseForm({
-                                              ...newReleaseForm,
-                                              information_types: newReleaseForm.information_types.filter(
-                                                (t) => t !== type.id,
-                                              ),
-                                            })
-                                          }
-                                        }}
-                                      />
-                                      <label htmlFor={type.id} className="text-sm">
-                                        {type.label}
-                                      </label>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* 42 CFR Part 2 Consent Language */}
-                              <div className="bg-white border rounded-lg p-4 space-y-3">
-                                <h4 className="font-medium">Required 42 CFR Part 2 Consent Language</h4>
-                                <div className="text-sm text-muted-foreground space-y-2">
-                                  <p>
-                                    I understand that my alcohol and/or drug treatment records are protected under
-                                    federal regulations governing Confidentiality of Substance Use Disorder Patient
-                                    Records, 42 CFR Part 2, and cannot be disclosed without my written consent unless
-                                    otherwise provided for in the regulations.
-                                  </p>
-                                  <p>
-                                    I also understand that I may revoke this consent at any time except to the extent
-                                    that action has been taken in reliance on it, and that in any event this consent
-                                    expires automatically as specified above.
-                                  </p>
-                                  <p className="font-medium text-foreground">
-                                    PROHIBITION ON REDISCLOSURE: This information has been disclosed to you from records
-                                    protected by federal confidentiality rules (42 CFR Part 2). The federal rules
-                                    prohibit you from making any further disclosure of this information unless further
-                                    disclosure is expressly permitted by the written consent of the person to whom it
-                                    pertains or as otherwise permitted by 42 CFR Part 2.
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex gap-2 justify-end">
-                                <Button variant="outline" onClick={() => setShowReleaseForm(false)}>
-                                  Cancel
-                                </Button>
-                                <Button onClick={createReleaseOfInfo} disabled={saving}>
-                                  {saving ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Creating...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileCheck className="mr-2 h-4 w-4" />
-                                      Create Authorization
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {/* Existing Release Forms */}
-                        <div className="space-y-4">
-                          <h3 className="font-medium">Active Release Authorizations</h3>
-                          {releaseOfInfoForms.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                              <Shield className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
-                              <p>No release authorizations on file</p>
-                              <p className="text-sm">
-                                Create a new authorization to request records from another facility
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {releaseOfInfoForms.map((form) => (
-                                <div
-                                  key={form.id}
-                                  className="border rounded-lg p-4 flex items-center justify-between hover:bg-muted/50"
-                                >
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                                      <span className="font-medium">{form.requesting_facility}</span>
-                                      <Badge
-                                        variant={
-                                          form.status === "signed"
-                                            ? "default"
-                                            : form.status === "pending"
-                                              ? "secondary"
-                                              : "destructive"
-                                        }
-                                      >
-                                        {form.status}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                      Purpose: {form.purpose} | Expires: {form.expiration_date}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Information: {form.information_types.join(", ")}
-                                    </p>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button variant="outline" size="sm">
-                                      <Eye className="mr-1 h-3 w-3" />
-                                      View
-                                    </Button>
-                                    <Button variant="outline" size="sm">
-                                      <Download className="mr-1 h-3 w-3" />
-                                      Print
-                                    </Button>
-                                    {form.facility_fax && (
-                                      <Button variant="outline" size="sm">
-                                        <Send className="mr-1 h-3 w-3" />
-                                        Fax Request
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="external-transfer" className="space-y-6">
-                    {/* Transfer Portal Link */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Globe className="h-5 w-5 text-green-600" />
-                          External Provider Transfer Portal
-                        </CardTitle>
-                        <CardDescription>
-                          Share this link with other facilities to allow them to submit transfer documents directly
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                          <Label className="text-sm font-medium text-green-800">Secure Transfer Portal Link</Label>
-                          <div className="flex gap-2 mt-2">
-                            <Input value={transferPortalLink} readOnly className="bg-white font-mono text-sm" />
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                navigator.clipboard.writeText(transferPortalLink)
-                                toast({ title: "Link Copied", description: "Transfer portal link copied to clipboard" })
-                              }}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" onClick={generateTransferPortalLink}>
-                              <QrCode className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <p className="text-xs text-green-700 mt-2">
-                            This link allows other providers to securely submit transfer documents for this patient
-                          </p>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4">
-                          {/* Fax Request Section */}
-                          <Card className="border-blue-200">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-base flex items-center gap-2">
-                                <Fax className="h-4 w-4" />
-                                Request via Fax
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="space-y-2">
-                                <Label>Destination Fax Number</Label>
-                                <Input
-                                  placeholder="(555) 123-4567"
-                                  value={faxNumber}
-                                  onChange={(e) => setFaxNumber(e.target.value)}
-                                />
-                              </div>
-                              <Button className="w-full" onClick={sendFaxRequest} disabled={sendingFax}>
-                                {sendingFax ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Sending...
-                                  </>
-                                ) : (
-                                  <>
-                                    <SendHorizontal className="mr-2 h-4 w-4" />
-                                    Send Fax Request
-                                  </>
-                                )}
-                              </Button>
-                            </CardContent>
-                          </Card>
-
-                          {/* Email Request Section */}
-                          <Card className="border-purple-200">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-base flex items-center gap-2">
-                                <Mail className="h-4 w-4" />
-                                Request via Email
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <p className="text-sm text-muted-foreground">
-                                Send a secure email with the transfer portal link to the sending facility
-                              </p>
-                              <Button
-                                className="w-full bg-transparent"
-                                variant="outline"
-                                onClick={() => {
-                                  const subject = encodeURIComponent(
-                                    `Transfer Documents Request - ${selectedPatient?.first_name} ${selectedPatient?.last_name}`,
-                                  )
-                                  const body = encodeURIComponent(
-                                    `Please submit transfer documents using this secure link: ${transferPortalLink}`,
-                                  )
-                                  window.open(`mailto:?subject=${subject}&body=${body}`)
-                                }}
-                              >
-                                <Mail className="mr-2 h-4 w-4" />
-                                Open Email Client
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Incoming Transfer Documents */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="flex items-center gap-2">
-                              <Inbox className="h-5 w-5 text-blue-600" />
-                              Incoming Transfer Documents
-                            </CardTitle>
-                            <CardDescription>
-                              Documents received via fax, email, or the external transfer portal
-                            </CardDescription>
-                          </div>
-                          <Button variant="outline" onClick={loadExternalTransfers}>
-                            <Loader2 className="mr-2 h-4 w-4" />
-                            Refresh
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {externalTransfers.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Inbox className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
-                            <p>No incoming transfer documents</p>
-                            <p className="text-sm">
-                              Share the transfer portal link or fax number with sending facilities
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {externalTransfers.map((transfer) => (
-                              <div
-                                key={transfer.id}
-                                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                                      <span className="font-medium">{transfer.sending_facility}</span>
-                                      <Badge
-                                        variant={
-                                          transfer.status === "processed"
-                                            ? "default"
-                                            : transfer.status === "received"
-                                              ? "secondary"
-                                              : "outline"
-                                        }
-                                      >
-                                        {transfer.status}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm">
-                                      Patient: {transfer.patient_name}{" "}
-                                      {transfer.patient_dob && `(DOB: ${transfer.patient_dob})`}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Received: {new Date(transfer.submitted_at).toLocaleString()}
-                                    </p>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    {transfer.documents.map((doc, idx) => (
-                                      <Button key={idx} variant="outline" size="sm" asChild>
-                                        <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                                          <ExternalLink className="mr-1 h-3 w-3" />
-                                          View
-                                        </a>
-                                      </Button>
-                                    ))}
-                                    <Button variant="default" size="sm">
-                                      <FileCheck className="mr-1 h-3 w-3" />
-                                      Process
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Our Fax Number for Receiving */}
-                    <Card className="border-cyan-200 bg-cyan-50/50">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-medium flex items-center gap-2">
-                              <Fax className="h-4 w-4" />
-                              Our Fax Number for Transfer Documents
-                            </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Provide this number to sending facilities for faxing transfer records
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-mono font-bold text-cyan-700">(555) 987-6543</p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText("5559876543")
-                                toast({ title: "Copied", description: "Fax number copied to clipboard" })
-                              }}
-                            >
-                              <Copy className="mr-1 h-3 w-3" />
-                              Copy
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="orientation">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Orientation Checklist</CardTitle>
-                        <CardDescription>Complete each item as you progress through orientation</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {orientationChecklist.map((item) => {
-                            const Icon = item.icon
-                            const isCompleted = completedItems.includes(item.id)
-                            return (
-                              <div
-                                key={item.id}
-                                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                                  isCompleted ? "bg-green-50 border-green-200" : "hover:bg-muted/50"
-                                }`}
-                                onClick={() => handleItemComplete(item.id)}
-                              >
-                                <Checkbox checked={isCompleted} onCheckedChange={() => handleItemComplete(item.id)} />
-                                <Icon
-                                  className={`h-5 w-5 mt-0.5 ${isCompleted ? "text-green-600" : "text-muted-foreground"}`}
-                                />
-                                <div className="flex-1">
-                                  <p className={`font-medium ${isCompleted ? "text-green-700" : ""}`}>
-                                    {item.id}. {item.title}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                                </div>
-                                {isCompleted && <CheckCircle className="h-5 w-5 text-green-600" />}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
+                  {/* Documentation Tab */}
                   <TabsContent value="documentation">
                     <Card>
                       <CardHeader>
@@ -2148,10 +1353,11 @@ export default function PatientIntake() {
                             <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
                               <span className="capitalize">{key.replace(/_/g, " ")}</span>
                               <Select
+                                name={`doc-status-${key}`}
                                 value={status}
                                 onValueChange={(v) => updateDocStatus(key as keyof typeof documentationStatus, v)}
                               >
-                                <SelectTrigger className="w-32">
+                                <SelectTrigger id={`doc-status-${key}`} className="w-32">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -2218,21 +1424,80 @@ export default function PatientIntake() {
                           <h4 className="font-medium mb-2">Documentation Status</h4>
                           <div className="flex flex-wrap gap-2">
                             {Object.entries(documentationStatus).map(([key, status]) => (
-                              <Badge key={key} variant={status === "completed" ? "default" : "secondary"}>
+                              <Badge 
+                                key={key} 
+                                variant={status === "completed" ? "default" : status === "na" ? "outline" : "secondary"}
+                                className={status === "completed" ? "bg-teal-600" : ""}
+                              >
+                                {status === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
                                 {key.replace(/_/g, " ")}
                               </Badge>
                             ))}
                           </div>
+                          {Object.values(documentationStatus).filter((s) => s === "pending").length > 0 && (
+                            <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
+                              <AlertTriangle className="h-4 w-4" />
+                              {Object.values(documentationStatus).filter((s) => s === "pending").length} document(s) still pending
+                            </p>
+                          )}
                         </div>
 
-                        <Button className="w-full" onClick={completeIntake} disabled={saving}>
+                        {/* Completion Warnings */}
+                        {(orientationProgress < 100 || Object.values(documentationStatus).some((s) => s === "pending")) && (
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="font-medium text-amber-900 mb-1">Incomplete Intake Items</p>
+                                <ul className="text-sm text-amber-800 space-y-1">
+                                  {orientationProgress < 100 && (
+                                    <li>• Orientation is not 100% complete ({Math.round(orientationProgress)}%)</li>
+                                  )}
+                                  {Object.values(documentationStatus).filter((s) => s === "pending").length > 0 && (
+                                    <li>• {Object.values(documentationStatus).filter((s) => s === "pending").length} documentation item(s) still pending</li>
+                                  )}
+                                </ul>
+                                <p className="text-xs text-amber-700 mt-2">
+                                  You can still complete intake, but these items should be finished before the patient receives their first dose.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Ready to Complete Indicator */}
+                        {orientationProgress === 100 && Object.values(documentationStatus).every((s) => s === "completed" || s === "na") && (
+                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <p className="font-medium text-green-900">
+                                All intake items completed. Patient is ready to be activated.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        <Button 
+                          className="w-full" 
+                          onClick={completeIntake} 
+                          disabled={saving || !selectedPatient}
+                          size="lg"
+                        >
                           {saving ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Completing Intake...
+                            </>
                           ) : (
-                            <CheckCircle className="mr-2 h-4 w-4" />
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Complete Intake & Activate Patient
+                            </>
                           )}
-                          Complete Intake & Activate Patient
                         </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          Patient will appear in the Intake Queue after completion
+                        </p>
                       </CardContent>
                     </Card>
                   </TabsContent>

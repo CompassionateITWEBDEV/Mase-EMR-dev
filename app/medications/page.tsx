@@ -130,7 +130,19 @@ export default function MedicationsPage() {
 
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        // Check if it's a "table doesn't exist" error
+        if (error.message?.includes("does not exist") || error.code === "42P01") {
+          console.error("Table patient_medications does not exist. Please run the database migration.")
+          toast({
+            title: "Database Setup Required",
+            description: "The medications table hasn't been created yet. Please run the database migration script.",
+            variant: "destructive",
+          })
+          return
+        }
+        throw error
+      }
 
       // Transform data to match frontend interface
       const transformedMedications = (data || []).map((med: any) => ({
@@ -140,11 +152,11 @@ export default function MedicationsPage() {
       }))
 
       setMedications(transformedMedications)
-    } catch (error) {
-      console.error("Error loading medications:", error)
+    } catch (error: any) {
+      console.error("Error loading medications:", error?.message || error)
       toast({
         title: "Error",
-        description: "Failed to load medications",
+        description: error?.message || "Failed to load medications",
         variant: "destructive",
       })
     } finally {

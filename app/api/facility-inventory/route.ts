@@ -1,174 +1,156 @@
+import { createServiceClient } from "@/lib/supabase/service-role"
 import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import type { NextRequest } from "next/server"
 
-const sql = neon(process.env.NEON_DATABASE_URL as string)
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
-    let query = `
-      SELECT 
-        id,
-        item_name,
-        category,
-        quantity,
-        unit_of_measure,
-        reorder_level,
-        expiration_date,
-        lot_number,
-        storage_location,
-        notes,
-        created_at,
-        updated_at
-      FROM facility_inventory
-      WHERE 1=1
-    `
+    // Build query
+    let query = supabase.from("facility_inventory").select("*").order("created_at", { ascending: false })
 
     if (category && category !== "all") {
-      query += ` AND category = '${category}'`
+      query = query.eq("category", category)
     }
 
-    query += ` ORDER BY created_at DESC`
+    const { data: inventory, error } = await query
 
-    const inventory = await sql(query)
+    if (error) throw error
 
     // Calculate low stock items
-    const lowStockItems = inventory.filter((item: any) => item.quantity <= item.reorder_level)
+    const lowStockItems = (inventory || []).filter((item: any) => item.quantity <= item.reorder_level)
 
     // Calculate expiring soon items (within 30 days)
     const now = new Date()
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-    const expiringSoon = inventory.filter((item: any) => {
+    const expiringSoon = (inventory || []).filter((item: any) => {
       if (!item.expiration_date) return false
       const expirationDate = new Date(item.expiration_date)
       return expirationDate <= thirtyDaysFromNow && expirationDate >= now
     })
 
+    // Get unique categories
+    const categories = Array.from(new Set((inventory || []).map((item: any) => item.category)))
+
     return NextResponse.json({
-      inventory,
+      inventory: inventory || [],
       stats: {
-        totalItems: inventory.length,
+        totalItems: inventory?.length || 0,
         lowStockAlerts: lowStockItems.length,
         expiringSoon: expiringSoon.length,
-        categories: 5,
+        categories: categories.length,
         lowStockItems,
       },
     })
-  } catch (error) {
-    console.error("[v0] Facility inventory fetch error:", error)
+  } catch (error: any) {
+    console.error("[Facility Inventory] Error fetching inventory:", error)
     return NextResponse.json({ error: "Failed to fetch inventory" }, { status: 500 })
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
+
     const {
-      itemName,
+      item_name,
       category,
       quantity,
-      unitOfMeasure,
-      reorderLevel,
-      expirationDate,
-      lotNumber,
-      storageLocation,
+      unit_of_measure,
+      reorder_level,
+      expiration_date,
+      lot_number,
+      storage_location,
       notes,
     } = body
 
-    console.log("[v0] Adding inventory item:", itemName)
-
-    const result = await sql`
-      INSERT INTO facility_inventory (
+    const { data: item, error } = await supabase
+      .from("facility_inventory")
+      .insert({
         item_name,
         category,
         quantity,
         unit_of_measure,
-        reorder_level,
-        expiration_date,
-        lot_number,
-        storage_location,
-        notes
-      ) VALUES (
-        ${itemName},
-        ${category},
-        ${quantity},
-        ${unitOfMeasure},
-        ${reorderLevel},
-        ${expirationDate || null},
-        ${lotNumber || null},
-        ${storageLocation || null},
-        ${notes || null}
-      )
-      RETURNING *
-    `
+        reorder_level: reorder_level || 10,
+        expiration_date: expiration_date || null,
+        lot_number: lot_number || null,
+        storage_location: storage_location || null,
+        notes: notes || null,
+      })
+      .select()
+      .single()
 
-    console.log("[v0] Inventory item added successfully")
+    if (error) throw error
 
-    return NextResponse.json(result[0])
-  } catch (error) {
-    console.error("[v0] Inventory add error:", error)
+    return NextResponse.json(item)
+  } catch (error: any) {
+    console.error("[Facility Inventory] Error adding inventory item:", error)
     return NextResponse.json({ error: "Failed to add inventory item" }, { status: 500 })
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const body = await request.json()
-    const { id, quantity, action } = body
 
-    console.log(`[v0] Updating inventory item ${id}, action: ${action}`)
+    const { id, quantity, action, item_name, category, unit_of_measure, reorder_level, expiration_date, lot_number, storage_location, notes } = body
 
-    if (action === "use") {
-      // Decrease quantity by 1
-      await sql`
-        UPDATE facility_inventory
-        SET 
-          quantity = quantity - 1,
-          updated_at = NOW()
-        WHERE id = ${id}
-      `
-    } else if (action === "update") {
-      // Update full item details
-      const {
-        itemName,
-        category,
-        quantity,
-        unitOfMeasure,
-        reorderLevel,
-        expirationDate,
-        lotNumber,
-        storageLocation,
-        notes,
-      } = body
-
-      await sql`
-        UPDATE facility_inventory
-        SET 
-          item_name = ${itemName},
-          category = ${category},
-          quantity = ${quantity},
-          unit_of_measure = ${unitOfMeasure},
-          reorder_level = ${reorderLevel},
-          expiration_date = ${expirationDate || null},
-          lot_number = ${lotNumber || null},
-          storage_location = ${storageLocation || null},
-          notes = ${notes || null},
-          updated_at = NOW()
-        WHERE id = ${id}
-      `
+    if (!id) {
+      return NextResponse.json({ error: "Item ID required" }, { status: 400 })
     }
 
-    const updated = await sql`
-      SELECT * FROM facility_inventory WHERE id = ${id}
-    `
+    if (action === "use") {
+      // Get current quantity first
+      const { data: currentItem, error: fetchError } = await supabase
+        .from("facility_inventory")
+        .select("quantity")
+        .eq("id", id)
+        .single()
 
-    console.log("[v0] Inventory item updated successfully")
+      if (fetchError) throw fetchError
 
-    return NextResponse.json(updated[0])
-  } catch (error) {
-    console.error("[v0] Inventory update error:", error)
+      // Decrease quantity by 1
+      const { data: item, error } = await supabase
+        .from("facility_inventory")
+        .update({
+          quantity: (currentItem?.quantity || 0) - 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return NextResponse.json(item)
+    } else {
+      // Update full item details
+      const { data: item, error } = await supabase
+        .from("facility_inventory")
+        .update({
+          item_name,
+          category,
+          quantity,
+          unit_of_measure,
+          reorder_level,
+          expiration_date: expiration_date || null,
+          lot_number: lot_number || null,
+          storage_location: storage_location || null,
+          notes: notes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return NextResponse.json(item)
+    }
+  } catch (error: any) {
+    console.error("[Facility Inventory] Error updating inventory item:", error)
     return NextResponse.json({ error: "Failed to update inventory item" }, { status: 500 })
   }
 }

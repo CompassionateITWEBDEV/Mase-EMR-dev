@@ -1,9 +1,11 @@
 import { Suspense } from "react"
 import { EPrescribingDashboard } from "@/components/e-prescribing-dashboard"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { FeatureGate } from "@/components/feature-gate"
 
 export default function EPrescribingPage() {
   return (
+    <FeatureGate feature="e-prescribing">
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
       <div className="lg:pl-64">
@@ -19,5 +21,6 @@ export default function EPrescribingPage() {
         </div>
       </div>
     </div>
+    </FeatureGate>
   )
 }

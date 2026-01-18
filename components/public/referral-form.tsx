@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 type ReferralType = "self" | "family" | "professional"
 
@@ -34,6 +35,7 @@ interface FormData {
   clientLastName: string
   clientDob: string
   clientPhone: string
+  clientEmail: string
   // Common fields
   insuranceType: string
   primaryConcerns: string[]
@@ -48,7 +50,7 @@ const initialFormData: FormData = {
   lastName: "",
   email: "",
   phone: "",
-  preferredContact: "",
+  preferredContact: "phone",
   dateOfBirth: "",
   orgName: "",
   referrerName: "",
@@ -59,10 +61,11 @@ const initialFormData: FormData = {
   clientLastName: "",
   clientDob: "",
   clientPhone: "",
+  clientEmail: "",
   insuranceType: "",
   primaryConcerns: [],
   additionalInfo: "",
-  urgency: "",
+  urgency: "routine",
   consentGiven: false,
 }
 
@@ -101,11 +104,64 @@ export function ReferralForm() {
   }
 
   const handleSubmit = async () => {
+    if (!formData.consentGiven) {
+      toast.error("Please acknowledge the consent statement")
+      return
+    }
+
     setIsSubmitting(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+    try {
+      const referralPayload: any = {
+        referral_type: formData.referralType,
+        urgency_level: formData.urgency || "routine",
+        primary_concerns: formData.primaryConcerns,
+        additional_concerns: formData.additionalInfo,
+        insurance_type: formData.insuranceType,
+        hipaa_acknowledged: formData.consentGiven,
+        consent_to_contact: true,
+        consent_to_share_with_referrer: formData.referralType === "professional",
+      }
+
+      if (formData.referralType === "self" || formData.referralType === "family") {
+        referralPayload.client_first_name = formData.firstName
+        referralPayload.client_last_name = formData.lastName
+        referralPayload.client_email = formData.email
+        referralPayload.client_phone = formData.phone
+        referralPayload.client_date_of_birth = formData.dateOfBirth
+        referralPayload.client_preferred_contact = formData.preferredContact
+      } else if (formData.referralType === "professional") {
+        referralPayload.referrer_name = formData.referrerName
+        referralPayload.referrer_organization = formData.orgName
+        referralPayload.referrer_title = formData.referrerTitle
+        referralPayload.referrer_email = formData.referrerEmail
+        referralPayload.referrer_phone = formData.referrerPhone
+        referralPayload.client_first_name = formData.clientFirstName
+        referralPayload.client_last_name = formData.clientLastName
+        referralPayload.client_date_of_birth = formData.clientDob
+        referralPayload.client_phone = formData.clientPhone
+        referralPayload.client_email = formData.clientEmail
+      }
+
+      const response = await fetch("/api/community-outreach/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(referralPayload),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to submit referral")
+      }
+
+      const result = await response.json()
+      setIsSubmitted(true)
+      toast.success("Referral submitted successfully")
+    } catch (error: any) {
+      console.error("[Referral Form] Error submitting referral:", error)
+      toast.error(error.message || "Failed to submit referral. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const totalSteps = formData.referralType === "professional" ? 4 : 3
@@ -122,12 +178,6 @@ export function ReferralForm() {
             Thank you for reaching out. Our intake team will review your information and contact you within 24-48
             business hours.
           </p>
-          <div className="mb-8 rounded-lg border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">
-              Reference Number:{" "}
-              <span className="font-mono font-medium text-foreground">REF-{Date.now().toString().slice(-8)}</span>
-            </p>
-          </div>
           <Button onClick={() => router.push("/")} className="bg-teal-600 hover:bg-teal-700">
             Return to Home
           </Button>
@@ -203,7 +253,7 @@ export function ReferralForm() {
           </div>
         )}
 
-        {/* Step 2: Contact Information */}
+        {/* Step 2: Contact Information for Self/Family */}
         {step === 2 && (formData.referralType === "self" || formData.referralType === "family") && (
           <div className="space-y-6">
             <CardDescription>
@@ -414,6 +464,15 @@ export function ReferralForm() {
                 onChange={(e) => updateFormData("clientPhone", e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientEmail">Client Email (if available)</Label>
+              <Input
+                id="clientEmail"
+                type="email"
+                value={formData.clientEmail}
+                onChange={(e) => updateFormData("clientEmail", e.target.value)}
+              />
+            </div>
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setStep(2)}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -505,8 +564,8 @@ export function ReferralForm() {
                 />
                 <Label htmlFor="consent" className="text-sm font-normal leading-relaxed">
                   I understand that this is a request for services and not a guarantee of treatment. I consent to being
-                  contacted by Serenity Health regarding this referral. Information shared will be handled in accordance
-                  with HIPAA regulations.
+                  contacted by MASE regarding this referral. Information shared will be handled in accordance with HIPAA
+                  regulations.
                 </Label>
               </div>
             </div>

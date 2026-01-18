@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Pill, AlertTriangle, CheckCircle, XCircle, Plus, FileText, Clock, User } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface MedicationItem {
   id: string
@@ -52,6 +53,7 @@ export function MedicationReconciliation({ patientId, patientName, onClose }: Me
   const [session, setSession] = useState<ReconciliationSession | null>(null)
   const [showNewMedDialog, setShowNewMedDialog] = useState(false)
   const [reconciliationNotes, setReconciliationNotes] = useState("")
+  const { toast } = useToast()
 
   const loadReconciliationSession = useCallback(async () => {
     try {
@@ -97,7 +99,11 @@ export function MedicationReconciliation({ patientId, patientName, onClose }: Me
 
     const unverifiedMeds = session.medications.filter((med) => !med.verified)
     if (unverifiedMeds.length > 0) {
-      alert("Please verify all medications before completing reconciliation")
+      toast({
+        title: "Verification Required",
+        description: `Please verify all ${unverifiedMeds.length} unverified medication(s) before completing reconciliation`,
+        variant: "destructive",
+      })
       return
     }
 
@@ -106,17 +112,31 @@ export function MedicationReconciliation({ patientId, patientName, onClose }: Me
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          medications: session.medications,
+          reconciled_medications: session.medications,
           notes: reconciliationNotes,
         }),
       })
 
       if (response.ok) {
         setSession({ ...session, status: "completed" })
-        alert("Medication reconciliation completed successfully")
+        toast({
+          title: "Reconciliation Complete",
+          description: "Medication reconciliation has been completed successfully",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to complete medication reconciliation",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Failed to complete reconciliation:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while completing reconciliation",
+        variant: "destructive",
+      })
     }
   }
 

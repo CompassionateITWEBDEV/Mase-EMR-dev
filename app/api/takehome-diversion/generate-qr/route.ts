@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
-import crypto from "crypto"
+import { createHash, randomBytes } from "crypto"
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,12 +34,12 @@ export async function POST(request: NextRequest) {
         med: medication_name,
         dose: dose_amount,
         date: scheduledDate.toISOString().split("T")[0],
-        nonce: crypto.randomBytes(16).toString("hex"),
+        nonce: randomBytes(16).toString("hex"),
         ts: Date.now(),
       }
 
       const qrCodeData = Buffer.from(JSON.stringify(qrData)).toString("base64")
-      const qrCodeHash = crypto.createHash("sha256").update(qrCodeData).digest("hex")
+      const qrCodeHash = createHash("sha256").update(qrCodeData).digest("hex")
 
       const bottle = {
         patient_id,

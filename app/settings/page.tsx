@@ -75,7 +75,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           currentPassword: passwords.currentPassword,
           newPassword: passwords.newPassword,
-          userEmail: profile.email,
         }),
       })
 

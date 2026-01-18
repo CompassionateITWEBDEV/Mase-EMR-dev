@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service-role"
 
-console.log("[v0] Provider collaboration API loaded")
-
 export async function GET(request: Request) {
   try {
     const supabase = createServiceClient()
@@ -106,12 +104,6 @@ export async function POST(request: Request) {
     const { action } = body
 
     if (action === "add-provider") {
-      console.log("[v0] Adding new provider:", {
-        organizationName: body.organizationName,
-        providerName: body.providerName,
-        providerType: body.providerType
-      })
-      
       const { data, error } = await supabase
         .from("external_providers")
         .insert({
@@ -132,12 +124,7 @@ export async function POST(request: Request) {
         .select()
         .single()
 
-      if (error) {
-        console.error("[v0] Error adding provider:", error)
-        throw error
-      }
-      
-      console.log("[v0] Provider added successfully:", data.id)
+      if (error) throw error
       return NextResponse.json({ success: true, provider: data })
     }
 

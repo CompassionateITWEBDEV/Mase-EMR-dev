@@ -1,9 +1,69 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, FileText, Calendar, BarChart3, Shield, Brain, Stethoscope, ClipboardList, MessageSquare, Settings, Home, CreditCard, FileCheck, Pill, Video, Package, Calculator, UserPlus, Syringe, Archive, FileSignature, PackageCheck, Building2, ClipboardCheck, UserCheck, Send, Activity, Beaker, Workflow, FileOutput, ClipboardPlus, AlertTriangle, Clock, Bell, Crown, ChevronDown, ChevronRight, Handshake, Target, Network, Truck, Flag as Flask, Dumbbell, QrCode, Headphones, FileBarChart, Baby, Eye, UserCircle, FileCheck2, ArrowRight, Microscope, MapPin, Type as type, type LucideIcon, Heart, TrendingUp, GraduationCap } from "lucide-react"
+import {
+  Users,
+  FileText,
+  Calendar,
+  BarChart3,
+  Shield,
+  Brain,
+  Stethoscope,
+  ClipboardList,
+  MessageSquare,
+  Settings,
+  Home,
+  CreditCard,
+  FileCheck,
+  Pill,
+  Video,
+  Package,
+  Calculator,
+  UserPlus,
+  Syringe,
+  Archive,
+  FileSignature,
+  PackageCheck,
+  Building2,
+  ClipboardCheck,
+  UserCheck,
+  Send,
+  Activity,
+  Beaker,
+  Heart,
+  TrendingUp,
+  Workflow,
+  FileOutput,
+  ClipboardPlus,
+  AlertTriangle,
+  Clock,
+  Bell,
+  Crown,
+  ChevronDown,
+  ChevronRight,
+  Handshake,
+  Target,
+  Network,
+  Truck,
+  Flag as Flask,
+  Dumbbell,
+  QrCode,
+  Headphones,
+  FileBarChart,
+  Baby,
+  Eye,
+  UserCircle,
+  FileCheck2,
+  ArrowRight,
+  Microscope,
+  Menu,
+  X,
+  MapPin,
+  type LucideIcon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -35,20 +95,7 @@ const checkIsSuperAdmin = (): boolean => {
   }
 }
 
-const checkIsRecipientRightsOfficer = (): boolean => {
-  if (typeof window === "undefined") return false
-  try {
-    const userRole = localStorage.getItem("userRole")
-    const permissions = localStorage.getItem("userPermissions")
-    return userRole === "recipient_rights_officer" || (permissions && permissions.includes("recipient_rights"))
-  } catch {
-    return false
-  }
-}
-
 const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
-  const isRecipientRightsOfficer = checkIsRecipientRightsOfficer()
-
   const baseCategories: NavCategory[] = [
     {
       label: "Overview",
@@ -85,9 +132,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       label: "Clinical",
       icon: Stethoscope,
       items: [
-        { icon: Brain, label: "Clinical Decisions", href: "/clinical-decisions", count: 12, highlight: "alert" },
-        { icon: Activity, label: "Detox Management", href: "/detox-management", count: 8, highlight: "alert" },
-        { icon: AlertTriangle, label: "Crisis Unit", href: "/crisis-unit", count: 12, highlight: "alert" },
         { icon: Stethoscope, label: "Nursing Assessment", href: "/nursing-assessment", count: 7, highlight: "alert" },
         { icon: MessageSquare, label: "Counseling Intake", href: "/counseling-intake", count: 5 },
         { icon: Brain, label: "Bio-Psycho-Social", href: "/bio-psycho-social", count: 3 },
@@ -122,7 +166,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
         { icon: Syringe, label: "Methadone Dispensing", href: "/dispensing", count: 12 },
         { icon: PackageCheck, label: "Take-Home Mgmt", href: "/takehome", count: 8 },
         { icon: Package, label: "Take-Home Bottles", href: "/dispensing/takehome-bottles", count: 12 },
-        { icon: Building2, label: "Offsite Dosing", href: "/offsite-dosing", count: 6, highlight: "alert" },
         { icon: QrCode, label: "Diversion Control", href: "/takehome-diversion", count: 3, highlight: "alert" },
         { icon: Archive, label: "Inventory", href: "/inventory" },
         { icon: FileSignature, label: "DEA Form 222", href: "/form-222", count: 2 },
@@ -145,6 +188,8 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
         { icon: Truck, label: "DME Management", href: "/dme-management", count: 5 },
         { icon: Dumbbell, label: "Rehabilitation", href: "/rehabilitation", count: 8 },
         { icon: Building2, label: "County Health System", href: "/county-health", count: 12 },
+        { icon: Archive, label: "Facility Inventory", href: "/facility-inventory" },
+        { icon: Building2, label: "Bed Occupancy", href: "/occupancy", count: 3 },
       ],
     },
     {
@@ -152,8 +197,8 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       icon: CreditCard,
       items: [
         { icon: CreditCard, label: "Billing Center", href: "/billing-center" },
-        { icon: CreditCard, label: "Cash Collection", href: "/cash-collection", count: 5, highlight: "alert" },
         { icon: CreditCard, label: "Insurance Mgmt", href: "/insurance", count: 4 },
+        { icon: Shield, label: "Insurance Verification", href: "/insurance-verification", count: 3 },
         { icon: Workflow, label: "Clearinghouse", href: "/clearinghouse", count: 5 },
         { icon: FileCheck, label: "Prior Authorization", href: "/prior-auth", count: 12 },
         { icon: UserCheck, label: "NPI Verification", href: "/npi-verification", count: 2 },
@@ -180,12 +225,7 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
         { icon: BarChart3, label: "Analytics", href: "/analytics" },
         { icon: Target, label: "MIPS Quality", href: "/quality-dashboard" },
         { icon: Microscope, label: "Research & Data Science", href: "/research-dashboard", count: 4 },
-        { icon: MapPin, label: "Michigan Surveillance", href: "/michigan-surveillance", count: 3, highlight: "alert" },
-        { icon: Network, label: "MiHIN Integration", href: "/mihin-integration", count: 2, highlight: "alert" },
-        { icon: Users, label: "MI Workforce Assessment", href: "/michigan-workforce", count: 13, highlight: "alert" },
-        { icon: GraduationCap, label: "Mi-SUTWA Portal", href: "/mi-sutwa-portal", count: 8, highlight: "alert" },
-        { icon: Building2, label: "State Oversight Dashboard", href: "/state-oversight", count: 3, highlight: "alert" },
-        { icon: Shield, label: "SOTA Dashboard", href: "/sota-dashboard", count: 6, highlight: "alert" },
+        { icon: Brain, label: "AI Assistant Analytics", href: "/ai-assistant/analytics" },
       ],
     },
     {
@@ -193,50 +233,43 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       icon: Shield,
       items: [
         { icon: Shield, label: "Compliance Dashboard", href: "/compliance" },
-        { icon: Shield, label: "Regulatory Portal", href: "/regulatory-portal", count: 3, highlight: "alert" },
-        ...(isRecipientRightsOfficer
-          ? [
-              {
-                icon: Shield,
-                label: "Recipient Rights",
-                href: "/recipient-rights",
-                count: 8,
-                highlight: "alert" as const,
-              },
-            ]
-          : []),
+        { icon: Shield, label: "Regulatory Portal", href: "/regulatory/dashboard", count: 2 },
+        { icon: Shield, label: "CCBHC Compliance", href: "/research/ccbhc-compliance" },
       ],
     },
     {
       label: "Community Outreach",
       icon: Heart,
       items: [
-        { icon: Target, label: "Community Management", href: "/community-management", count: 247, highlight: "alert" },
         { icon: Heart, label: "MASE Access Portal", href: "/mase-access", count: 5, highlight: "alert" },
         { icon: Users, label: "Outreach Dashboard", href: "/outreach", count: 8 },
+        { icon: Calendar, label: "Outreach Events", href: "/outreach-events", count: 4 },
         { icon: ClipboardList, label: "Public Screening", href: "/screening" },
         { icon: Send, label: "Referral Gateway", href: "/referral" },
+        { icon: Building2, label: "CHW Encounters", href: "/chw-encounter" },
+        { icon: Dumbbell, label: "PT/OT Dashboard", href: "/pt-ot-dashboard" },
       ],
     },
     {
       label: "Administration",
       icon: Settings,
       items: [
-        { icon: Users, label: "HR Management", href: "/hr-management", count: 15, highlight: "alert" },
         { icon: UserCheck, label: "Staff Management", href: "/staff", count: 24 },
+        { icon: Users, label: "HR Management", href: "/hr-management", count: 15, highlight: "alert" },
         { icon: Activity, label: "Staff Workflows", href: "/workflows", count: 3 },
         { icon: Building2, label: "Facility Mgmt", href: "/facility", count: 4 },
-        { icon: Shield, label: "Security Officer Portal", href: "/security-officer", count: 2, highlight: "alert" },
+        { icon: Shield, label: "Regulatory Portal", href: "/regulatory-portal", count: 3, highlight: "alert" },
+        { icon: AlertTriangle, label: "Diversion Control", href: "/diversion-control", count: 3, highlight: "alert" },
+        { icon: Network, label: "County & PIHP Portal", href: "/county-pihp-portal", count: 2 },
+        { icon: Heart, label: "Community Collaboration", href: "/collaboration", count: 5 },
+        { icon: MapPin, label: "GPS Tracking", href: "/gps-tracking" },
+        { icon: Settings, label: "Callback Policies", href: "/callback-policies", count: 2 },
+        { icon: Network, label: "Integrations", href: "/integrations-dashboard" },
+        { icon: ClipboardCheck, label: "Clinic Onboarding", href: "/clinic-onboarding" },
         { icon: Crown, label: "Subscription", href: "/subscription", highlight: "premium" },
         { icon: Headphones, label: "IT Support", href: "/it-support", highlight: "premium" },
         { icon: FileBarChart, label: "System Report", href: "/system-report", highlight: "premium" },
         { icon: Settings, label: "Settings", href: "/settings" },
-        { icon: Shield, label: "Regulatory Portal", href: "/regulatory-portal", count: 3, highlight: "alert" },
-        { icon: AlertTriangle, label: "Diversion Control", href: "/diversion-control", count: 3, highlight: "alert" },
-        { icon: Network, label: "County & PIHP Portal", href: "/county-pihp-portal", count: 2 },
-        { icon: Heart, label: "Community Collaboration", href: "/community-collaboration", count: 5 },
-        { icon: MapPin, label: "GPS Tracking", href: "/gps-tracking" },
-        { icon: Settings, label: "Callback Policies", href: "/callback-policies", count: 2 },
       ],
     },
   ]
@@ -321,6 +354,8 @@ export function DashboardSidebar() {
     })
   }, [pathname])
 
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   const toggleCategory = (label: string) => {
     setExpandedCategories((prev) => ({
       ...prev,
@@ -328,119 +363,161 @@ export function DashboardSidebar() {
     }))
   }
 
-  return (
-    <aside
-      className="fixed left-0 top-0 h-full w-64 border-r overflow-y-auto"
-      style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
-    >
-      <div className="p-4">
-        {/* Logo */}
-        <div className="flex items-center space-x-2 mb-6 px-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0891b2" }}>
-            <Stethoscope className="h-5 w-5" style={{ color: "#ffffff" }} />
-          </div>
-          <span className="font-bold text-lg" style={{ color: "#334155" }}>
-            MASE EMR
-          </span>
-          {isSuperAdmin && (
-            <Badge variant="outline" className="ml-1 text-xs" style={{ borderColor: "#7c3aed", color: "#7c3aed" }}>
-              Admin
-            </Badge>
-          )}
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  // Render sidebar content - shared between mobile and desktop
+  const renderSidebarContent = () => (
+    <div className="p-4">
+      {/* Logo */}
+      <div className="flex items-center space-x-2 mb-6 px-2">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#0891b2" }}>
+          <Stethoscope className="h-5 w-5" style={{ color: "#ffffff" }} />
         </div>
-
-        {/* Navigation Categories */}
-        <nav className="space-y-1">
-          {navigationCategories.map((category) => {
-            const isExpanded = expandedCategories[category.label]
-            const hasActiveItem = category.items.some(
-              (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
-            )
-            const totalCount = category.items.reduce((sum, item) => sum + (item.count || 0), 0)
-            const hasAlerts = category.items.some((item) => item.highlight === "alert" && item.count)
-
-            return (
-              <div key={category.label}>
-                {/* Category Header */}
-                <button
-                  onClick={() => toggleCategory(category.label)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-2 py-2 rounded-md text-sm font-medium transition-colors",
-                    hasActiveItem ? "bg-cyan-50" : "hover:bg-gray-100",
-                  )}
-                  style={{ color: hasAlerts ? "#dc2626" : hasActiveItem ? "#0891b2" : "#475569" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <category.icon className="h-4 w-4" />
-                    <span>{category.label}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {totalCount > 0 && (
-                      <Badge variant={hasAlerts ? "destructive" : "secondary"} className="text-xs px-1.5 py-0">
-                        {totalCount}
-                      </Badge>
-                    )}
-                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </div>
-                </button>
-
-                {/* Category Items */}
-                {isExpanded && (
-                  <div className="ml-4 mt-1 space-y-0.5 border-l pl-2" style={{ borderColor: "#e2e8f0" }}>
-                    {category.items.map((item) => {
-                      const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
-                      const isAlert = item.highlight === "alert" && item.count
-                      const isPremium = item.highlight === "premium"
-
-                      return (
-                        <Link key={item.href} href={item.href}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                              "w-full justify-start h-8 text-sm",
-                              isActive && "bg-cyan-600 text-white hover:bg-cyan-700",
-                            )}
-                            style={
-                              isActive
-                                ? { backgroundColor: "#0891b2", color: "#ffffff" }
-                                : isAlert
-                                  ? { color: "#dc2626", fontWeight: 500 }
-                                  : isPremium
-                                    ? { color: "#7c3aed", fontWeight: 500 }
-                                    : { color: "#64748b" }
-                            }
-                          >
-                            <item.icon
-                              className="mr-2 h-3.5 w-3.5"
-                              style={
-                                isAlert && !isActive
-                                  ? { color: "#dc2626" }
-                                  : isPremium && !isActive
-                                    ? { color: "#7c3aed" }
-                                    : undefined
-                              }
-                            />
-                            <span className="truncate">{item.label}</span>
-                            {item.count && (
-                              <Badge
-                                variant={isAlert ? "destructive" : "secondary"}
-                                className="ml-auto text-xs px-1.5 py-0"
-                              >
-                                {item.count}
-                              </Badge>
-                            )}
-                          </Button>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </nav>
+        <span className="font-bold text-lg" style={{ color: "#334155" }}>
+          MASE EMR
+        </span>
+        {isSuperAdmin && (
+          <Badge variant="outline" className="ml-1 text-xs" style={{ borderColor: "#7c3aed", color: "#7c3aed" }}>
+            Admin
+          </Badge>
+        )}
       </div>
-    </aside>
+
+      {/* Navigation Categories */}
+      <nav className="space-y-1" aria-label="Main navigation">
+        {navigationCategories.map((category) => {
+          const isExpanded = expandedCategories[category.label]
+          const hasActiveItem = category.items.some(
+            (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
+          )
+          const totalCount = category.items.reduce((sum, item) => sum + (item.count || 0), 0)
+          const hasAlerts = category.items.some((item) => item.highlight === "alert" && item.count)
+
+          return (
+            <div key={category.label}>
+              {/* Category Header */}
+              <button
+                onClick={() => toggleCategory(category.label)}
+                className={cn(
+                  "w-full flex items-center justify-between px-2 py-2 rounded-md text-sm font-medium transition-colors",
+                  hasActiveItem ? "bg-cyan-50" : "hover:bg-gray-100",
+                )}
+                style={{ color: hasAlerts ? "#dc2626" : hasActiveItem ? "#0891b2" : "#475569" }}
+                aria-expanded={isExpanded}
+                aria-controls={`nav-${category.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <div className="flex items-center gap-2">
+                  <category.icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{category.label}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {totalCount > 0 && (
+                    <Badge variant={hasAlerts ? "destructive" : "secondary"} className="text-xs px-1.5 py-0">
+                      {totalCount}
+                    </Badge>
+                  )}
+                  {isExpanded ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+                </div>
+              </button>
+
+              {/* Category Items */}
+              {isExpanded && (
+                <div 
+                  id={`nav-${category.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="ml-4 mt-1 space-y-0.5 border-l pl-2" 
+                  style={{ borderColor: "#e2e8f0" }}
+                >
+                  {category.items.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+                    const isAlert = item.highlight === "alert" && item.count
+                    const isPremium = item.highlight === "premium"
+
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "w-full justify-start h-8 text-sm",
+                            isActive && "bg-cyan-600 text-white hover:bg-cyan-700",
+                          )}
+                          style={
+                            isActive
+                              ? { backgroundColor: "#0891b2", color: "#ffffff" }
+                              : isAlert
+                                ? { color: "#dc2626", fontWeight: 500 }
+                                : isPremium
+                                  ? { color: "#7c3aed", fontWeight: 500 }
+                                  : { color: "#64748b" }
+                          }
+                          aria-current={isActive ? "page" : undefined}
+                        >
+                          <item.icon
+                            className="mr-2 h-3.5 w-3.5"
+                            aria-hidden="true"
+                            style={
+                              isAlert && !isActive
+                                ? { color: "#dc2626" }
+                                : isPremium && !isActive
+                                  ? { color: "#7c3aed" }
+                                  : undefined
+                            }
+                          />
+                          <span className="truncate">{item.label}</span>
+                          {item.count && (
+                            <Badge
+                              variant={isAlert ? "destructive" : "secondary"}
+                              className="ml-auto text-xs px-1.5 py-0"
+                              aria-label={`${item.count} items`}
+                            >
+                              {item.count}
+                            </Badge>
+                          )}
+                        </Button>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Mobile Menu Button - Fixed at top left on mobile */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="bg-white shadow-md"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0 overflow-y-auto">
+            {renderSidebarContent()}
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <aside
+        className="hidden lg:block fixed left-0 top-0 h-full w-64 border-r overflow-y-auto"
+        style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}
+        aria-label="Sidebar navigation"
+      >
+        {renderSidebarContent()}
+      </aside>
+    </>
   )
 }

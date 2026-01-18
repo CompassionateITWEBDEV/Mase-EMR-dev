@@ -36,6 +36,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
     lastName: "",
     dateOfBirth: "",
     gender: "",
+    programType: "",
     phone: "",
     email: "",
     address: "",
@@ -64,6 +65,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
           last_name: formData.lastName,
           date_of_birth: formData.dateOfBirth,
           gender: formData.gender,
+          program_type: formData.programType || null,
           phone: formData.phone,
           email: formData.email || null,
           address: formData.address || null,
@@ -87,6 +89,7 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
         lastName: "",
         dateOfBirth: "",
         gender: "",
+        programType: "",
         phone: "",
         email: "",
         address: "",
@@ -162,6 +165,22 @@ export function AddPatientDialog({ children, providerId, onSuccess }: AddPatient
                   <SelectItem value="Non-binary">Non-binary</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                   <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="programType">Program Type</Label>
+              <Select onValueChange={(value) => handleInputChange("programType", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select program type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="otp">OTP (Opioid Treatment Program)</SelectItem>
+                  <SelectItem value="mat">MAT (Medication-Assisted Treatment)</SelectItem>
+                  <SelectItem value="primary_care">Primary Care</SelectItem>
                 </SelectContent>
               </Select>
             </div>

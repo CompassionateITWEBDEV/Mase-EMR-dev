@@ -24,7 +24,6 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { createBrowserClient } from "@/lib/supabase/client"
 import {
   Baby,
   Syringe,
@@ -46,7 +45,6 @@ import {
 
 export default function CountyHealthPage() {
   const { toast } = useToast()
-  const supabase = createBrowserClient()
 
   // State for data
   const [loading, setLoading] = useState(true)
@@ -160,130 +158,115 @@ export default function CountyHealthPage() {
   }
 
   const fetchStats = async () => {
-    // Fetch real counts from database
-    const [wic, vacc, sti, disease, tb, mch, env] = await Promise.all([
-      supabase.from("wic_enrollments").select("id", { count: "exact", head: true }).eq("status", "active"),
-      supabase
-        .from("vaccinations")
-        .select("id", { count: "exact", head: true })
-        .gte("administration_date", new Date(new Date().setDate(1)).toISOString().split("T")[0]),
-      supabase
-        .from("sti_clinic_visits")
-        .select("id", { count: "exact", head: true })
-        .gte("visit_date", new Date(new Date().setDate(1)).toISOString().split("T")[0]),
-      supabase
-        .from("communicable_disease_reports")
-        .select("id", { count: "exact", head: true })
-        .gte("reported_date", new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0]),
-      supabase.from("tb_cases").select("id", { count: "exact", head: true }).eq("status", "active"),
-      supabase
-        .from("maternal_child_health_visits")
-        .select("id", { count: "exact", head: true })
-        .gte("visit_date", new Date(new Date().setDate(1)).toISOString().split("T")[0]),
-      supabase
-        .from("environmental_health_inspections")
-        .select("id", { count: "exact", head: true })
-        .gte("inspection_date", new Date(new Date().setDate(1)).toISOString().split("T")[0]),
-    ])
-
-    setStats({
-      wicParticipants: wic.count || 0,
-      immunizations: vacc.count || 0,
-      stdVisits: sti.count || 0,
-      diseaseReports: disease.count || 0,
-      tbCases: tb.count || 0,
-      mchCases: mch.count || 0,
-      envInspections: env.count || 0,
-    })
+    try {
+      const response = await fetch("/api/county-health?action=stats")
+      const result = await response.json()
+      if (result.stats) {
+        setStats(result.stats)
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error)
+    }
   }
 
   const fetchPatients = async () => {
-    const { data } = await supabase
-      .from("patients")
-      .select("id, first_name, last_name, date_of_birth")
-      .order("last_name")
-    setPatients(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=patients")
+      const result = await response.json()
+      setPatients(result.data || [])
+    } catch (error) {
+      console.error("Error fetching patients:", error)
+    }
   }
 
   const fetchWicEnrollments = async () => {
-    const { data } = await supabase
-      .from("wic_enrollments")
-      .select("*, patients(first_name, last_name, date_of_birth)")
-      .order("enrollment_date", { ascending: false })
-      .limit(50)
-    setWicEnrollments(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=wic")
+      const result = await response.json()
+      setWicEnrollments(result.data || [])
+    } catch (error) {
+      console.error("Error fetching WIC enrollments:", error)
+    }
   }
 
   const fetchVaccinations = async () => {
-    const { data } = await supabase
-      .from("vaccinations")
-      .select("*, patients(first_name, last_name)")
-      .order("administration_date", { ascending: false })
-      .limit(50)
-    setVaccinations(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=vaccinations")
+      const result = await response.json()
+      setVaccinations(result.data || [])
+    } catch (error) {
+      console.error("Error fetching vaccinations:", error)
+    }
   }
 
   const fetchStiVisits = async () => {
-    const { data } = await supabase
-      .from("sti_clinic_visits")
-      .select("*, patients(first_name, last_name)")
-      .order("visit_date", { ascending: false })
-      .limit(50)
-    setStiVisits(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=sti")
+      const result = await response.json()
+      setStiVisits(result.data || [])
+    } catch (error) {
+      console.error("Error fetching STI visits:", error)
+    }
   }
 
   const fetchMchVisits = async () => {
-    const { data } = await supabase
-      .from("maternal_child_health_visits")
-      .select("*, patients(first_name, last_name)")
-      .order("visit_date", { ascending: false })
-      .limit(50)
-    setMchVisits(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=mch")
+      const result = await response.json()
+      setMchVisits(result.data || [])
+    } catch (error) {
+      console.error("Error fetching MCH visits:", error)
+    }
   }
 
   const fetchDiseaseReports = async () => {
-    const { data } = await supabase
-      .from("communicable_disease_reports")
-      .select("*, patients(first_name, last_name)")
-      .order("reported_date", { ascending: false })
-      .limit(50)
-    setDiseaseReports(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=disease")
+      const result = await response.json()
+      setDiseaseReports(result.data || [])
+    } catch (error) {
+      console.error("Error fetching disease reports:", error)
+    }
   }
 
   const fetchTbCases = async () => {
-    const { data } = await supabase
-      .from("tb_cases")
-      .select("*, patients(first_name, last_name)")
-      .order("diagnosis_date", { ascending: false })
-      .limit(50)
-    setTbCases(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=tb")
+      const result = await response.json()
+      setTbCases(result.data || [])
+    } catch (error) {
+      console.error("Error fetching TB cases:", error)
+    }
   }
 
   const fetchEnvInspections = async () => {
-    const { data } = await supabase
-      .from("environmental_health_inspections")
-      .select("*")
-      .order("inspection_date", { ascending: false })
-      .limit(50)
-    setEnvInspections(data || [])
+    try {
+      const response = await fetch("/api/county-health?action=list&type=environmental")
+      const result = await response.json()
+      setEnvInspections(result.data || [])
+    } catch (error) {
+      console.error("Error fetching environmental inspections:", error)
+    }
   }
 
   const fetchEducationResources = async () => {
-    const { data } = await supabase
-      .from("county_family_education_resources")
-      .select("*")
-      .eq("is_active", true)
-      .order("title")
-    setEducationResources(data || [])
+    try {
+      const response = await fetch("/api/county-health/education")
+      const result = await response.json()
+      setEducationResources(result.resources || [])
+    } catch (error) {
+      console.error("Error fetching education resources:", error)
+    }
   }
 
   const fetchStaffModules = async () => {
-    const { data } = await supabase
-      .from("county_staff_education_modules")
-      .select("*")
-      .eq("is_active", true)
-      .order("module_code")
-    setStaffModules(data || [])
+    try {
+      const response = await fetch("/api/county-health/staff-education")
+      const result = await response.json()
+      setStaffModules(result.modules || [])
+    } catch (error) {
+      console.error("Error fetching staff modules:", error)
+    }
   }
 
   // WIC Functions
@@ -293,30 +276,43 @@ export default function CountyHealthPage() {
       return
     }
 
-    const { error } = await supabase.from("wic_enrollments").insert({
-      patient_id: wicForm.patient_id,
-      category: wicForm.category,
-      due_date: wicForm.due_date || null,
-      income_verified: wicForm.income_verified,
-      medicaid_recipient: wicForm.medicaid_recipient,
-      enrollment_date: new Date().toISOString().split("T")[0],
-      status: "active",
-    })
-
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Success", description: "WIC participant enrolled successfully" })
-      setShowWicDialog(false)
-      setWicForm({
-        patient_id: "",
-        category: "pregnant",
-        due_date: "",
-        income_verified: false,
-        medicaid_recipient: false,
+    try {
+      const response = await fetch("/api/county-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "wic_enrollment",
+          data: {
+            patient_id: wicForm.patient_id,
+            category: wicForm.category,
+            due_date: wicForm.due_date || null,
+            income_verified: wicForm.income_verified,
+            medicaid_recipient: wicForm.medicaid_recipient,
+            enrollment_date: new Date().toISOString().split("T")[0],
+            status: "active",
+          },
+        }),
       })
-      fetchWicEnrollments()
-      fetchStats()
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to enroll WIC participant", variant: "destructive" })
+      } else {
+        toast({ title: "Success", description: "WIC participant enrolled successfully" })
+        setShowWicDialog(false)
+        setWicForm({
+          patient_id: "",
+          category: "pregnant",
+          due_date: "",
+          income_verified: false,
+          medicaid_recipient: false,
+        })
+        fetchWicEnrollments()
+        fetchStats()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to enroll WIC participant", variant: "destructive" })
     }
   }
 
@@ -327,31 +323,44 @@ export default function CountyHealthPage() {
       return
     }
 
-    const { error } = await supabase.from("vaccinations").insert({
-      patient_id: vaccinationForm.patient_id,
-      vaccine_name: vaccinationForm.vaccine_name,
-      vaccine_code: vaccinationForm.vaccine_code,
-      lot_number: vaccinationForm.lot_number,
-      dose_number: vaccinationForm.dose_number,
-      administration_site: vaccinationForm.administration_site,
-      administration_date: new Date().toISOString().split("T")[0],
-    })
-
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Success", description: "Vaccination recorded successfully" })
-      setShowVaccinationDialog(false)
-      setVaccinationForm({
-        patient_id: "",
-        vaccine_name: "",
-        vaccine_code: "",
-        lot_number: "",
-        dose_number: 1,
-        administration_site: "left_arm",
+    try {
+      const response = await fetch("/api/county-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "vaccination",
+          data: {
+            patient_id: vaccinationForm.patient_id,
+            vaccine_name: vaccinationForm.vaccine_name,
+            vaccine_code: vaccinationForm.vaccine_code,
+            lot_number: vaccinationForm.lot_number,
+            dose_number: vaccinationForm.dose_number,
+            administration_site: vaccinationForm.administration_site,
+            administration_date: new Date().toISOString().split("T")[0],
+          },
+        }),
       })
-      fetchVaccinations()
-      fetchStats()
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to record vaccination", variant: "destructive" })
+      } else {
+        toast({ title: "Success", description: "Vaccination recorded successfully" })
+        setShowVaccinationDialog(false)
+        setVaccinationForm({
+          patient_id: "",
+          vaccine_name: "",
+          vaccine_code: "",
+          lot_number: "",
+          dose_number: 1,
+          administration_site: "left_arm",
+        })
+        fetchVaccinations()
+        fetchStats()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to record vaccination", variant: "destructive" })
     }
   }
 
@@ -362,21 +371,34 @@ export default function CountyHealthPage() {
       return
     }
 
-    const { error } = await supabase.from("sti_clinic_visits").insert({
-      patient_id: stiForm.patient_id,
-      visit_date: new Date().toISOString().split("T")[0],
-      chief_complaint: stiForm.chief_complaint,
-      tests_ordered: stiForm.tests_ordered,
-    })
+    try {
+      const response = await fetch("/api/county-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "sti_visit",
+          data: {
+            patient_id: stiForm.patient_id,
+            visit_date: new Date().toISOString().split("T")[0],
+            chief_complaint: stiForm.chief_complaint,
+            tests_ordered: stiForm.tests_ordered,
+          },
+        }),
+      })
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Success", description: "STI clinic visit recorded" })
-      setShowStiDialog(false)
-      setStiForm({ patient_id: "", chief_complaint: "", tests_ordered: [] })
-      fetchStiVisits()
-      fetchStats()
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to record STI visit", variant: "destructive" })
+      } else {
+        toast({ title: "Success", description: "STI clinic visit recorded" })
+        setShowStiDialog(false)
+        setStiForm({ patient_id: "", chief_complaint: "", tests_ordered: [] })
+        fetchStiVisits()
+        fetchStats()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to record STI visit", variant: "destructive" })
     }
   }
 
@@ -387,23 +409,36 @@ export default function CountyHealthPage() {
       return
     }
 
-    const { error } = await supabase.from("communicable_disease_reports").insert({
-      patient_id: diseaseForm.patient_id,
-      disease_name: diseaseForm.disease_name,
-      diagnosis_date: diseaseForm.diagnosis_date || new Date().toISOString().split("T")[0],
-      reported_date: new Date().toISOString().split("T")[0],
-      case_status: diseaseForm.case_status,
-      investigation_status: "pending",
-    })
+    try {
+      const response = await fetch("/api/county-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "disease_report",
+          data: {
+            patient_id: diseaseForm.patient_id,
+            disease_name: diseaseForm.disease_name,
+            diagnosis_date: diseaseForm.diagnosis_date || new Date().toISOString().split("T")[0],
+            reported_date: new Date().toISOString().split("T")[0],
+            case_status: diseaseForm.case_status,
+            investigation_status: "pending",
+          },
+        }),
+      })
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Success", description: "Disease report submitted" })
-      setShowDiseaseDialog(false)
-      setDiseaseForm({ patient_id: "", disease_name: "", diagnosis_date: "", case_status: "suspected" })
-      fetchDiseaseReports()
-      fetchStats()
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to submit disease report", variant: "destructive" })
+      } else {
+        toast({ title: "Success", description: "Disease report submitted" })
+        setShowDiseaseDialog(false)
+        setDiseaseForm({ patient_id: "", disease_name: "", diagnosis_date: "", case_status: "suspected" })
+        fetchDiseaseReports()
+        fetchStats()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to submit disease report", variant: "destructive" })
     }
   }
 
@@ -414,22 +449,35 @@ export default function CountyHealthPage() {
       return
     }
 
-    const { error } = await supabase.from("environmental_health_inspections").insert({
-      facility_name: envForm.facility_name,
-      facility_type: envForm.facility_type,
-      inspection_type: envForm.inspection_type,
-      inspection_date: new Date().toISOString().split("T")[0],
-      result: "pending",
-    })
+    try {
+      const response = await fetch("/api/county-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "environmental_inspection",
+          data: {
+            facility_name: envForm.facility_name,
+            facility_type: envForm.facility_type,
+            inspection_type: envForm.inspection_type,
+            inspection_date: new Date().toISOString().split("T")[0],
+            result: "pending",
+          },
+        }),
+      })
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
-      toast({ title: "Success", description: "Inspection scheduled" })
-      setShowEnvDialog(false)
-      setEnvForm({ facility_name: "", facility_type: "restaurant", inspection_type: "routine" })
-      fetchEnvInspections()
-      fetchStats()
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to schedule inspection", variant: "destructive" })
+      } else {
+        toast({ title: "Success", description: "Inspection scheduled" })
+        setShowEnvDialog(false)
+        setEnvForm({ facility_name: "", facility_type: "restaurant", inspection_type: "routine" })
+        fetchEnvInspections()
+        fetchStats()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to schedule inspection", variant: "destructive" })
     }
   }
 
@@ -468,84 +516,68 @@ export default function CountyHealthPage() {
   )
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="lg:pl-64">
         <DashboardHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="p-8">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">County Health Department</h1>
-              <p className="text-sm text-slate-600 mt-1">Public Health Services & Population Management</p>
+              <h1 className="text-3xl font-bold">County Health Department</h1>
+              <p className="text-muted-foreground">Public Health Services & Population Management</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchAllData} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
             </div>
           </div>
 
           {/* Key Statistics Dashboard */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">WIC Participants</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">WIC Participants</CardTitle>
+                <Baby className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">{loading ? "..." : stats.wicParticipants}</p>
-                    <p className="text-xs text-slate-500">Active enrollments</p>
-                  </div>
-                  <Baby className="h-8 w-8 text-pink-500" />
-                </div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.wicParticipants}</div>
+                <p className="text-xs text-muted-foreground">Active enrollments</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">Immunizations</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Immunizations</CardTitle>
+                <Syringe className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">{loading ? "..." : stats.immunizations}</p>
-                    <p className="text-xs text-slate-500">This month</p>
-                  </div>
-                  <Syringe className="h-8 w-8 text-blue-500" />
-                </div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.immunizations}</div>
+                <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">STI Visits</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">STI Visits</CardTitle>
+                <Heart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">{loading ? "..." : stats.stdVisits}</p>
-                    <p className="text-xs text-slate-500">This month</p>
-                  </div>
-                  <Heart className="h-8 w-8 text-red-500" />
-                </div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.stdVisits}</div>
+                <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">Disease Reports</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Disease Reports</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">{loading ? "..." : stats.diseaseReports}</p>
-                    <p className="text-xs text-slate-500">This year</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-orange-500" />
-                </div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.diseaseReports}</div>
+                <p className="text-xs text-muted-foreground">This year</p>
               </CardContent>
             </Card>
           </div>
@@ -611,7 +643,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {wicEnrollments.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No WIC enrollments found. Click "Enroll Participant" to add one.
                           </TableCell>
                         </TableRow>
@@ -683,7 +715,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {vaccinations.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No vaccinations recorded. Click "Record Vaccination" to add one.
                           </TableCell>
                         </TableRow>
@@ -746,7 +778,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {stiVisits.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                             No STI clinic visits recorded.
                           </TableCell>
                         </TableRow>
@@ -812,7 +844,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {mchVisits.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                             No MCH visits recorded.
                           </TableCell>
                         </TableRow>
@@ -861,7 +893,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {diseaseReports.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No disease reports found.
                           </TableCell>
                         </TableRow>
@@ -932,7 +964,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {tbCases.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No TB cases found.
                           </TableCell>
                         </TableRow>
@@ -986,7 +1018,7 @@ export default function CountyHealthPage() {
                     <TableBody>
                       {envInspections.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             No inspections found.
                           </TableCell>
                         </TableRow>
@@ -1033,8 +1065,8 @@ export default function CountyHealthPage() {
                   <ScrollArea className="flex-1 pr-4 mb-4">
                     <div className="space-y-4">
                       {messages.length === 0 ? (
-                        <div className="text-center text-slate-500 py-8">
-                          <Bot className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                        <div className="text-center text-muted-foreground py-8">
+                          <Bot className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-50" />
                           <p>
                             Ask me about WIC guidelines, immunization schedules, disease reporting, or public health
                             protocols.
@@ -1045,7 +1077,7 @@ export default function CountyHealthPage() {
                           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                             <div
                               className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                msg.role === "user" ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-900"
+                                msg.role === "user" ? "bg-teal-600 text-white" : "bg-muted text-foreground"
                               }`}
                             >
                               {msg.content}
@@ -1055,7 +1087,7 @@ export default function CountyHealthPage() {
                       )}
                       {isAiLoading && (
                         <div className="flex justify-start">
-                          <div className="bg-slate-100 rounded-lg px-4 py-2">
+                          <div className="bg-muted rounded-lg px-4 py-2">
                             <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
                           </div>
                         </div>
@@ -1091,12 +1123,12 @@ export default function CountyHealthPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {educationResources.length === 0 ? (
-                        <p className="text-center text-slate-500 py-4">No education resources available.</p>
+                        <p className="text-center text-muted-foreground py-4">No education resources available.</p>
                       ) : (
                         educationResources.slice(0, 5).map((resource) => (
                           <div
                             key={resource.id}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
                           >
                             <div className="flex items-center gap-3">
                               {resource.resource_type === "video" ? (
@@ -1106,7 +1138,7 @@ export default function CountyHealthPage() {
                               )}
                               <div>
                                 <p className="font-medium text-sm">{resource.title}</p>
-                                <p className="text-xs text-slate-500">{resource.target_audience}</p>
+                                <p className="text-xs text-muted-foreground">{resource.target_audience}</p>
                               </div>
                             </div>
                             <Button variant="ghost" size="sm">
@@ -1130,16 +1162,16 @@ export default function CountyHealthPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {staffModules.length === 0 ? (
-                        <p className="text-center text-slate-500 py-4">No training modules available.</p>
+                        <p className="text-center text-muted-foreground py-4">No training modules available.</p>
                       ) : (
                         staffModules.slice(0, 5).map((module) => (
                           <div
                             key={module.id}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
                           >
                             <div>
                               <p className="font-medium text-sm">{module.module_name}</p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-muted-foreground">
                                 {module.duration_minutes} min • {module.ceu_hours} CEU
                               </p>
                             </div>
@@ -1539,7 +1571,7 @@ export default function CountyHealthPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </main>
+        </div>
       </div>
     </div>
   )

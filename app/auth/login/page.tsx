@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,6 +18,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // Check for error from callback route
+    const errorParam = searchParams.get("error")
+    if (errorParam === "email_confirmation_failed") {
+      setError("Email confirmation failed. Please try registering again or contact support.")
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,11 +35,26 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
+      
+      if (error) {
+        // Check if error is due to unconfirmed email
+        if (error.message.includes("Email not confirmed") || error.message.includes("email_not_confirmed")) {
+          setError("Please check your email and click the confirmation link before signing in.")
+          return
+        }
+        throw error
+      }
+      
+      // Check if user email is confirmed
+      if (data.user && !data.user.email_confirmed_at) {
+        setError("Please check your email and click the confirmation link to activate your account.")
+        return
+      }
+      
       router.push("/")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")

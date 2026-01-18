@@ -1,16 +1,28 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { toast } from "sonner"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import {
   UserCheck,
   Search,
@@ -24,14 +36,14 @@ import {
   Shield,
   Plus,
   Loader2,
-} from "lucide-react"
+} from "lucide-react";
 
 interface ProviderCredentialManagementProps {
-  licenses: any[]
-  npiRecords: any[]
-  providers: any[]
-  isLoading: boolean
-  onRefresh: () => void
+  licenses: any[];
+  npiRecords: any[];
+  providers: any[];
+  isLoading: boolean;
+  onRefresh: () => void;
 }
 
 export function ProviderCredentialManagement({
@@ -41,11 +53,13 @@ export function ProviderCredentialManagement({
   isLoading,
   onRefresh,
 }: ProviderCredentialManagementProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [showAddCredential, setShowAddCredential] = useState(false)
-  const [credentialType, setCredentialType] = useState<"license" | "certification" | "board">("license")
-  const [isSaving, setIsSaving] = useState(false)
-  const [viewDetails, setViewDetails] = useState<any | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddCredential, setShowAddCredential] = useState(false);
+  const [credentialType, setCredentialType] = useState<
+    "license" | "certification" | "board"
+  >("license");
+  const [isSaving, setIsSaving] = useState(false);
+  const [viewDetails, setViewDetails] = useState<any | null>(null);
   const [newCredential, setNewCredential] = useState({
     providerId: "",
     licenseNumber: "",
@@ -57,7 +71,7 @@ export function ProviderCredentialManagement({
     cmeRequirements: "",
     autoVerifyEnabled: false,
     notes: "",
-  })
+  });
 
   // Combine licenses and NPI records into credentials list
   const allCredentials = [
@@ -84,66 +98,85 @@ export function ProviderCredentialManagement({
       credentialNumber: n.npi_number,
       credentialType: "NPI",
       issuingOrganization: "CMS/NPPES",
+      issuingState: null,
+      issueDate: null,
       expirationDate: null,
       verificationStatus: n.verification_status,
       verificationDate: n.verification_date,
+      renewalRequiredBy: null as string | null,
       notes: n.notes,
     })),
-  ]
+  ];
 
   const filteredCredentials = allCredentials.filter(
     (credential) =>
-      credential.providerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      credential.credentialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      credential.credentialType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      credential.issuingOrganization?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      credential.providerName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      credential.credentialNumber
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      credential.credentialType
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      credential.issuingOrganization
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase())
+  );
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "verified":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "expired":
       case "suspended":
       case "revoked":
-        return <XCircle className="h-4 w-4 text-red-500" />
+        return <XCircle className="h-4 w-4 text-red-500" />;
       case "pending":
-        return <Clock className="h-4 w-4 text-yellow-500" />
+        return <Clock className="h-4 w-4 text-yellow-500" />;
       default:
-        return <UserCheck className="h-4 w-4 text-gray-500" />
+        return <UserCheck className="h-4 w-4 text-gray-500" />;
     }
-  }
+  };
 
-  const getStatusColor = (status: string): "default" | "destructive" | "secondary" | "outline" => {
+  const getStatusColor = (
+    status: string
+  ): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
       case "verified":
-        return "default"
+        return "default";
       case "expired":
       case "suspended":
       case "revoked":
-        return "destructive"
+        return "destructive";
       case "pending":
-        return "secondary"
+        return "secondary";
       default:
-        return "outline"
+        return "outline";
     }
-  }
+  };
 
   const isExpiringSoon = (expirationDate?: string) => {
-    if (!expirationDate) return false
-    const expDate = new Date(expirationDate)
-    const today = new Date()
-    const daysUntilExpiration = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
-    return daysUntilExpiration <= 90 && daysUntilExpiration > 0
-  }
+    if (!expirationDate) return false;
+    const expDate = new Date(expirationDate);
+    const today = new Date();
+    const daysUntilExpiration = Math.ceil(
+      (expDate.getTime() - today.getTime()) / (1000 * 3600 * 24)
+    );
+    return daysUntilExpiration <= 90 && daysUntilExpiration > 0;
+  };
 
   const handleAddCredential = async () => {
-    if (!newCredential.providerId || !newCredential.licenseNumber || !newCredential.licenseType) {
-      toast.error("Please fill in all required fields")
-      return
+    if (
+      !newCredential.providerId ||
+      !newCredential.licenseNumber ||
+      !newCredential.licenseType
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       const response = await fetch("/api/provider-verification", {
         method: "POST",
@@ -161,11 +194,11 @@ export function ProviderCredentialManagement({
           autoVerifyEnabled: newCredential.autoVerifyEnabled,
           notes: newCredential.notes || null,
         }),
-      })
+      });
 
-      if (!response.ok) throw new Error("Failed to add credential")
+      if (!response.ok) throw new Error("Failed to add credential");
 
-      toast.success("Credential added successfully")
+      toast.success("Credential added successfully");
       setNewCredential({
         providerId: "",
         licenseNumber: "",
@@ -177,15 +210,15 @@ export function ProviderCredentialManagement({
         cmeRequirements: "",
         autoVerifyEnabled: false,
         notes: "",
-      })
-      setShowAddCredential(false)
-      onRefresh()
+      });
+      setShowAddCredential(false);
+      onRefresh();
     } catch (error) {
-      toast.error("Failed to add credential")
+      toast.error("Failed to add credential");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -194,7 +227,7 @@ export function ProviderCredentialManagement({
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
-    )
+    );
   }
 
   return (
@@ -203,10 +236,13 @@ export function ProviderCredentialManagement({
         <div>
           <h2 className="text-2xl font-bold">Provider Credential Management</h2>
           <p className="text-muted-foreground">
-            Manage provider certifications, board credentials, and professional licenses
+            Manage provider certifications, board credentials, and professional
+            licenses
           </p>
         </div>
-        <Button onClick={() => setShowAddCredential(true)} className="bg-primary hover:bg-primary/90">
+        <Button
+          onClick={() => setShowAddCredential(true)}
+          className="bg-primary hover:bg-primary/90">
           <Plus className="mr-2 h-4 w-4" />
           Add Credential
         </Button>
@@ -216,7 +252,9 @@ export function ProviderCredentialManagement({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add New Credential</DialogTitle>
-            <DialogDescription>Add a license, certification, or board credential for a provider</DialogDescription>
+            <DialogDescription>
+              Add a license, certification, or board credential for a provider
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -224,8 +262,9 @@ export function ProviderCredentialManagement({
                 <Label>Provider *</Label>
                 <Select
                   value={newCredential.providerId}
-                  onValueChange={(value) => setNewCredential({ ...newCredential, providerId: value })}
-                >
+                  onValueChange={(value) =>
+                    setNewCredential({ ...newCredential, providerId: value })
+                  }>
                   <SelectTrigger>
                     <SelectValue placeholder="Select provider" />
                   </SelectTrigger>
@@ -242,25 +281,40 @@ export function ProviderCredentialManagement({
                 <Label>Credential Type *</Label>
                 <Select
                   value={newCredential.licenseType}
-                  onValueChange={(value) => setNewCredential({ ...newCredential, licenseType: value })}
-                >
+                  onValueChange={(value) =>
+                    setNewCredential({ ...newCredential, licenseType: value })
+                  }>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="MD">MD - Medical Doctor</SelectItem>
-                    <SelectItem value="DO">DO - Doctor of Osteopathy</SelectItem>
+                    <SelectItem value="DO">
+                      DO - Doctor of Osteopathy
+                    </SelectItem>
                     <SelectItem value="NP">NP - Nurse Practitioner</SelectItem>
                     <SelectItem value="PA">PA - Physician Assistant</SelectItem>
-                    <SelectItem value="LCSW">LCSW - Licensed Clinical Social Worker</SelectItem>
-                    <SelectItem value="LPC">LPC - Licensed Professional Counselor</SelectItem>
+                    <SelectItem value="LCSW">
+                      LCSW - Licensed Clinical Social Worker
+                    </SelectItem>
+                    <SelectItem value="LPC">
+                      LPC - Licensed Professional Counselor
+                    </SelectItem>
                     <SelectItem value="PhD">PhD - Psychology</SelectItem>
-                    <SelectItem value="PsyD">PsyD - Doctor of Psychology</SelectItem>
+                    <SelectItem value="PsyD">
+                      PsyD - Doctor of Psychology
+                    </SelectItem>
                     <SelectItem value="RN">RN - Registered Nurse</SelectItem>
-                    <SelectItem value="LPN">LPN - Licensed Practical Nurse</SelectItem>
-                    <SelectItem value="CADC">CADC - Certified Alcohol & Drug Counselor</SelectItem>
+                    <SelectItem value="LPN">
+                      LPN - Licensed Practical Nurse
+                    </SelectItem>
+                    <SelectItem value="CADC">
+                      CADC - Certified Alcohol & Drug Counselor
+                    </SelectItem>
                     <SelectItem value="DEA">DEA Registration</SelectItem>
-                    <SelectItem value="Board Certification">Board Certification</SelectItem>
+                    <SelectItem value="Board Certification">
+                      Board Certification
+                    </SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -272,7 +326,12 @@ export function ProviderCredentialManagement({
                 <Label>License/Credential Number *</Label>
                 <Input
                   value={newCredential.licenseNumber}
-                  onChange={(e) => setNewCredential({ ...newCredential, licenseNumber: e.target.value })}
+                  onChange={(e) =>
+                    setNewCredential({
+                      ...newCredential,
+                      licenseNumber: e.target.value,
+                    })
+                  }
                   placeholder="Enter license number"
                 />
               </div>
@@ -280,8 +339,9 @@ export function ProviderCredentialManagement({
                 <Label>Issuing State/Authority</Label>
                 <Select
                   value={newCredential.issuingState}
-                  onValueChange={(value) => setNewCredential({ ...newCredential, issuingState: value })}
-                >
+                  onValueChange={(value) =>
+                    setNewCredential({ ...newCredential, issuingState: value })
+                  }>
                   <SelectTrigger>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
@@ -304,7 +364,12 @@ export function ProviderCredentialManagement({
                 <Input
                   type="date"
                   value={newCredential.issueDate}
-                  onChange={(e) => setNewCredential({ ...newCredential, issueDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewCredential({
+                      ...newCredential,
+                      issueDate: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div>
@@ -312,7 +377,12 @@ export function ProviderCredentialManagement({
                 <Input
                   type="date"
                   value={newCredential.expirationDate}
-                  onChange={(e) => setNewCredential({ ...newCredential, expirationDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewCredential({
+                      ...newCredential,
+                      expirationDate: e.target.value,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -323,14 +393,24 @@ export function ProviderCredentialManagement({
                 <Input
                   type="date"
                   value={newCredential.renewalRequiredBy}
-                  onChange={(e) => setNewCredential({ ...newCredential, renewalRequiredBy: e.target.value })}
+                  onChange={(e) =>
+                    setNewCredential({
+                      ...newCredential,
+                      renewalRequiredBy: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div>
                 <Label>CME Requirements</Label>
                 <Input
                   value={newCredential.cmeRequirements}
-                  onChange={(e) => setNewCredential({ ...newCredential, cmeRequirements: e.target.value })}
+                  onChange={(e) =>
+                    setNewCredential({
+                      ...newCredential,
+                      cmeRequirements: e.target.value,
+                    })
+                  }
                   placeholder="e.g., 50 hours/2 years"
                 />
               </div>
@@ -340,7 +420,9 @@ export function ProviderCredentialManagement({
               <Label>Notes</Label>
               <Textarea
                 value={newCredential.notes}
-                onChange={(e) => setNewCredential({ ...newCredential, notes: e.target.value })}
+                onChange={(e) =>
+                  setNewCredential({ ...newCredential, notes: e.target.value })
+                }
                 placeholder="Additional notes about this credential..."
                 rows={3}
               />
@@ -348,10 +430,14 @@ export function ProviderCredentialManagement({
 
             <div className="flex gap-2 pt-4">
               <Button onClick={handleAddCredential} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
                 Add Credential
               </Button>
-              <Button variant="outline" onClick={() => setShowAddCredential(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowAddCredential(false)}>
                 Cancel
               </Button>
             </div>
@@ -400,7 +486,11 @@ export function ProviderCredentialManagement({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {allCredentials.filter((c) => c.verificationStatus === "verified").length}
+              {
+                allCredentials.filter(
+                  (c) => c.verificationStatus === "verified"
+                ).length
+              }
             </div>
             <p className="text-xs text-muted-foreground">Active and verified</p>
           </CardContent>
@@ -416,8 +506,11 @@ export function ProviderCredentialManagement({
           <CardContent>
             <div className="text-2xl font-bold">
               {
-                allCredentials.filter((c) => c.verificationStatus === "pending" || c.verificationStatus === "expired")
-                  .length
+                allCredentials.filter(
+                  (c) =>
+                    c.verificationStatus === "pending" ||
+                    c.verificationStatus === "expired"
+                ).length
               }
             </div>
             <p className="text-xs text-muted-foreground">Pending or expired</p>
@@ -451,26 +544,39 @@ export function ProviderCredentialManagement({
                       ) : (
                         <FileCheck className="h-5 w-5 text-primary" />
                       )}
-                      <h3 className="text-lg font-semibold">{credential.providerName}</h3>
+                      <h3 className="text-lg font-semibold">
+                        {credential.providerName}
+                      </h3>
                       <Badge variant="outline">{credential.type}</Badge>
-                      <Badge variant="outline">{credential.credentialType}</Badge>
-                      {credential.credentialNumber && <Badge variant="outline">{credential.credentialNumber}</Badge>}
+                      <Badge variant="outline">
+                        {credential.credentialType}
+                      </Badge>
+                      {credential.credentialNumber && (
+                        <Badge variant="outline">
+                          {credential.credentialNumber}
+                        </Badge>
+                      )}
                       <div className="flex items-center gap-1">
                         {getStatusIcon(credential.verificationStatus)}
-                        <Badge variant={getStatusColor(credential.verificationStatus)}>
+                        <Badge
+                          variant={getStatusColor(
+                            credential.verificationStatus
+                          )}>
                           {credential.verificationStatus?.toUpperCase()}
                         </Badge>
                       </div>
-                      {credential.expirationDate && isExpiringSoon(credential.expirationDate) && (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Expiring Soon
-                        </Badge>
-                      )}
+                      {credential.expirationDate &&
+                        isExpiringSoon(credential.expirationDate) && (
+                          <Badge variant="destructive">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Expiring Soon
+                          </Badge>
+                        )}
                     </div>
 
                     <div className="mb-2">
-                      <span className="font-medium">Issuing Organization:</span> {credential.issuingOrganization}
+                      <span className="font-medium">Issuing Organization:</span>{" "}
+                      {credential.issuingOrganization}
                     </div>
 
                     <div className="grid gap-2 md:grid-cols-3 text-sm mb-3">
@@ -482,25 +588,31 @@ export function ProviderCredentialManagement({
                       )}
                       {credential.verificationDate && (
                         <div>
-                          <span className="font-medium">Verified:</span> {credential.verificationDate}
+                          <span className="font-medium">Verified:</span>{" "}
+                          {credential.verificationDate}
                         </div>
                       )}
                       {credential.renewalRequiredBy && (
                         <div>
-                          <span className="font-medium">Renew By:</span> {credential.renewalRequiredBy}
+                          <span className="font-medium">Renew By:</span>{" "}
+                          {credential.renewalRequiredBy}
                         </div>
                       )}
                     </div>
 
                     {credential.notes && (
                       <div className="text-sm mb-3">
-                        <span className="font-medium">Notes:</span> {credential.notes}
+                        <span className="font-medium">Notes:</span>{" "}
+                        {credential.notes}
                       </div>
                     )}
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setViewDetails(credential)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewDetails(credential)}>
                       <Eye className="mr-2 h-4 w-4" />
                       Details
                     </Button>
@@ -543,7 +655,8 @@ export function ProviderCredentialManagement({
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Status:</span>
-                  <Badge variant={getStatusColor(viewDetails.verificationStatus)}>
+                  <Badge
+                    variant={getStatusColor(viewDetails.verificationStatus)}>
                     {viewDetails.verificationStatus?.toUpperCase()}
                   </Badge>
                 </div>
@@ -580,7 +693,9 @@ export function ProviderCredentialManagement({
                 {viewDetails.notes && (
                   <div>
                     <span className="font-medium">Notes:</span>
-                    <p className="text-sm text-muted-foreground">{viewDetails.notes}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {viewDetails.notes}
+                    </p>
                   </div>
                 )}
               </div>
@@ -589,5 +704,5 @@ export function ProviderCredentialManagement({
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

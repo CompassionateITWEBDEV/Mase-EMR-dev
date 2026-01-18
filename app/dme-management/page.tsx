@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -345,10 +346,10 @@ export default function DMEManagementPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="min-h-screen bg-background">
       <DashboardSidebar />
-
-      <div className="flex-1 overflow-auto">
+      <div className="lg:pl-64">
+        <DashboardHeader />
         <div className="p-8">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -866,9 +867,8 @@ export default function DMEManagementPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
 
-      {/* View Order Dialog */}
+        {/* View Order Dialog */}
       <Dialog open={viewOrderOpen} onOpenChange={setViewOrderOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1002,6 +1002,7 @@ export default function DMEManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

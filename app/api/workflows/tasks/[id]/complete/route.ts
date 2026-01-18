@@ -1,10 +1,14 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const supabase = await createServerClient()
-  const body = await request.json()
-  const { completed_by, notes, form_data } = body
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createServerClient();
+  const body = await request.json();
+  const { completed_by, notes, form_data } = body;
 
   const { data, error } = await supabase
     .from("workflow_tasks")
@@ -16,14 +20,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
       form_data,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
-    .single()
+    .single();
 
   if (error) {
-    console.error("[v0] Error completing workflow task:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("[v0] Error completing workflow task:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ task: data })
+  return NextResponse.json({ task: data });
 }

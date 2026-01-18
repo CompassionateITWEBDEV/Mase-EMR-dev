@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const condition = searchParams.get('condition')
   const category = searchParams.get('category')
 
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   let query = supabase
     .from('clinical_practice_guidelines')

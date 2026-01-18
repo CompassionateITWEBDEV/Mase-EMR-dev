@@ -1,17 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Crown,
   CreditCard,
@@ -51,44 +55,56 @@ import {
   Eye,
   QrCode,
   Headphones,
-} from "lucide-react"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { useToast } from "@/components/ui/use-toast"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+} from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useToast } from "@/components/ui/use-toast";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SubscriptionFeature {
-  id: string
-  name: string
-  description: string
-  icon: any
-  category: "clinical" | "billing" | "integration" | "operations" | "advanced" | "DEA Compliance" // Added "DEA Compliance"
-  enabled: boolean
-  tier: "basic" | "professional" | "enterprise" | "Premium" // Added "Premium"
-  monthlyPrice: number
-  usageLimit?: number
-  currentUsage?: number
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  category:
+    | "clinical"
+    | "billing"
+    | "integration"
+    | "operations"
+    | "advanced"
+    | "DEA Compliance"; // Added "DEA Compliance"
+  enabled: boolean;
+  tier: "basic" | "professional" | "enterprise" | "Premium"; // Added "Premium"
+  monthlyPrice: number;
+  usageLimit?: number;
+  currentUsage?: number;
 }
 
 interface SubscriptionPlan {
-  id: string
-  name: string
-  price: number
-  billingCycle: "monthly" | "annual"
-  features: string[]
-  recommended?: boolean
+  id: string;
+  name: string;
+  price: number;
+  billingCycle: "monthly" | "annual";
+  features: string[];
+  recommended?: boolean;
 }
 
 // Define AddonFeature interface to match the new structure
 interface AddonFeature {
-  id: string
-  name: string
-  icon: any
-  description: string
-  tier: "basic" | "professional" | "enterprise" | "Premium"
-  monthlyPrice: number
-  category: "clinical" | "billing" | "integration" | "operations" | "advanced" | "DEA Compliance"
-  features: string[] // Specific features for the add-on
+  id: string;
+  name: string;
+  icon: any;
+  description: string;
+  tier: "basic" | "professional" | "enterprise" | "Premium";
+  monthlyPrice: number;
+  category:
+    | "clinical"
+    | "billing"
+    | "integration"
+    | "operations"
+    | "advanced"
+    | "DEA Compliance";
+  features: string[]; // Specific features for the add-on
 }
 
 const subscriptionPlans: SubscriptionPlan[] = [
@@ -137,7 +153,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
       "SLA Guarantee",
     ],
   },
-]
+];
 
 const allFeatures: SubscriptionFeature[] = [
   // Clinical Features
@@ -343,7 +359,7 @@ const allFeatures: SubscriptionFeature[] = [
     tier: "enterprise",
     monthlyPrice: 249,
   },
-]
+];
 
 // New section for advanced add-on features
 const advancedAddOnFeatures: AddonFeature[] = [
@@ -373,7 +389,8 @@ const advancedAddOnFeatures: AddonFeature[] = [
   {
     id: "it-support-dashboard",
     name: "IT Support Dashboard",
-    description: "Remote screen monitoring, ticket management, diagnostics, and real-time client support tools",
+    description:
+      "Remote screen monitoring, ticket management, diagnostics, and real-time client support tools",
     icon: Headphones, // Use the imported Headphones icon
     tier: "enterprise", // Assuming IT Support is an enterprise-level feature
     monthlyPrice: 199,
@@ -389,14 +406,15 @@ const advancedAddOnFeatures: AddonFeature[] = [
       "System health monitoring",
     ],
   },
-]
+];
 
 const medicalSpecialties = [
   {
     id: "behavioral-health",
     name: "Behavioral Health / OTP/MAT",
     icon: Pill,
-    description: "Substance use disorder treatment, addiction medicine, OTP programs",
+    description:
+      "Substance use disorder treatment, addiction medicine, OTP programs",
     features: [
       "Methadone/Buprenorphine Dispensing",
       "COWS/CIWA Assessments",
@@ -428,7 +446,8 @@ const medicalSpecialties = [
     id: "psychiatry",
     name: "Psychiatry / Mental Health",
     icon: Brain,
-    description: "Psychiatric care, mental health treatment, therapy management",
+    description:
+      "Psychiatric care, mental health treatment, therapy management",
     features: [
       "Mental Status Exams (MSE)",
       "PHQ-9/GAD-7 Assessments",
@@ -524,7 +543,8 @@ const medicalSpecialties = [
     id: "podiatry",
     name: "Podiatry / Foot & Ankle",
     icon: Activity,
-    description: "Podiatric medicine, diabetic foot care, biomechanics, wound care",
+    description:
+      "Podiatric medicine, diabetic foot care, biomechanics, wound care",
     features: [
       "Comprehensive Foot Exams (Vascular, Neuro, Derm)",
       "Diabetic Foot Care Management",
@@ -540,7 +560,8 @@ const medicalSpecialties = [
     id: "physical-therapy",
     name: "Physical Therapy (PT)",
     icon: Activity,
-    description: "Musculoskeletal rehabilitation, orthopedic therapy, sports medicine",
+    description:
+      "Musculoskeletal rehabilitation, orthopedic therapy, sports medicine",
     features: [
       "Initial Evaluations & Re-evals",
       "ROM/Strength Testing",
@@ -560,7 +581,8 @@ const medicalSpecialties = [
     id: "occupational-therapy",
     name: "Occupational Therapy (OT)",
     icon: Heart,
-    description: "ADL training, hand therapy, cognitive rehabilitation, pediatric OT",
+    description:
+      "ADL training, hand therapy, cognitive rehabilitation, pediatric OT",
     features: [
       "ADL/IADL Assessments",
       "Cognitive Function Testing",
@@ -598,7 +620,8 @@ const medicalSpecialties = [
     id: "dme-orthotics",
     name: "DME & Orthotics/Prosthetics",
     icon: Package,
-    description: "Durable medical equipment, orthotic devices, prosthetic services",
+    description:
+      "Durable medical equipment, orthotic devices, prosthetic services",
     features: [
       "DME Order Management (Wheelchairs, Walkers, Hospital Beds)",
       "Parachute Health Integration (ePrescribe to 3,000+ Suppliers)",
@@ -634,29 +657,37 @@ const medicalSpecialties = [
       "State Registry Integration (Immunizations, Disease Reporting)",
     ],
   },
-]
+];
 
 export default function SubscriptionPage() {
-  const [features, setFeatures] = useState<SubscriptionFeature[]>(allFeatures)
-  const [currentPlan, setCurrentPlan] = useState("professional") // Initialize with professional plan
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false)
-  const [isAddOnOpen, setIsAddOnOpen] = useState(false)
-  const [selectedAddOn, setSelectedAddOn] = useState<SubscriptionFeature | AddonFeature | null>(null) // Updated type
-  const [activeTab, setActiveTab] = useState("overview")
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [emrType, setEmrType] = useState<"behavioral" | "primary">("behavioral")
-  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(["behavioral-health"])
-  const [isSavingSpecialties, setIsSavingSpecialties] = useState(false)
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
-  const [onboardingEmail, setOnboardingEmail] = useState("")
-  const [emailSent, setEmailSent] = useState(false)
-  const { toast } = useToast() // Initialize toast
+  const [features, setFeatures] = useState<SubscriptionFeature[]>(allFeatures);
+  const [currentPlan, setCurrentPlan] = useState("professional"); // Initialize with professional plan
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isAddOnOpen, setIsAddOnOpen] = useState(false);
+  const [selectedAddOn, setSelectedAddOn] = useState<
+    SubscriptionFeature | AddonFeature | null
+  >(null); // Updated type
+  const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [emrType, setEmrType] = useState<"behavioral" | "primary">(
+    "behavioral"
+  );
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([
+    "behavioral-health",
+  ]);
+  const [isSavingSpecialties, setIsSavingSpecialties] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [onboardingEmail, setOnboardingEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
+  const { toast } = useToast(); // Initialize toast
 
-  const [isPracticeOnboardingOpen, setIsPracticeOnboardingOpen] = useState(false)
+  const pathname = usePathname();
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isPracticeOnboardingOpen, setIsPracticeOnboardingOpen] =
+    useState(false);
   const [practiceFormData, setPracticeFormData] = useState({
-    practiceName: "",
-    npi: "",
+    name: "",
     dea: "",
     stateLicense: "",
     stateLicenseState: "",
@@ -670,246 +701,234 @@ export default function SubscriptionPage() {
     phone: "",
     email: "",
     specialties: [] as string[],
-    addons: [] as string[], // Added for add-ons selection
-  })
-
-  const pathname = usePathname()
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+    addons: [] as string[],
+  });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const adminStatus = localStorage.getItem("isSuperAdmin") === "true"
-      setIsSuperAdmin(adminStatus)
+      const adminStatus = localStorage.getItem("isSuperAdmin") === "true";
+      setIsSuperAdmin(adminStatus);
     }
-  }, [])
+  }, []);
 
   // Combine all available features for toggling logic
-  const allAvailableFeatures = [...allFeatures, ...advancedAddOnFeatures]
+  const allAvailableFeatures = [...allFeatures, ...advancedAddOnFeatures];
 
   useEffect(() => {
     const loadSpecialties = async () => {
       try {
         if (isSuperAdmin) {
-          const allSpecialtyIds = medicalSpecialties.map((s) => s.id)
-          setSelectedSpecialties(allSpecialtyIds)
+          const allSpecialtyIds = medicalSpecialties.map((s) => s.id);
+          setSelectedSpecialties(allSpecialtyIds);
           // Also enable all features for super admin testing
-          setFeatures((prev) => prev.map((f) => ({ ...f, enabled: true })))
-          return
+          setFeatures((prev) => prev.map((f) => ({ ...f, enabled: true })));
+          return;
         }
 
-        const response = await fetch("/api/specialty-config")
+        const response = await fetch("/api/specialty-config");
         if (response.ok) {
-          const data = await response.json()
+          const data = await response.json();
           if (data.specialties && data.specialties.length > 0) {
-            const enabledIds = data.specialties.map((s: any) => s.specialty_id)
-            setSelectedSpecialties(enabledIds)
+            const enabledIds = data.specialties.map((s: any) => s.specialty_id);
+            setSelectedSpecialties(enabledIds);
           }
         }
       } catch (error) {
-        console.error("[v0] Error loading specialties:", error)
+        console.error("[v0] Error loading specialties:", error);
       }
-    }
-    loadSpecialties()
-  }, [isSuperAdmin])
+    };
+    loadSpecialties();
+  }, [isSuperAdmin]);
 
   const generateOnboardingLink = () => {
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     // In production, this would include actual org_id from user's context
-    return `${baseUrl}/clinic-onboarding?ref=subscription`
-  }
+    return `${baseUrl}/clinic-onboarding?ref=subscription`;
+  };
 
   const copyOnboardingLink = async () => {
     try {
-      await navigator.clipboard.writeText(generateOnboardingLink())
-      setCopiedLink(true)
-      setTimeout(() => setCopiedLink(false), 2000)
+      await navigator.clipboard.writeText(generateOnboardingLink());
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     } catch (error) {
-      console.error("[v0] Failed to copy:", error)
+      console.error("[v0] Failed to copy:", error);
     }
-  }
+  };
 
   const sendOnboardingEmail = async () => {
-    if (!onboardingEmail) return
+    if (!onboardingEmail) return;
 
     try {
       // In production, this would call an API to send the email
-      setEmailSent(true)
+      setEmailSent(true);
       setTimeout(() => {
-        setEmailSent(false)
-        setOnboardingEmail("")
-        setIsOnboardingOpen(false)
-      }, 2000)
+        setEmailSent(false);
+        setOnboardingEmail("");
+        setIsOnboardingOpen(false);
+      }, 2000);
     } catch (error) {
-      console.error("[v0] Send onboarding email error:", error)
+      console.error("[v0] Send onboarding email error:", error);
     }
-  }
-
-  const handlePracticeOnboarding = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      // In production, this would call an API to create the organization
-      console.log("[v0] Practice onboarding data:", practiceFormData)
-
-      // Show success toast
-      toast({
-        title: "Practice Onboarded",
-        description: `${practiceFormData.practiceName} has been successfully added to the system.`,
-      })
-
-      // Reset form and close dialog
-      setPracticeFormData({
-        practiceName: "",
-        npi: "",
-        dea: "",
-        stateLicense: "",
-        stateLicenseState: "",
-        samhsa: "",
-        duns: "",
-        taxId: "",
-        address: "",
-        city: "",
-        state: "",
-        zip: "",
-        phone: "",
-        email: "",
-        specialties: [],
-        addons: [], // Reset addons
-      })
-      setIsPracticeOnboardingOpen(false)
-    } catch (error) {
-      console.error("[v0] Practice onboarding error:", error)
-      toast({
-        title: "Error",
-        description: "Failed to onboard practice. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
+  };
 
   const toggleFeature = (featureId: string) => {
     setFeatures((prev) =>
       prev.map((f) => {
         if (f.id === featureId) {
-          const tierOrder = { basic: 0, professional: 1, enterprise: 2 }
-          const currentTierLevel = tierOrder[currentPlan as keyof typeof tierOrder]
-          const featureTierLevel = tierOrder[f.tier]
+          const tierOrder = {
+            basic: 0,
+            professional: 1,
+            enterprise: 2,
+            Premium: 3,
+          };
+          const currentTierLevel =
+            tierOrder[currentPlan as keyof typeof tierOrder] ?? 0;
+          const featureTierLevel =
+            tierOrder[f.tier as keyof typeof tierOrder] ?? 0;
 
           if (featureTierLevel > currentTierLevel && !f.enabled) {
             // Find the feature in allAvailableFeatures to get its details
-            const featureDetails = allAvailableFeatures.find((feat) => feat.id === featureId)
-            setSelectedAddOn(featureDetails || f) // Use details if found, fallback to f
-            setIsAddOnOpen(true)
-            return f // Don't change enabled state here, it's handled by the dialog
+            const featureDetails = allAvailableFeatures.find(
+              (feat) => feat.id === featureId
+            );
+            setSelectedAddOn(featureDetails || f); // Use details if found, fallback to f
+            setIsAddOnOpen(true);
+            return f; // Don't change enabled state here, it's handled by the dialog
           }
 
-          return { ...f, enabled: !f.enabled }
+          return { ...f, enabled: !f.enabled };
         }
-        return f
-      }),
-    )
-  }
+        return f;
+      })
+    );
+  };
 
   // Function to handle enabling add-on features from the dialog
   const enableAddOnFeature = (featureId: string) => {
-    setFeatures((prev) => prev.map((f) => (f.id === featureId ? { ...f, enabled: true } : f)))
+    setFeatures((prev) =>
+      prev.map((f) => (f.id === featureId ? { ...f, enabled: true } : f))
+    );
     // Also update the selectedAddOn state to reflect the enabled feature if it's an add-on
-    setSelectedAddOn((prev) => (prev && prev.id === featureId ? { ...prev, enabled: true } : prev))
-  }
+    setSelectedAddOn((prev) =>
+      prev && prev.id === featureId ? { ...prev, enabled: true } : prev
+    );
+  };
 
-  const enabledFeatures = features.filter((f) => f.enabled)
-  const disabledFeatures = features.filter((f) => !f.enabled && f.monthlyPrice > 0) // Only show paid add-ons as disabled
-  const monthlyAddOns = enabledFeatures.reduce((sum, f) => sum + f.monthlyPrice, 0)
-  const basePlanPrice = subscriptionPlans.find((p) => p.id === currentPlan)?.price || 0
-  const totalMonthly = basePlanPrice + monthlyAddOns
+  const enabledFeatures = features.filter((f) => f.enabled);
+  const disabledFeatures = features.filter(
+    (f) => !f.enabled && f.monthlyPrice > 0
+  ); // Only show paid add-ons as disabled
+  const monthlyAddOns = enabledFeatures.reduce(
+    (sum, f) => sum + f.monthlyPrice,
+    0
+  );
+  const basePlanPrice =
+    subscriptionPlans.find((p) => p.id === currentPlan)?.price || 0;
+  const totalMonthly = basePlanPrice + monthlyAddOns;
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case "clinical":
-        return <Pill className="h-4 w-4" />
+        return <Pill className="h-4 w-4" />;
       case "billing":
-        return <CreditCard className="h-4 w-4" />
+        return <CreditCard className="h-4 w-4" />;
       case "integration":
-        return <Zap className="h-4 w-4" />
+        return <Zap className="h-4 w-4" />;
       case "operations":
-        return <Settings className="h-4 w-4" />
+        return <Settings className="h-4 w-4" />;
       case "advanced":
-        return <Sparkles className="h-4 w-4" />
+        return <Sparkles className="h-4 w-4" />;
       case "DEA Compliance": // Added case for DEA Compliance
-        return <QrCode className="h-4 w-4" />
+        return <QrCode className="h-4 w-4" />;
       default:
-        return <Package className="h-4 w-4" />
+        return <Package className="h-4 w-4" />;
     }
-  }
+  };
 
   const getTierBadge = (tier: string) => {
     switch (tier) {
       case "basic":
-        return <Badge variant="secondary">Basic</Badge>
+        return <Badge variant="secondary">Basic</Badge>;
       case "professional":
-        return <Badge style={{ backgroundColor: "#0891b2", color: "white" }}>Professional</Badge>
+        return (
+          <Badge style={{ backgroundColor: "#0891b2", color: "white" }}>
+            Professional
+          </Badge>
+        );
       case "enterprise":
-        return <Badge style={{ backgroundColor: "#7c3aed", color: "white" }}>Enterprise</Badge>
+        return (
+          <Badge style={{ backgroundColor: "#7c3aed", color: "white" }}>
+            Enterprise
+          </Badge>
+        );
       case "Premium": // Added case for Premium tier
-        return <Badge style={{ backgroundColor: "#f59e0b", color: "white" }}>Premium</Badge>
+        return (
+          <Badge style={{ backgroundColor: "#f59e0b", color: "white" }}>
+            Premium
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">{tier}</Badge>
+        return <Badge variant="outline">{tier}</Badge>;
     }
-  }
+  };
 
   const toggleSpecialty = async (specialtyId: string) => {
     const newSelection = selectedSpecialties.includes(specialtyId)
       ? selectedSpecialties.filter((id) => id !== specialtyId)
-      : [...selectedSpecialties, specialtyId]
+      : [...selectedSpecialties, specialtyId];
 
     // Don't allow removing the last specialty
-    if (newSelection.length === 0) return
+    if (newSelection.length === 0) return;
 
-    setSelectedSpecialties(newSelection)
+    setSelectedSpecialties(newSelection);
 
     // Save to database
-    setIsSavingSpecialties(true)
+    setIsSavingSpecialties(true);
     try {
       await fetch("/api/specialty-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ specialtyIds: newSelection }),
-      })
+      });
     } catch (error) {
-      console.error("[v0] Error saving specialties:", error)
+      console.error("[v0] Error saving specialties:", error);
     } finally {
-      setIsSavingSpecialties(false)
+      setIsSavingSpecialties(false);
     }
-  }
+  };
 
   const handleSelectPlan = async (planId: string) => {
-    if (planId === currentPlan) return
+    if (planId === currentPlan) return;
 
     try {
       const response = await fetch("/api/subscription/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId }),
-      })
+      });
 
       if (response.ok) {
-        setCurrentPlan(planId)
+        setCurrentPlan(planId);
         toast({
           title: "Plan Updated",
-          description: `Successfully switched to ${subscriptionPlans.find((p) => p.id === planId)?.name} plan`,
-        })
-        setIsUpgradeOpen(false)
+          description: `Successfully switched to ${
+            subscriptionPlans.find((p) => p.id === planId)?.name
+          } plan`,
+        });
+        setIsUpgradeOpen(false);
       } else {
-        throw new Error("Failed to update plan")
+        throw new Error("Failed to update plan");
       }
     } catch (error) {
-      console.error("[v0] Error updating plan:", error)
+      console.error("[v0] Error updating plan:", error);
       toast({
         title: "Error",
         description: "Failed to update subscription plan. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
@@ -927,7 +946,10 @@ export default function SubscriptionPage() {
         <DashboardHeader />
 
         <div className="lg:hidden fixed top-4 left-4 z-50">
-          <Button variant="outline" size="icon" onClick={() => setSidebarOpen(true)}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
         </div>
@@ -935,7 +957,9 @@ export default function SubscriptionPage() {
         <main className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold" style={{ color: "#1e293b" }}>
+              <h1
+                className="text-2xl md:text-3xl font-bold"
+                style={{ color: "#1e293b" }}>
                 Subscription Management
               </h1>
               <p className="text-sm md:text-base" style={{ color: "#64748b" }}>
@@ -944,18 +968,27 @@ export default function SubscriptionPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               {isSuperAdmin && (
-                <Dialog open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen}>
+                <Dialog
+                  open={isOnboardingOpen}
+                  onOpenChange={setIsOnboardingOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full sm:w-auto bg-transparent">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto bg-transparent">
                       <Send className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Send Onboarding Link</span>
+                      <span className="hidden sm:inline">
+                        Send Onboarding Link
+                      </span>
                       <span className="sm:hidden">Onboard</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>New Clinic Onboarding</DialogTitle>
-                      <DialogDescription>Share this link with new clinics to begin their EMR setup</DialogDescription>
+                      <DialogDescription>
+                        Share this link with new clinics to begin their EMR
+                        setup
+                      </DialogDescription>
                     </DialogHeader>
                     <Tabs defaultValue="link" className="mt-4">
                       <TabsList className="grid w-full grid-cols-2">
@@ -965,7 +998,9 @@ export default function SubscriptionPage() {
 
                       <TabsContent value="link" className="space-y-4 mt-4">
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Onboarding Link</label>
+                          <label className="text-sm font-medium">
+                            Onboarding Link
+                          </label>
                           <div className="flex gap-2">
                             <input
                               readOnly
@@ -973,18 +1008,25 @@ export default function SubscriptionPage() {
                               className="flex-1 px-3 py-2 text-xs border rounded-md bg-muted"
                             />
                             <Button size="sm" onClick={copyOnboardingLink}>
-                              {copiedLink ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                              {copiedLink ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            This link will guide new clinics through the complete setup process
+                            This link will guide new clinics through the
+                            complete setup process
                           </p>
                         </div>
                       </TabsContent>
 
                       <TabsContent value="email" className="space-y-4 mt-4">
                         <div className="space-y-2">
-                          <label className="text-sm font-medium">Recipient Email</label>
+                          <label className="text-sm font-medium">
+                            Recipient Email
+                          </label>
                           <input
                             type="email"
                             placeholder="admin@newclinic.com"
@@ -995,16 +1037,18 @@ export default function SubscriptionPage() {
                         </div>
                         <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                           <p className="text-sm font-medium">Email Preview:</p>
-                          <p className="text-xs text-muted-foreground">Subject: Your MASE EMR Setup Link</p>
                           <p className="text-xs text-muted-foreground">
-                            Welcome! Click the link below to begin setting up your clinic on MASE EMR...
+                            Subject: Your MASE EMR Setup Link
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Welcome! Click the link below to begin setting up
+                            your clinic on MASE EMR...
                           </p>
                         </div>
                         <Button
                           className="w-full"
                           onClick={sendOnboardingEmail}
-                          disabled={!onboardingEmail || emailSent}
-                        >
+                          disabled={!onboardingEmail || emailSent}>
                           {emailSent ? (
                             <>
                               <Check className="h-4 w-4 mr-2" />
@@ -1022,26 +1066,18 @@ export default function SubscriptionPage() {
                   </DialogContent>
                 </Dialog>
               )}
-
-              {/* Add Practice Onboarding button next to Send Onboarding Link */}
               <Button
                 variant="outline"
-                className="w-full sm:w-auto bg-transparent"
-                onClick={() => setIsPracticeOnboardingOpen(true)}
-              >
-                <Building2 className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Onboard New Practice</span>
-                <span className="sm:hidden">New Practice</span>
-              </Button>
-
-              <Button variant="outline" className="w-full sm:w-auto bg-transparent">
+                className="w-full sm:w-auto bg-transparent">
                 <Download className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Export Usage Report</span>
                 <span className="sm:hidden">Export</span>
               </Button>
               <Dialog open={isUpgradeOpen} onOpenChange={setIsUpgradeOpen}>
                 <DialogTrigger asChild>
-                  <Button style={{ backgroundColor: "#7c3aed" }} className="w-full sm:w-auto">
+                  <Button
+                    style={{ backgroundColor: "#7c3aed" }}
+                    className="w-full sm:w-auto">
                     <Crown className="h-4 w-4 mr-2" />
                     Upgrade Plan
                   </Button>
@@ -1049,20 +1085,29 @@ export default function SubscriptionPage() {
                 <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Choose Your Plan</DialogTitle>
-                    <DialogDescription>{"Select the plan that best fits your clinic's needs"}</DialogDescription>
+                    <DialogDescription>
+                      {"Select the plan that best fits your clinic's needs"}
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
                     {subscriptionPlans.map((plan) => (
                       <Card
                         key={plan.id}
-                        className={`relative ${plan.recommended ? "ring-2" : ""}`}
-                        style={plan.recommended ? { borderColor: "#0891b2" } : undefined}
-                      >
+                        className={`relative ${
+                          plan.recommended ? "ring-2" : ""
+                        }`}
+                        style={
+                          plan.recommended
+                            ? { borderColor: "#0891b2" }
+                            : undefined
+                        }>
                         {plan.recommended && (
                           <div
                             className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-medium rounded-full"
-                            style={{ backgroundColor: "#0891b2", color: "white" }}
-                          >
+                            style={{
+                              backgroundColor: "#0891b2",
+                              color: "white",
+                            }}>
                             Recommended
                           </div>
                         )}
@@ -1070,14 +1115,18 @@ export default function SubscriptionPage() {
                           <CardTitle className="flex items-center justify-between">
                             {plan.name}
                             {currentPlan === plan.id && (
-                              <Badge variant="outline" style={{ color: "#16a34a" }}>
+                              <Badge
+                                variant="outline"
+                                style={{ color: "#16a34a" }}>
                                 Current
                               </Badge>
                             )}
                           </CardTitle>
                           <div className="text-3xl font-bold">
                             ${plan.price}
-                            <span className="text-sm font-normal" style={{ color: "#64748b" }}>
+                            <span
+                              className="text-sm font-normal"
+                              style={{ color: "#64748b" }}>
                               /month
                             </span>
                           </div>
@@ -1085,19 +1134,27 @@ export default function SubscriptionPage() {
                         <CardContent>
                           <ul className="space-y-2">
                             {plan.features.map((feature, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-sm">
-                                <Check className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: "#16a34a" }} />
+                              <li
+                                key={idx}
+                                className="flex items-start gap-2 text-sm">
+                                <Check
+                                  className="h-4 w-4 mt-0.5 flex-shrink-0"
+                                  style={{ color: "#16a34a" }}
+                                />
                                 {feature}
                               </li>
                             ))}
                           </ul>
                           <Button
                             className="w-full mt-4"
-                            variant={currentPlan === plan.id ? "outline" : "default"}
+                            variant={
+                              currentPlan === plan.id ? "outline" : "default"
+                            }
                             disabled={currentPlan === plan.id}
-                            onClick={() => handleSelectPlan(plan.id)}
-                          >
-                            {currentPlan === plan.id ? "Current Plan" : "Select Plan"}
+                            onClick={() => handleSelectPlan(plan.id)}>
+                            {currentPlan === plan.id
+                              ? "Current Plan"
+                              : "Select Plan"}
                           </Button>
                         </CardContent>
                       </Card>
@@ -1115,44 +1172,55 @@ export default function SubscriptionPage() {
                 EMR Specialty Configuration
               </CardTitle>
               <CardDescription>
-                Select your medical specialties to customize available features, workflows, and templates
+                Select your medical specialties to customize available features,
+                workflows, and templates
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Quick Toggle for Legacy Support */}
               <div
                 className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg"
-                style={{ backgroundColor: "#f0f9ff" }}
-              >
+                style={{ backgroundColor: "#f0f9ff" }}>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-lg">Quick Setup</h3>
-                    <Badge variant={emrType === "behavioral" ? "default" : "secondary"}>
-                      {emrType === "behavioral" ? "Behavioral Health" : "Primary Care"}
+                    <Badge
+                      variant={
+                        emrType === "behavioral" ? "default" : "secondary"
+                      }>
+                      {emrType === "behavioral"
+                        ? "Behavioral Health"
+                        : "Primary Care"}
                     </Badge>
                   </div>
                   <p className="text-sm" style={{ color: "#64748b" }}>
-                    Quick toggle between behavioral health and primary care, or customize with multiple specialties
-                    below
+                    Quick toggle between behavioral health and primary care, or
+                    customize with multiple specialties below
                   </p>
                 </div>
                 <div className="flex items-center gap-4 flex-shrink-0">
                   <div className="flex flex-col items-end">
-                    <span className="text-xs font-medium" style={{ color: "#64748b" }}>
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: "#64748b" }}>
                       Behavioral Health
                     </span>
                   </div>
                   <Switch
                     checked={emrType === "primary"}
                     onCheckedChange={(checked) => {
-                      setEmrType(checked ? "primary" : "behavioral")
+                      setEmrType(checked ? "primary" : "behavioral");
                       // Auto-select the corresponding specialty
-                      setSelectedSpecialties(checked ? ["primary-care"] : ["behavioral-health"])
+                      setSelectedSpecialties(
+                        checked ? ["primary-care"] : ["behavioral-health"]
+                      );
                     }}
                     className="data-[state=checked]:bg-cyan-600"
                   />
                   <div className="flex flex-col items-start">
-                    <span className="text-xs font-medium" style={{ color: "#64748b" }}>
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: "#64748b" }}>
                       Primary Care
                     </span>
                   </div>
@@ -1163,12 +1231,16 @@ export default function SubscriptionPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">Active Specialties</h4>
-                  <Badge variant="outline">{selectedSpecialties.length} selected</Badge>
+                  <Badge variant="outline">
+                    {selectedSpecialties.length} selected
+                  </Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {medicalSpecialties.map((specialty) => {
-                    const Icon = specialty.icon
-                    const isSelected = selectedSpecialties.includes(specialty.id)
+                    const Icon = specialty.icon;
+                    const isSelected = selectedSpecialties.includes(
+                      specialty.id
+                    );
 
                     return (
                       <Card
@@ -1176,45 +1248,66 @@ export default function SubscriptionPage() {
                         className={`cursor-pointer transition-all hover:shadow-md ${
                           isSelected ? "ring-2 ring-cyan-600 bg-cyan-50" : ""
                         }`}
-                        onClick={() => toggleSpecialty(specialty.id)}
-                      >
+                        onClick={() => toggleSpecialty(specialty.id)}>
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
                               <div
-                                className={`p-2 rounded-lg ${isSelected ? "bg-cyan-600" : "bg-gray-100"}`}
-                                style={isSelected ? { color: "white" } : { color: "#64748b" }}
-                              >
+                                className={`p-2 rounded-lg ${
+                                  isSelected ? "bg-cyan-600" : "bg-gray-100"
+                                }`}
+                                style={
+                                  isSelected
+                                    ? { color: "white" }
+                                    : { color: "#64748b" }
+                                }>
                                 <Icon className="h-5 w-5" />
                               </div>
                               <div>
-                                <CardTitle className="text-base">{specialty.name}</CardTitle>
+                                <CardTitle className="text-base">
+                                  {specialty.name}
+                                </CardTitle>
                               </div>
                             </div>
-                            {isSelected && <Check className="h-5 w-5 text-cyan-600" />}
+                            {isSelected && (
+                              <Check className="h-5 w-5 text-cyan-600" />
+                            )}
                           </div>
-                          <CardDescription className="text-xs">{specialty.description}</CardDescription>
+                          <CardDescription className="text-xs">
+                            {specialty.description}
+                          </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-0">
                           <div className="space-y-1">
-                            {specialty.features.slice(0, 4).map((feature, idx) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs" style={{ color: "#64748b" }}>
+                            {specialty.features
+                              .slice(0, 4)
+                              .map((feature, idx) => (
                                 <div
-                                  className="w-1 h-1 rounded-full"
-                                  style={{ backgroundColor: isSelected ? "#06b6d4" : "#cbd5e1" }}
-                                />
-                                {feature}
-                              </div>
-                            ))}
+                                  key={idx}
+                                  className="flex items-center gap-2 text-xs"
+                                  style={{ color: "#64748b" }}>
+                                  <div
+                                    className="w-1 h-1 rounded-full"
+                                    style={{
+                                      backgroundColor: isSelected
+                                        ? "#06b6d4"
+                                        : "#cbd5e1",
+                                    }}
+                                  />
+                                  {feature}
+                                </div>
+                              ))}
                             {specialty.features.length > 4 && (
-                              <div className="text-xs" style={{ color: "#94a3b8" }}>
+                              <div
+                                className="text-xs"
+                                style={{ color: "#94a3b8" }}>
                                 +{specialty.features.length - 4} more features
                               </div>
                             )}
                           </div>
                         </CardContent>
                       </Card>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -1228,19 +1321,24 @@ export default function SubscriptionPage() {
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     {selectedSpecialties.map((specId) => {
-                      const specialty = medicalSpecialties.find((s) => s.id === specId)
-                      if (!specialty) return null
-                      const Icon = specialty.icon
+                      const specialty = medicalSpecialties.find(
+                        (s) => s.id === specId
+                      );
+                      if (!specialty) return null;
+                      const Icon = specialty.icon;
                       return (
-                        <div key={specId} className="flex items-center gap-2 p-2 rounded bg-white text-sm font-medium">
+                        <div
+                          key={specId}
+                          className="flex items-center gap-2 p-2 rounded bg-white text-sm font-medium">
                           <Icon className="h-4 w-4 text-cyan-600" />
                           {specialty.name.split(" / ")[0]}
                         </div>
-                      )
+                      );
                     })}
                   </div>
                   <p className="mt-3 text-xs" style={{ color: "#64748b" }}>
-                    All specialty-specific templates, workflows, and features are now enabled in your EMR.
+                    All specialty-specific templates, workflows, and features
+                    are now enabled in your EMR.
                   </p>
                 </div>
               )}
@@ -1253,12 +1351,19 @@ export default function SubscriptionPage() {
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                    <p
+                      className="text-xs md:text-sm"
+                      style={{ color: "#64748b" }}>
                       Current Plan
                     </p>
-                    <p className="text-lg md:text-2xl font-bold capitalize">{currentPlan}</p>
+                    <p className="text-lg md:text-2xl font-bold capitalize">
+                      {currentPlan}
+                    </p>
                   </div>
-                  <Crown className="h-6 w-6 md:h-8 md:w-8" style={{ color: "#0891b2" }} />
+                  <Crown
+                    className="h-6 w-6 md:h-8 md:w-8"
+                    style={{ color: "#0891b2" }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1266,12 +1371,19 @@ export default function SubscriptionPage() {
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                    <p
+                      className="text-xs md:text-sm"
+                      style={{ color: "#64748b" }}>
                       Monthly Cost
                     </p>
-                    <p className="text-lg md:text-2xl font-bold">${totalMonthly}</p>
+                    <p className="text-lg md:text-2xl font-bold">
+                      ${totalMonthly}
+                    </p>
                   </div>
-                  <CreditCard className="h-6 w-6 md:h-8 md:w-8" style={{ color: "#16a34a" }} />
+                  <CreditCard
+                    className="h-6 w-6 md:h-8 md:w-8"
+                    style={{ color: "#16a34a" }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1279,12 +1391,19 @@ export default function SubscriptionPage() {
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                    <p
+                      className="text-xs md:text-sm"
+                      style={{ color: "#64748b" }}>
                       Active Features
                     </p>
-                    <p className="text-lg md:text-2xl font-bold">{enabledFeatures.length}</p>
+                    <p className="text-lg md:text-2xl font-bold">
+                      {enabledFeatures.length}
+                    </p>
                   </div>
-                  <Check className="h-6 w-6 md:h-8 md:w-8" style={{ color: "#16a34a" }} />
+                  <Check
+                    className="h-6 w-6 md:h-8 md:w-8"
+                    style={{ color: "#16a34a" }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1292,12 +1411,19 @@ export default function SubscriptionPage() {
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                    <p
+                      className="text-xs md:text-sm"
+                      style={{ color: "#64748b" }}>
                       Add-Ons Cost
                     </p>
-                    <p className="text-lg md:text-2xl font-bold">${monthlyAddOns}</p>
+                    <p className="text-lg md:text-2xl font-bold">
+                      ${monthlyAddOns}
+                    </p>
                   </div>
-                  <Package className="h-6 w-6 md:h-8 md:w-8" style={{ color: "#f59e0b" }} />
+                  <Package
+                    className="h-6 w-6 md:h-8 md:w-8"
+                    style={{ color: "#f59e0b" }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1324,7 +1450,9 @@ export default function SubscriptionPage() {
                 <TabsTrigger value="advanced" className="text-xs md:text-sm">
                   Advanced
                 </TabsTrigger>
-                <TabsTrigger value="DEA Compliance" className="text-xs md:text-sm">
+                <TabsTrigger
+                  value="DEA Compliance"
+                  className="text-xs md:text-sm">
                   DEA Compliance
                 </TabsTrigger>
                 <TabsTrigger value="usage" className="text-xs md:text-sm">
@@ -1339,7 +1467,10 @@ export default function SubscriptionPage() {
                 <Card>
                   <CardHeader className="pb-2 md:pb-4">
                     <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                      <Check className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#16a34a" }} />
+                      <Check
+                        className="h-4 w-4 md:h-5 md:w-5"
+                        style={{ color: "#16a34a" }}
+                      />
                       Enabled Features ({enabledFeatures.length})
                     </CardTitle>
                     <CardDescription className="text-xs md:text-sm">
@@ -1352,27 +1483,35 @@ export default function SubscriptionPage() {
                         <div
                           key={feature.id}
                           className="flex items-center justify-between p-2 md:p-3 rounded-lg"
-                          style={{ backgroundColor: "#f0fdf4" }}
-                        >
+                          style={{ backgroundColor: "#f0fdf4" }}>
                           <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                             <feature.icon
                               className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0"
                               style={{ color: "#16a34a" }}
                             />
                             <div className="min-w-0">
-                              <p className="font-medium text-sm md:text-base truncate">{feature.name}</p>
-                              <p className="text-xs hidden sm:block" style={{ color: "#64748b" }}>
+                              <p className="font-medium text-sm md:text-base truncate">
+                                {feature.name}
+                              </p>
+                              <p
+                                className="text-xs hidden sm:block"
+                                style={{ color: "#64748b" }}>
                                 {feature.description}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {feature.monthlyPrice > 0 && (
-                              <span className="text-xs md:text-sm hidden sm:inline" style={{ color: "#64748b" }}>
+                              <span
+                                className="text-xs md:text-sm hidden sm:inline"
+                                style={{ color: "#64748b" }}>
                                 +${feature.monthlyPrice}/mo
                               </span>
                             )}
-                            <Switch checked={feature.enabled} onCheckedChange={() => toggleFeature(feature.id)} />
+                            <Switch
+                              checked={feature.enabled}
+                              onCheckedChange={() => toggleFeature(feature.id)}
+                            />
                           </div>
                         </div>
                       ))}
@@ -1384,10 +1523,15 @@ export default function SubscriptionPage() {
                 <Card>
                   <CardHeader className="pb-2 md:pb-4">
                     <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                      <Package className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#64748b" }} />
+                      <Package
+                        className="h-4 w-4 md:h-5 md:w-5"
+                        style={{ color: "#64748b" }}
+                      />
                       Available Add-Ons ({disabledFeatures.length})
                     </CardTitle>
-                    <CardDescription className="text-xs md:text-sm">Additional features you can enable</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">
+                      Additional features you can enable
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 md:space-y-3 max-h-72 md:max-h-96 overflow-y-auto">
@@ -1395,8 +1539,7 @@ export default function SubscriptionPage() {
                         <div
                           key={feature.id}
                           className="flex items-center justify-between p-2 md:p-3 rounded-lg border"
-                          style={{ borderColor: "#e2e8f0" }}
-                        >
+                          style={{ borderColor: "#e2e8f0" }}>
                           <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                             <feature.icon
                               className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0"
@@ -1404,24 +1547,31 @@ export default function SubscriptionPage() {
                             />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1 md:gap-2 flex-wrap">
-                                <p className="font-medium text-sm md:text-base">{feature.name}</p>
-                                <span className="hidden sm:inline">{getTierBadge(feature.tier)}</span>
+                                <p className="font-medium text-sm md:text-base">
+                                  {feature.name}
+                                </p>
+                                <span className="hidden sm:inline">
+                                  {getTierBadge(feature.tier)}
+                                </span>
                               </div>
-                              <p className="text-xs hidden sm:block" style={{ color: "#64748b" }}>
+                              <p
+                                className="text-xs hidden sm:block"
+                                style={{ color: "#64748b" }}>
                                 {feature.description}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs md:text-sm font-medium" style={{ color: "#0891b2" }}>
+                            <span
+                              className="text-xs md:text-sm font-medium"
+                              style={{ color: "#0891b2" }}>
                               +${feature.monthlyPrice}
                             </span>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => toggleFeature(feature.id)}
-                              className="text-xs md:text-sm"
-                            >
+                              className="text-xs md:text-sm">
                               Enable
                             </Button>
                           </div>
@@ -1434,8 +1584,17 @@ export default function SubscriptionPage() {
             </TabsContent>
 
             {/* Category-specific tabs */}
-            {["clinical", "billing", "integration", "operations", "advanced"].map((category) => (
-              <TabsContent key={category} value={category} className="space-y-4">
+            {[
+              "clinical",
+              "billing",
+              "integration",
+              "operations",
+              "advanced",
+            ].map((category) => (
+              <TabsContent
+                key={category}
+                value={category}
+                className="space-y-4">
                 <Card>
                   <CardHeader className="pb-2 md:pb-4">
                     <CardTitle className="flex items-center gap-2 capitalize text-base md:text-lg">
@@ -1455,41 +1614,65 @@ export default function SubscriptionPage() {
                             key={feature.id}
                             className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 rounded-lg border gap-3"
                             style={{
-                              borderColor: feature.enabled ? "#86efac" : "#e2e8f0",
-                              backgroundColor: feature.enabled ? "#f0fdf4" : "#ffffff",
-                            }}
-                          >
+                              borderColor: feature.enabled
+                                ? "#86efac"
+                                : "#e2e8f0",
+                              backgroundColor: feature.enabled
+                                ? "#f0fdf4"
+                                : "#ffffff",
+                            }}>
                             <div className="flex items-start sm:items-center gap-3 md:gap-4">
                               <div
                                 className="p-2 rounded-lg flex-shrink-0"
-                                style={{ backgroundColor: feature.enabled ? "#dcfce7" : "#f1f5f9" }}
-                              >
+                                style={{
+                                  backgroundColor: feature.enabled
+                                    ? "#dcfce7"
+                                    : "#f1f5f9",
+                                }}>
                                 <feature.icon
                                   className="h-5 w-5 md:h-6 md:w-6"
-                                  style={{ color: feature.enabled ? "#16a34a" : "#64748b" }}
+                                  style={{
+                                    color: feature.enabled
+                                      ? "#16a34a"
+                                      : "#64748b",
+                                  }}
                                 />
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-semibold text-sm md:text-base">{feature.name}</p>
+                                  <p className="font-semibold text-sm md:text-base">
+                                    {feature.name}
+                                  </p>
                                   {getTierBadge(feature.tier)}
                                 </div>
-                                <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                                <p
+                                  className="text-xs md:text-sm"
+                                  style={{ color: "#64748b" }}>
                                   {feature.description}
                                 </p>
                                 {feature.usageLimit && (
                                   <div className="mt-2">
                                     <div className="flex justify-between text-xs mb-1">
                                       <span>
-                                        Usage: {feature.currentUsage?.toLocaleString()} /{" "}
-                                        {feature.usageLimit.toLocaleString()}
+                                        Usage:{" "}
+                                        {feature.currentUsage?.toLocaleString()}{" "}
+                                        / {feature.usageLimit.toLocaleString()}
                                       </span>
                                       <span>
-                                        {Math.round(((feature.currentUsage || 0) / feature.usageLimit) * 100)}%
+                                        {Math.round(
+                                          ((feature.currentUsage || 0) /
+                                            feature.usageLimit) *
+                                            100
+                                        )}
+                                        %
                                       </span>
                                     </div>
                                     <Progress
-                                      value={((feature.currentUsage || 0) / feature.usageLimit) * 100}
+                                      value={
+                                        ((feature.currentUsage || 0) /
+                                          feature.usageLimit) *
+                                        100
+                                      }
                                       className="h-2"
                                     />
                                   </div>
@@ -1499,14 +1682,23 @@ export default function SubscriptionPage() {
                             <div className="flex items-center justify-between sm:justify-end gap-4 pl-11 sm:pl-0">
                               <div className="text-left sm:text-right">
                                 {feature.monthlyPrice > 0 ? (
-                                  <p className="font-semibold text-sm md:text-base">${feature.monthlyPrice}/mo</p>
+                                  <p className="font-semibold text-sm md:text-base">
+                                    ${feature.monthlyPrice}/mo
+                                  </p>
                                 ) : (
-                                  <p className="text-xs md:text-sm" style={{ color: "#16a34a" }}>
+                                  <p
+                                    className="text-xs md:text-sm"
+                                    style={{ color: "#16a34a" }}>
                                     Included
                                   </p>
                                 )}
                               </div>
-                              <Switch checked={feature.enabled} onCheckedChange={() => toggleFeature(feature.id)} />
+                              <Switch
+                                checked={feature.enabled}
+                                onCheckedChange={() =>
+                                  toggleFeature(feature.id)
+                                }
+                              />
                             </div>
                           </div>
                         ))}
@@ -1537,26 +1729,40 @@ export default function SubscriptionPage() {
                           key={feature.id}
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 rounded-lg border gap-3"
                           style={{
-                            borderColor: feature.enabled ? "#86efac" : "#e2e8f0",
-                            backgroundColor: feature.enabled ? "#f0fdf4" : "#ffffff",
-                          }}
-                        >
+                            borderColor: feature.enabled
+                              ? "#86efac"
+                              : "#e2e8f0",
+                            backgroundColor: feature.enabled
+                              ? "#f0fdf4"
+                              : "#ffffff",
+                          }}>
                           <div className="flex items-start sm:items-center gap-3 md:gap-4">
                             <div
                               className="p-2 rounded-lg flex-shrink-0"
-                              style={{ backgroundColor: feature.enabled ? "#dcfce7" : "#f1f5f9" }}
-                            >
+                              style={{
+                                backgroundColor: feature.enabled
+                                  ? "#dcfce7"
+                                  : "#f1f5f9",
+                              }}>
                               <feature.icon
                                 className="h-5 w-5 md:h-6 md:w-6"
-                                style={{ color: feature.enabled ? "#16a34a" : "#64748b" }}
+                                style={{
+                                  color: feature.enabled
+                                    ? "#16a34a"
+                                    : "#64748b",
+                                }}
                               />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-semibold text-sm md:text-base">{feature.name}</p>
+                                <p className="font-semibold text-sm md:text-base">
+                                  {feature.name}
+                                </p>
                                 {getTierBadge(feature.tier)}
                               </div>
-                              <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                              <p
+                                className="text-xs md:text-sm"
+                                style={{ color: "#64748b" }}>
                                 {feature.description}
                               </p>
                             </div>
@@ -1564,14 +1770,21 @@ export default function SubscriptionPage() {
                           <div className="flex items-center justify-between sm:justify-end gap-4 pl-11 sm:pl-0">
                             <div className="text-left sm:text-right">
                               {feature.monthlyPrice > 0 ? (
-                                <p className="font-semibold text-sm md:text-base">${feature.monthlyPrice}/mo</p>
+                                <p className="font-semibold text-sm md:text-base">
+                                  ${feature.monthlyPrice}/mo
+                                </p>
                               ) : (
-                                <p className="text-xs md:text-sm" style={{ color: "#16a34a" }}>
+                                <p
+                                  className="text-xs md:text-sm"
+                                  style={{ color: "#16a34a" }}>
                                   Included
                                 </p>
                               )}
                             </div>
-                            <Switch checked={feature.enabled} onCheckedChange={() => toggleFeature(feature.id)} />
+                            <Switch
+                              checked={feature.enabled}
+                              onCheckedChange={() => toggleFeature(feature.id)}
+                            />
                           </div>
                         </div>
                       ))}
@@ -1583,7 +1796,9 @@ export default function SubscriptionPage() {
             <TabsContent value="usage" className="space-y-4">
               <Card>
                 <CardHeader className="pb-2 md:pb-4">
-                  <CardTitle className="text-base md:text-lg">Usage & Limits</CardTitle>
+                  <CardTitle className="text-base md:text-lg">
+                    Usage & Limits
+                  </CardTitle>
                   <CardDescription className="text-xs md:text-sm">
                     Monitor your feature usage and limits
                   </CardDescription>
@@ -1596,24 +1811,44 @@ export default function SubscriptionPage() {
                         <div key={feature.id} className="space-y-2">
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div className="flex items-center gap-2">
-                              <feature.icon className="h-4 w-4 md:h-5 md:w-5" style={{ color: "#64748b" }} />
-                              <span className="font-medium text-sm md:text-base">{feature.name}</span>
+                              <feature.icon
+                                className="h-4 w-4 md:h-5 md:w-5"
+                                style={{ color: "#64748b" }}
+                              />
+                              <span className="font-medium text-sm md:text-base">
+                                {feature.name}
+                              </span>
                               {!feature.enabled && (
-                                <Badge variant="outline" style={{ color: "#dc2626" }} className="text-xs">
+                                <Badge
+                                  variant="outline"
+                                  style={{ color: "#dc2626" }}
+                                  className="text-xs">
                                   Disabled
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs md:text-sm" style={{ color: "#64748b" }}>
-                              {feature.currentUsage?.toLocaleString()} / {feature.usageLimit?.toLocaleString()}
+                            <span
+                              className="text-xs md:text-sm"
+                              style={{ color: "#64748b" }}>
+                              {feature.currentUsage?.toLocaleString()} /{" "}
+                              {feature.usageLimit?.toLocaleString()}
                             </span>
                           </div>
                           <Progress
-                            value={((feature.currentUsage || 0) / (feature.usageLimit || 1)) * 100}
+                            value={
+                              ((feature.currentUsage || 0) /
+                                (feature.usageLimit || 1)) *
+                              100
+                            }
                             className="h-2 md:h-3"
                           />
-                          {((feature.currentUsage || 0) / (feature.usageLimit || 1)) * 100 > 80 && (
-                            <p className="text-xs flex items-center gap-1" style={{ color: "#f59e0b" }}>
+                          {((feature.currentUsage || 0) /
+                            (feature.usageLimit || 1)) *
+                            100 >
+                            80 && (
+                            <p
+                              className="text-xs flex items-center gap-1"
+                              style={{ color: "#f59e0b" }}>
                               <AlertTriangle className="h-3 w-3" />
                               Approaching limit - consider upgrading
                             </p>
@@ -1626,8 +1861,12 @@ export default function SubscriptionPage() {
 
               <Card>
                 <CardHeader className="pb-2 md:pb-4">
-                  <CardTitle className="text-base md:text-lg">Staff Users</CardTitle>
-                  <CardDescription className="text-xs md:text-sm">Active users on your account</CardDescription>
+                  <CardTitle className="text-base md:text-lg">
+                    Staff Users
+                  </CardTitle>
+                  <CardDescription className="text-xs md:text-sm">
+                    Active users on your account
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -1636,7 +1875,9 @@ export default function SubscriptionPage() {
                       <span>18 / 25</span>
                     </div>
                     <Progress value={72} className="h-2 md:h-3" />
-                    <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                    <p
+                      className="text-xs md:text-sm"
+                      style={{ color: "#64748b" }}>
                       Professional plan includes up to 25 staff users
                     </p>
                   </div>
@@ -1649,27 +1890,41 @@ export default function SubscriptionPage() {
           <Dialog open={isAddOnOpen} onOpenChange={setIsAddOnOpen}>
             <DialogContent className="max-w-[95vw] sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-base md:text-lg">Enable {selectedAddOn?.name}</DialogTitle>
-                <DialogDescription>This feature requires an upgrade or add-on purchase</DialogDescription>
+                <DialogTitle className="text-base md:text-lg">
+                  Enable {selectedAddOn?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  This feature requires an upgrade or add-on purchase
+                </DialogDescription>
               </DialogHeader>
               {selectedAddOn && (
                 <div className="py-4 space-y-4">
                   <div
                     className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg"
-                    style={{ backgroundColor: "#f1f5f9" }}
-                  >
-                    <selectedAddOn.icon className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0" style={{ color: "#0891b2" }} />
+                    style={{ backgroundColor: "#f1f5f9" }}>
+                    <selectedAddOn.icon
+                      className="h-6 w-6 md:h-8 md:w-8 flex-shrink-0"
+                      style={{ color: "#0891b2" }}
+                    />
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm md:text-base">{selectedAddOn.name}</p>
-                      <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                      <p className="font-semibold text-sm md:text-base">
+                        {selectedAddOn.name}
+                      </p>
+                      <p
+                        className="text-xs md:text-sm"
+                        style={{ color: "#64748b" }}>
                         {selectedAddOn.description}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 md:p-4 border rounded-lg">
                     <div>
-                      <p className="font-medium text-sm md:text-base">Required Tier</p>
-                      <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                      <p className="font-medium text-sm md:text-base">
+                        Required Tier
+                      </p>
+                      <p
+                        className="text-xs md:text-sm"
+                        style={{ color: "#64748b" }}>
                         Available in {selectedAddOn.tier} plan
                       </p>
                     </div>
@@ -1679,117 +1934,145 @@ export default function SubscriptionPage() {
                   {selectedAddOn.monthlyPrice > 0 && (
                     <div className="flex items-center justify-between p-3 md:p-4 border rounded-lg">
                       <div>
-                        <p className="font-medium text-sm md:text-base">Add-On Price</p>
-                        <p className="text-xs md:text-sm" style={{ color: "#64748b" }}>
+                        <p className="font-medium text-sm md:text-base">
+                          Add-On Price
+                        </p>
+                        <p
+                          className="text-xs md:text-sm"
+                          style={{ color: "#64748b" }}>
                           Monthly recurring charge
                         </p>
                       </div>
-                      <p className="text-lg md:text-xl font-bold">${selectedAddOn.monthlyPrice}/mo</p>
+                      <p className="text-lg md:text-xl font-bold">
+                        ${selectedAddOn.monthlyPrice}/mo
+                      </p>
                     </div>
                   )}
                 </div>
               )}
               <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setIsAddOnOpen(false)} className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddOnOpen(false)}
+                  className="w-full sm:w-auto">
                   Cancel
                 </Button>
                 <Button
                   className="w-full sm:w-auto"
                   onClick={() => {
                     if (selectedAddOn) {
-                      enableAddOnFeature(selectedAddOn.id) // Use the new function
+                      enableAddOnFeature(selectedAddOn.id); // Use the new function
                     }
-                    setIsAddOnOpen(false)
-                  }}
-                >
-                  Enable {selectedAddOn?.monthlyPrice ? `(+${selectedAddOn.monthlyPrice}/mo)` : ""}
+                    setIsAddOnOpen(false);
+                  }}>
+                  Enable{" "}
+                  {selectedAddOn?.monthlyPrice
+                    ? `(+${selectedAddOn.monthlyPrice}/mo)`
+                    : ""}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {/* Add Practice Onboarding Dialog */}
-          <Dialog open={isPracticeOnboardingOpen} onOpenChange={setIsPracticeOnboardingOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {/* Practice Onboarding Dialog */}
+          <Dialog
+            open={isPracticeOnboardingOpen}
+            onOpenChange={setIsPracticeOnboardingOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Onboard New Practice</DialogTitle>
                 <DialogDescription>
-                  Enter practice information and credentials to configure agency setup
+                  Enter practice information to set up a new clinic
                 </DialogDescription>
               </DialogHeader>
-
-              <form onSubmit={handlePracticeOnboarding} className="space-y-6 mt-4">
+              <form
+                onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+                  e.preventDefault();
+                  // Handle form submission
+                  setIsPracticeOnboardingOpen(false);
+                }}
+                className="space-y-6">
                 {/* Practice Information */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold">Practice Information</h3>
+                  <h3 className="text-sm font-semibold">
+                    Practice Information
+                  </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="text-sm font-medium">Practice Name *</label>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Practice Name *
+                      </label>
                       <input
                         required
                         type="text"
-                        value={practiceFormData.practiceName}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, practiceName: e.target.value })}
+                        value={practiceFormData.name}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            name: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
-                        placeholder="ABC Mental Health Clinic"
+                        placeholder="Practice Name"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">NPI Number *</label>
+                      <label className="text-sm font-medium">
+                        DEA Number *
+                      </label>
                       <input
                         required
                         type="text"
-                        pattern="[0-9]{10}"
-                        maxLength={10}
-                        value={practiceFormData.npi}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, npi: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-md mt-1"
-                        placeholder="1234567890"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">10-digit National Provider Identifier</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium">DEA Number *</label>
-                      <input
-                        required
-                        type="text"
-                        pattern="[A-Z]{2}[0-9]{7}"
-                        maxLength={9}
                         value={practiceFormData.dea}
-                        onChange={(e) =>
-                          setPracticeFormData({ ...practiceFormData, dea: e.target.value.toUpperCase() })
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            dea: e.target.value.toUpperCase(),
+                          })
                         }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="AB1234567"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">Drug Enforcement Administration Number</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Drug Enforcement Administration Number
+                      </p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">State License Number *</label>
+                      <label className="text-sm font-medium">
+                        State License Number *
+                      </label>
                       <input
                         required
                         type="text"
                         value={practiceFormData.stateLicense}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, stateLicense: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            stateLicense: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="12345678"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">License State *</label>
+                      <label className="text-sm font-medium">
+                        License State *
+                      </label>
                       <select
                         required
                         value={practiceFormData.stateLicenseState}
-                        onChange={(e) =>
-                          setPracticeFormData({ ...practiceFormData, stateLicenseState: e.target.value })
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            stateLicenseState: e.target.value,
+                          })
                         }
-                        className="w-full px-3 py-2 border rounded-md mt-1"
-                      >
+                        className="w-full px-3 py-2 border rounded-md mt-1">
                         <option value="">Select State</option>
                         <option value="AL">Alabama</option>
                         <option value="AK">Alaska</option>
@@ -1845,40 +2128,65 @@ export default function SubscriptionPage() {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">SAMHSA Number *</label>
+                      <label className="text-sm font-medium">
+                        SAMHSA Number *
+                      </label>
                       <input
                         required
                         type="text"
                         value={practiceFormData.samhsa}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, samhsa: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            samhsa: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="SAMHSA-12345"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">Substance Abuse Mental Health Services Admin</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Substance Abuse Mental Health Services Admin
+                      </p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">DUNS Number (Optional)</label>
+                      <label className="text-sm font-medium">
+                        DUNS Number (Optional)
+                      </label>
                       <input
                         type="text"
                         pattern="[0-9]{9}"
                         maxLength={9}
                         value={practiceFormData.duns}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, duns: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            duns: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="123456789"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">9-digit Data Universal Numbering System</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        9-digit Data Universal Numbering System
+                      </p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Tax ID (EIN) *</label>
+                      <label className="text-sm font-medium">
+                        Tax ID (EIN) *
+                      </label>
                       <input
                         required
                         type="text"
                         pattern="[0-9]{2}-[0-9]{7}"
                         value={practiceFormData.taxId}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, taxId: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            taxId: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="12-3456789"
                       />
@@ -1897,7 +2205,12 @@ export default function SubscriptionPage() {
                         required
                         type="text"
                         value={practiceFormData.address}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, address: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            address: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="123 Main Street"
                       />
@@ -1909,7 +2222,12 @@ export default function SubscriptionPage() {
                         required
                         type="text"
                         value={practiceFormData.city}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, city: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            city: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="Detroit"
                       />
@@ -1920,9 +2238,13 @@ export default function SubscriptionPage() {
                       <select
                         required
                         value={practiceFormData.state}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, state: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-md mt-1"
-                      >
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            state: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-md mt-1">
                         <option value="">Select State</option>
                         <option value="MI">Michigan</option>
                         <option value="AL">Alabama</option>
@@ -1985,7 +2307,12 @@ export default function SubscriptionPage() {
                         pattern="[0-9]{5}"
                         maxLength={5}
                         value={practiceFormData.zip}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, zip: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            zip: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="48201"
                       />
@@ -1997,7 +2324,12 @@ export default function SubscriptionPage() {
                         required
                         type="tel"
                         value={practiceFormData.phone}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, phone: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            phone: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="(313) 555-0100"
                       />
@@ -2009,7 +2341,12 @@ export default function SubscriptionPage() {
                         required
                         type="email"
                         value={practiceFormData.email}
-                        onChange={(e) => setPracticeFormData({ ...practiceFormData, email: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setPracticeFormData({
+                            ...practiceFormData,
+                            email: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 border rounded-md mt-1"
                         placeholder="admin@practice.com"
                       />
@@ -2019,36 +2356,67 @@ export default function SubscriptionPage() {
 
                 {/* Specialties Offered Section */}
                 <div className="space-y-3">
-                  <label className="text-sm font-medium">Specialties Offered *</label>
-                  <p className="text-xs text-muted-foreground">Select all specialties this practice offers</p>
+                  <label className="text-sm font-medium">
+                    Specialties Offered *
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Select all specialties this practice offers
+                  </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-lg p-4">
                     {[
-                      { value: "behavioral-health", label: "Behavioral Health" },
+                      {
+                        value: "behavioral-health",
+                        label: "Behavioral Health",
+                      },
                       { value: "otp", label: "OTP (Opioid Treatment Program)" },
-                      { value: "mat", label: "MAT (Medication-Assisted Treatment)" },
+                      {
+                        value: "mat",
+                        label: "MAT (Medication-Assisted Treatment)",
+                      },
                       { value: "primary-care", label: "Primary Care" },
                       { value: "psychiatry", label: "Psychiatry" },
                       { value: "obgyn", label: "OB/GYN" },
                       { value: "pediatrics", label: "Pediatrics" },
                       { value: "cardiology", label: "Cardiology" },
                       { value: "physical-therapy", label: "Physical Therapy" },
-                      { value: "occupational-therapy", label: "Occupational Therapy" },
-                      { value: "substance-use-disorder", label: "Substance Use Disorder" },
-                      { value: "mental-health", label: "Mental Health Counseling" },
+                      {
+                        value: "occupational-therapy",
+                        label: "Occupational Therapy",
+                      },
+                      {
+                        value: "substance-use-disorder",
+                        label: "Substance Use Disorder",
+                      },
+                      {
+                        value: "mental-health",
+                        label: "Mental Health Counseling",
+                      },
                     ].map((specialty) => (
                       <label
                         key={specialty.value}
-                        className="flex items-center space-x-2 cursor-pointer hover:bg-accent/50 p-2 rounded"
-                      >
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-accent/50 p-2 rounded">
                         <input
                           type="checkbox"
-                          checked={practiceFormData.specialties.includes(specialty.value)}
+                          checked={practiceFormData.specialties.includes(
+                            specialty.value
+                          )}
                           onChange={() => {
-                            const updatedSpecialties = practiceFormData.specialties.includes(specialty.value)
-                              ? practiceFormData.specialties.filter((s) => s !== specialty.value)
-                              : [...practiceFormData.specialties, specialty.value]
-                            setPracticeFormData({ ...practiceFormData, specialties: updatedSpecialties })
+                            const updatedSpecialties =
+                              practiceFormData.specialties.includes(
+                                specialty.value
+                              )
+                                ? practiceFormData.specialties.filter(
+                                    (s: string) => s !== specialty.value
+                                  )
+                                : [
+                                    ...practiceFormData.specialties,
+                                    specialty.value,
+                                  ];
+                            setPracticeFormData({
+                              ...practiceFormData,
+                              specialties: updatedSpecialties,
+                            });
                           }}
                           className="w-4 h-4 rounded border-gray-300"
                         />
@@ -2058,15 +2426,20 @@ export default function SubscriptionPage() {
                   </div>
 
                   {practiceFormData.specialties.length === 0 && (
-                    <p className="text-xs text-destructive">Please select at least one specialty</p>
+                    <p className="text-xs text-destructive">
+                      Please select at least one specialty
+                    </p>
                   )}
                 </div>
 
                 {/* Add-Ons Selection */}
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Select Add-On Features</Label>
+                  <Label className="text-base font-semibold">
+                    Select Add-On Features
+                  </Label>
                   <p className="text-sm text-muted-foreground">
-                    Choose additional features to enhance your practice capabilities
+                    Choose additional features to enhance your practice
+                    capabilities
                   </p>
 
                   {/* Clinical Add-Ons */}
@@ -2079,22 +2452,31 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-eprescribing"
-                          checked={practiceFormData.addons?.includes("e-prescribing")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "e-prescribing"]
-                                : (prev.addons || []).filter((a) => a !== "e-prescribing"),
-                            }))
-                          }
+                          checked={practiceFormData.addons?.includes(
+                            "e-prescribing"
+                          )}
+                          onCheckedChange={(checked: boolean) => {
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "e-prescribing"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "e-prescribing"
+                                    ),
+                              })
+                            );
+                          }}
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-eprescribing" className="font-normal">
+                          <Label
+                            htmlFor="addon-eprescribing"
+                            className="font-normal">
                             E-Prescribing (EPCS) - $99/mo
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            Electronic prescribing including controlled substances
+                            Electronic prescribing including controlled
+                            substances
                           </p>
                         </div>
                       </div>
@@ -2102,35 +2484,51 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-telehealth"
-                          checked={practiceFormData.addons?.includes("telehealth")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "telehealth"]
-                                : (prev.addons || []).filter((a) => a !== "telehealth"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "telehealth"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "telehealth"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "telehealth"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-telehealth" className="font-normal">
+                          <Label
+                            htmlFor="addon-telehealth"
+                            className="font-normal">
                             Telehealth - $79/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Video consultations with patients</p>
+                          <p className="text-xs text-muted-foreground">
+                            Video consultations with patients
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-lab"
-                          checked={practiceFormData.addons?.includes("lab-integration")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "lab-integration"]
-                                : (prev.addons || []).filter((a) => a !== "lab-integration"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "lab-integration"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "lab-integration"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "lab-integration"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
@@ -2155,60 +2553,88 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-billing"
-                          checked={practiceFormData.addons?.includes("billing-claims")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "billing-claims"]
-                                : (prev.addons || []).filter((a) => a !== "billing-claims"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "billing-claims"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "billing-claims"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "billing-claims"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-billing" className="font-normal">
+                          <Label
+                            htmlFor="addon-billing"
+                            className="font-normal">
                             Billing & Claims - $149/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Insurance billing and claims management</p>
+                          <p className="text-xs text-muted-foreground">
+                            Insurance billing and claims management
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-clearinghouse"
-                          checked={practiceFormData.addons?.includes("clearinghouse")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "clearinghouse"]
-                                : (prev.addons || []).filter((a) => a !== "clearinghouse"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "clearinghouse"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "clearinghouse"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "clearinghouse"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-clearinghouse" className="font-normal">
+                          <Label
+                            htmlFor="addon-clearinghouse"
+                            className="font-normal">
                             Clearinghouse Integration - $79/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Direct claims submission to clearinghouses</p>
+                          <p className="text-xs text-muted-foreground">
+                            Direct claims submission to clearinghouses
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-otp-bundle"
-                          checked={practiceFormData.addons?.includes("otp-bundle")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "otp-bundle"]
-                                : (prev.addons || []).filter((a) => a !== "otp-bundle"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "otp-bundle"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "otp-bundle"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "otp-bundle"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-otp-bundle" className="font-normal">
+                          <Label
+                            htmlFor="addon-otp-bundle"
+                            className="font-normal">
                             OTP Bundle Billing - $49/mo
                           </Label>
                           <p className="text-xs text-muted-foreground">
@@ -2229,56 +2655,80 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-pmp"
-                          checked={practiceFormData.addons?.includes("pmp-integration")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "pmp-integration"]
-                                : (prev.addons || []).filter((a) => a !== "pmp-integration"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "pmp-integration"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "pmp-integration"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "pmp-integration"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
                           <Label htmlFor="addon-pmp" className="font-normal">
                             PMP Integration - $49/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Prescription Monitoring Program integration</p>
+                          <p className="text-xs text-muted-foreground">
+                            Prescription Monitoring Program integration
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-mobile-checkin"
-                          checked={practiceFormData.addons?.includes("mobile-check-in")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "mobile-check-in"]
-                                : (prev.addons || []).filter((a) => a !== "mobile-check-in"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "mobile-check-in"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "mobile-check-in"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "mobile-check-in"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-mobile-checkin" className="font-normal">
+                          <Label
+                            htmlFor="addon-mobile-checkin"
+                            className="font-normal">
                             Mobile Check-In - $39/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Patient mobile check-in and queue management</p>
+                          <p className="text-xs text-muted-foreground">
+                            Patient mobile check-in and queue management
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-sms"
-                          checked={practiceFormData.addons?.includes("sms-reminders")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "sms-reminders"]
-                                : (prev.addons || []).filter((a) => a !== "sms-reminders"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "sms-reminders"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "sms-reminders"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "sms-reminders"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
@@ -2303,39 +2753,58 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-ai"
-                          checked={practiceFormData.addons?.includes("ai-assistant")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "ai-assistant"]
-                                : (prev.addons || []).filter((a) => a !== "ai-assistant"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "ai-assistant"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "ai-assistant"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "ai-assistant"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
                           <Label htmlFor="addon-ai" className="font-normal">
                             AI Clinical Assistant - $199/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">AI-powered documentation and decision support</p>
+                          <p className="text-xs text-muted-foreground">
+                            AI-powered documentation and decision support
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-analytics"
-                          checked={practiceFormData.addons?.includes("advanced-analytics")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "advanced-analytics"]
-                                : (prev.addons || []).filter((a) => a !== "advanced-analytics"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "advanced-analytics"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [
+                                      ...(prev.addons || []),
+                                      "advanced-analytics",
+                                    ]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "advanced-analytics"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-analytics" className="font-normal">
+                          <Label
+                            htmlFor="addon-analytics"
+                            className="font-normal">
                             Advanced Analytics - $149/mo
                           </Label>
                           <p className="text-xs text-muted-foreground">
@@ -2347,25 +2816,38 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-diversion"
-                          checked={practiceFormData.addons?.includes("takehome-diversion-control")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "takehome-diversion-control"]
-                                : (prev.addons || []).filter((a) => a !== "takehome-diversion-control"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "takehome-diversion-control"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [
+                                      ...(prev.addons || []),
+                                      "takehome-diversion-control",
+                                    ]
+                                  : (prev.addons || []).filter(
+                                      (a: string) =>
+                                        a !== "takehome-diversion-control"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-diversion" className="font-normal">
+                          <Label
+                            htmlFor="addon-diversion"
+                            className="font-normal">
                             Take-Home Diversion Control - $199/mo
                             <Badge variant="secondary" className="ml-2">
                               Premium
                             </Badge>
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            QR code scanning with GPS verification and facial biometrics
+                            QR code scanning with GPS verification and facial
+                            biometrics
                           </p>
                         </div>
                       </div>
@@ -2373,21 +2855,31 @@ export default function SubscriptionPage() {
                       <div className="flex items-start space-x-3">
                         <Checkbox
                           id="addon-multi-location"
-                          checked={practiceFormData.addons?.includes("multi-location")}
-                          onCheckedChange={(checked) =>
-                            setPracticeFormData((prev) => ({
-                              ...prev,
-                              addons: checked
-                                ? [...(prev.addons || []), "multi-location"]
-                                : (prev.addons || []).filter((a) => a !== "multi-location"),
-                            }))
+                          checked={practiceFormData.addons?.includes(
+                            "multi-location"
+                          )}
+                          onCheckedChange={(checked: boolean) =>
+                            setPracticeFormData(
+                              (prev: typeof practiceFormData) => ({
+                                ...prev,
+                                addons: checked
+                                  ? [...(prev.addons || []), "multi-location"]
+                                  : (prev.addons || []).filter(
+                                      (a: string) => a !== "multi-location"
+                                    ),
+                              })
+                            )
                           }
                         />
                         <div className="grid gap-1.5">
-                          <Label htmlFor="addon-multi-location" className="font-normal">
+                          <Label
+                            htmlFor="addon-multi-location"
+                            className="font-normal">
                             Multi-Location Support - $199/mo
                           </Label>
-                          <p className="text-xs text-muted-foreground">Manage multiple clinic locations</p>
+                          <p className="text-xs text-muted-foreground">
+                            Manage multiple clinic locations
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -2395,7 +2887,10 @@ export default function SubscriptionPage() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={() => setIsPracticeOnboardingOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsPracticeOnboardingOpen(false)}>
                     Cancel
                   </Button>
                   <Button type="submit">
@@ -2409,5 +2904,5 @@ export default function SubscriptionPage() {
         </main>
       </div>
     </div>
-  )
+  );
 }

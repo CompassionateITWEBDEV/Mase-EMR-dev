@@ -1,6 +1,7 @@
 "use client"
 
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, FileCheck, Dumbbell, AlertTriangle, TrendingUp, Eye, RefreshCw } from "lucide-react"
@@ -21,12 +22,12 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect } from "react"
-import { toast } from "sonner"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function RehabilitationPage() {
+  const { toast: toastHook } = useToast()
   const [newProgramOpen, setNewProgramOpen] = useState(false)
   const [viewProgramOpen, setViewProgramOpen] = useState(false)
   const [addExerciseOpen, setAddExerciseOpen] = useState(false)
@@ -72,8 +73,6 @@ export default function RehabilitationPage() {
     notes: "",
   })
 
-  const supabase = createBrowserClient()
-
   useEffect(() => {
     loadData()
   }, [])
@@ -81,77 +80,38 @@ export default function RehabilitationPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      // Load patients
-      const { data: patientsData } = await supabase
-        .from("patients")
-        .select("id, first_name, last_name, date_of_birth")
-        .order("last_name")
-      setPatients(patientsData || [])
+      // Load patients and providers from rehabilitation API
+      const [rehabResponse, hepResponse] = await Promise.all([
+        fetch("/api/rehabilitation"),
+        fetch("/api/rehabilitation/hep"),
+      ])
 
-      // Load providers/therapists
-      const { data: providersData } = await supabase
-        .from("providers")
-        .select("id, first_name, last_name, license_type")
-        .order("last_name")
-      setProviders(providersData || [])
+      if (!rehabResponse.ok || !hepResponse.ok) {
+        throw new Error("Failed to fetch data")
+      }
 
-      // Load HEP programs
-      const { data: programsData } = await supabase
-        .from("hep_programs")
-        .select(`
-          *,
-          patients(first_name, last_name),
-          providers:therapist_id(first_name, last_name)
-        `)
-        .order("created_at", { ascending: false })
-      setPrograms(programsData || [])
+      const rehabData = await rehabResponse.json()
+      const hepData = await hepResponse.json()
 
-      // Load exercises
-      const { data: exercisesData } = await supabase
-        .from("hep_exercises")
-        .select("*")
-        .eq("is_active", true)
-        .order("exercise_name")
-      setExercises(exercisesData || [])
+      // Set patients and providers from rehab API
+      setPatients(rehabData.patients || [])
+      setProviders(rehabData.providers || [])
 
-      // Load compliance logs
-      const { data: logsData } = await supabase
-        .from("hep_patient_logs")
-        .select(`
-          *,
-          patients(first_name, last_name),
-          hep_programs(program_name)
-        `)
-        .order("log_date", { ascending: false })
-        .limit(50)
-      setComplianceLogs(logsData || [])
+      // Set HEP data from HEP API
+      setPrograms(hepData.programs || [])
+      setExercises(hepData.exercises || [])
+      setAlerts(hepData.alerts || [])
 
-      // Load alerts
-      const { data: alertsData } = await supabase
-        .from("hep_compliance_alerts")
-        .select(`
-          *,
-          patients(first_name, last_name),
-          hep_programs(program_name)
-        `)
-        .eq("is_acknowledged", false)
-        .order("created_at", { ascending: false })
-      setAlerts(alertsData || [])
-
-      // Load RTM sessions
-      const { data: rtmData } = await supabase
-        .from("rtm_billing_sessions")
-        .select(`
-          *,
-          patients(first_name, last_name),
-          hep_programs(program_name)
-        `)
-        .order("service_month", { ascending: false })
-        .limit(20)
-      setRtmSessions(rtmData || [])
+      // Set compliance logs and RTM sessions from HEP API
+      setComplianceLogs(hepData.logs || [])
+      setRtmSessions(hepData.rtmSessions || [])
     } catch (error) {
       console.error("Error loading data:", error)
-      toast.error("Failed to load rehabilitation data")
+      toastHook({
+        title: "Error",
+        description: "Failed to load rehabilitation data",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -159,7 +119,11 @@ export default function RehabilitationPage() {
 
   const handleCreateProgram = async () => {
     if (!newProgram.patient_id || !newProgram.program_name) {
-      toast.error("Please select a patient and enter a program name")
+      toastHook({
+        title: "Validation Error",
+        description: "Please select a patient and enter a program name",
+        variant: "destructive",
+      })
       return
     }
 
@@ -167,26 +131,37 @@ export default function RehabilitationPage() {
       const endDate = new Date(newProgram.start_date)
       endDate.setDate(endDate.getDate() + newProgram.duration_weeks * 7)
 
-      const { error } = await supabase.from("hep_programs").insert({
-        patient_id: newProgram.patient_id,
-        therapist_id: newProgram.therapist_id || null,
-        program_name: newProgram.program_name,
-        diagnosis_codes: newProgram.diagnosis_codes
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
-        start_date: newProgram.start_date,
-        end_date: endDate.toISOString().slice(0, 10),
-        duration_weeks: newProgram.duration_weeks,
-        frequency: newProgram.frequency,
-        program_goals: newProgram.program_goals,
-        special_instructions: newProgram.special_instructions,
-        status: "active",
+      const response = await fetch("/api/rehabilitation/hep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_program",
+          patient_id: newProgram.patient_id,
+          therapist_id: newProgram.therapist_id || null,
+          program_name: newProgram.program_name,
+          diagnosis_codes: newProgram.diagnosis_codes
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean),
+          start_date: newProgram.start_date,
+          end_date: endDate.toISOString().slice(0, 10),
+          duration_weeks: newProgram.duration_weeks,
+          frequency: newProgram.frequency,
+          program_goals: newProgram.program_goals,
+          special_instructions: newProgram.special_instructions,
+        }),
       })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success("HEP program created successfully!")
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      toastHook({
+        title: "Success",
+        description: "HEP program created successfully!",
+      })
       setNewProgramOpen(false)
       setNewProgram({
         patient_id: "",
@@ -200,31 +175,57 @@ export default function RehabilitationPage() {
         special_instructions: "",
       })
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating program:", error)
-      toast.error("Failed to create HEP program")
+      toastHook({
+        title: "Error",
+        description: error.message || "Failed to create HEP program",
+        variant: "destructive",
+      })
     }
   }
 
   const handleAddExercise = async () => {
     if (!newExercise.exercise_name || !newExercise.exercise_category) {
-      toast.error("Please enter exercise name and category")
+      toastHook({
+        title: "Validation Error",
+        description: "Please enter exercise name and category",
+        variant: "destructive",
+      })
       return
     }
 
     try {
-      const { error } = await supabase.from("hep_exercises").insert({
-        ...newExercise,
-        equipment_needed: newExercise.equipment_needed
-          .split(",")
-          .map((e) => e.trim())
-          .filter(Boolean),
-        is_active: true,
+      const response = await fetch("/api/rehabilitation/hep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_exercise",
+          exercise_name: newExercise.exercise_name,
+          exercise_category: newExercise.exercise_category,
+          body_part: newExercise.body_part,
+          description: newExercise.description,
+          instructions: newExercise.instructions,
+          difficulty_level: newExercise.difficulty_level,
+          duration_minutes: newExercise.duration_minutes,
+          equipment_needed: newExercise.equipment_needed
+            .split(",")
+            .map((e) => e.trim())
+            .filter(Boolean),
+          is_active: true,
+        }),
       })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success("Exercise added to library!")
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      toastHook({
+        title: "Success",
+        description: "Exercise added to library!",
+      })
       setAddExerciseOpen(false)
       setNewExercise({
         exercise_name: "",
@@ -237,35 +238,56 @@ export default function RehabilitationPage() {
         equipment_needed: "",
       })
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding exercise:", error)
-      toast.error("Failed to add exercise")
+      toastHook({
+        title: "Error",
+        description: error.message || "Failed to add exercise",
+        variant: "destructive",
+      })
     }
   }
 
   const handleLogCompliance = async () => {
     if (!complianceLog.program_id) {
-      toast.error("Please select a program")
+      toastHook({
+        title: "Validation Error",
+        description: "Please select a program",
+        variant: "destructive",
+      })
       return
     }
 
     try {
       const program = programs.find((p) => p.id === complianceLog.program_id)
 
-      const { error } = await supabase.from("hep_patient_logs").insert({
-        program_id: complianceLog.program_id,
-        patient_id: program?.patient_id,
-        log_date: complianceLog.log_date,
-        completed: complianceLog.exercises_completed,
-        pain_level: complianceLog.pain_level,
-        difficulty_rating: complianceLog.difficulty_rating,
-        duration_minutes: complianceLog.duration_minutes,
-        notes: complianceLog.notes,
+      const response = await fetch("/api/rehabilitation/hep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "log_compliance",
+          program_id: complianceLog.program_id,
+          patient_id: program?.patient_id,
+          log_date: complianceLog.log_date,
+          log_time: new Date().toISOString(),
+          completed: complianceLog.exercises_completed,
+          pain_level: complianceLog.pain_level,
+          difficulty_rating: complianceLog.difficulty_rating,
+          duration_minutes: complianceLog.duration_minutes,
+          notes: complianceLog.notes,
+        }),
       })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success("Compliance logged successfully!")
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      toastHook({
+        title: "Success",
+        description: "Compliance logged successfully!",
+      })
       setLogComplianceOpen(false)
       setComplianceLog({
         program_id: "",
@@ -278,43 +300,78 @@ export default function RehabilitationPage() {
         notes: "",
       })
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error logging compliance:", error)
-      toast.error("Failed to log compliance")
+      toastHook({
+        title: "Error",
+        description: error.message || "Failed to log compliance",
+        variant: "destructive",
+      })
     }
   }
 
   const handleAcknowledgeAlert = async (alertId: string) => {
     try {
-      const { error } = await supabase
-        .from("hep_compliance_alerts")
-        .update({
-          is_acknowledged: true,
-          acknowledged_at: new Date().toISOString(),
-        })
-        .eq("id", alertId)
+      const response = await fetch("/api/rehabilitation/hep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "acknowledge_alert",
+          alert_id: alertId,
+        }),
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success("Alert acknowledged")
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      toastHook({
+        title: "Success",
+        description: "Alert acknowledged",
+      })
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error acknowledging alert:", error)
-      toast.error("Failed to acknowledge alert")
+      toastHook({
+        title: "Error",
+        description: error.message || "Failed to acknowledge alert",
+        variant: "destructive",
+      })
     }
   }
 
   const handleUpdateProgramStatus = async (programId: string, status: string) => {
     try {
-      const { error } = await supabase.from("hep_programs").update({ status }).eq("id", programId)
+      const response = await fetch("/api/rehabilitation/hep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_program_status",
+          program_id: programId,
+          status,
+        }),
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      toast.success(`Program ${status === "completed" ? "completed" : "updated"}!`)
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      toastHook({
+        title: "Success",
+        description: `Program ${status === "completed" ? "completed" : "updated"}!`,
+      })
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating program:", error)
-      toast.error("Failed to update program")
+      toastHook({
+        title: "Error",
+        description: error.message || "Failed to update program",
+        variant: "destructive",
+      })
     }
   }
 
@@ -334,10 +391,10 @@ export default function RehabilitationPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="min-h-screen bg-background">
       <DashboardSidebar />
-
-      <div className="flex-1 overflow-auto">
+      <div className="lg:pl-64">
+        <DashboardHeader />
         <div className="p-8">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -1036,9 +1093,8 @@ export default function RehabilitationPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
 
-      {/* View Program Dialog */}
+        {/* View Program Dialog */}
       <Dialog open={viewProgramOpen} onOpenChange={setViewProgramOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -1098,6 +1154,7 @@ export default function RehabilitationPage() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

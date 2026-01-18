@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server-client'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const supabase = createServerClient()
+  const supabase = await createServerClient()
 
   // Aggregate clinic-level data for state oversight
   const { data: clinics, error: clinicsError } = await supabase

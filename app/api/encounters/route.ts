@@ -63,12 +63,23 @@ export async function GET(request: Request) {
         created_at: apt.created_at,
       })) || []
 
-    const { data: patients } = await supabase
+    const { data: patients, error: patientsError } = await supabase
       .from("patients")
       .select("id, first_name, last_name, date_of_birth")
       .order("last_name")
 
-    const { data: providers } = await supabase.from("providers").select("id, first_name, last_name").order("last_name")
+    if (patientsError) {
+      console.error("[v0] Error fetching patients:", patientsError.message)
+    }
+
+    const { data: providers, error: providersError } = await supabase
+      .from("providers")
+      .select("id, first_name, last_name, specialization")
+      .order("last_name")
+
+    if (providersError) {
+      console.error("[v0] Error fetching providers:", providersError.message)
+    }
 
     const today = new Date().toISOString().split("T")[0]
     const todayEncounters = (data || []).filter((e: any) => e.appointment_date?.startsWith(today))

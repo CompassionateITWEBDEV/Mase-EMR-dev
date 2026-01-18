@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { FeatureGate } from "@/components/feature-gate"
 import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -948,6 +949,7 @@ export default function AICoachingPage() {
   }
 
   return (
+    <FeatureGate feature="ai-assistant">
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto p-4 md:p-6 max-w-7xl">
         {/* Header */}
@@ -1870,5 +1872,6 @@ export default function AICoachingPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </FeatureGate>
   )
 }
