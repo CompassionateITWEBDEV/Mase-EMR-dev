@@ -1,7 +1,63 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, FileText, Calendar, BarChart3, Shield, Brain, Stethoscope, ClipboardList, MessageSquare, Settings, Home, CreditCard, FileCheck, Pill, Video, Package, Calculator, UserPlus, Syringe, Archive, FileSignature, PackageCheck, Building2, ClipboardCheck, UserCheck, Send, Activity, Beaker, Workflow, FileOutput, ClipboardPlus, AlertTriangle, Clock, Bell, Crown, ChevronDown, ChevronRight, Handshake, Target, Network, Truck, Flag as Flask, Dumbbell, QrCode, Headphones, FileBarChart, Baby, Eye, UserCircle, FileCheck2, ArrowRight, Microscope, MapPin, Type as type, type LucideIcon, Heart, TrendingUp, GraduationCap } from "lucide-react"
+import {
+  Users,
+  FileText,
+  Calendar,
+  BarChart3,
+  Shield,
+  Brain,
+  Stethoscope,
+  ClipboardList,
+  MessageSquare,
+  Settings,
+  Home,
+  CreditCard,
+  FileCheck,
+  Pill,
+  Video,
+  Package,
+  Calculator,
+  UserPlus,
+  Syringe,
+  Archive,
+  FileSignature,
+  PackageCheck,
+  Building2,
+  ClipboardCheck,
+  UserCheck,
+  Send,
+  Activity,
+  Beaker,
+  Heart,
+  TrendingUp,
+  Workflow,
+  FileOutput,
+  ClipboardPlus,
+  AlertTriangle,
+  Clock,
+  Bell,
+  Crown,
+  ChevronDown,
+  ChevronRight,
+  Handshake,
+  Target,
+  Network,
+  Truck,
+  Flag as Flask,
+  Dumbbell,
+  QrCode,
+  Headphones,
+  FileBarChart,
+  Baby,
+  Eye,
+  UserCircle,
+  FileCheck2,
+  ArrowRight,
+  Microscope,
+  type LucideIcon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { usePathname } from "next/navigation"
@@ -35,20 +91,7 @@ const checkIsSuperAdmin = (): boolean => {
   }
 }
 
-const checkIsRecipientRightsOfficer = (): boolean => {
-  if (typeof window === "undefined") return false
-  try {
-    const userRole = localStorage.getItem("userRole")
-    const permissions = localStorage.getItem("userPermissions")
-    return userRole === "recipient_rights_officer" || (permissions && permissions.includes("recipient_rights"))
-  } catch {
-    return false
-  }
-}
-
 const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
-  const isRecipientRightsOfficer = checkIsRecipientRightsOfficer()
-
   const baseCategories: NavCategory[] = [
     {
       label: "Overview",
@@ -85,9 +128,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       label: "Clinical",
       icon: Stethoscope,
       items: [
-        { icon: Brain, label: "Clinical Decisions", href: "/clinical-decisions", count: 12, highlight: "alert" },
-        { icon: Activity, label: "Detox Management", href: "/detox-management", count: 8, highlight: "alert" },
-        { icon: AlertTriangle, label: "Crisis Unit", href: "/crisis-unit", count: 12, highlight: "alert" },
         { icon: Stethoscope, label: "Nursing Assessment", href: "/nursing-assessment", count: 7, highlight: "alert" },
         { icon: MessageSquare, label: "Counseling Intake", href: "/counseling-intake", count: 5 },
         { icon: Brain, label: "Bio-Psycho-Social", href: "/bio-psycho-social", count: 3 },
@@ -122,7 +162,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
         { icon: Syringe, label: "Methadone Dispensing", href: "/dispensing", count: 12 },
         { icon: PackageCheck, label: "Take-Home Mgmt", href: "/takehome", count: 8 },
         { icon: Package, label: "Take-Home Bottles", href: "/dispensing/takehome-bottles", count: 12 },
-        { icon: Building2, label: "Offsite Dosing", href: "/offsite-dosing", count: 6, highlight: "alert" },
         { icon: QrCode, label: "Diversion Control", href: "/takehome-diversion", count: 3, highlight: "alert" },
         { icon: Archive, label: "Inventory", href: "/inventory" },
         { icon: FileSignature, label: "DEA Form 222", href: "/form-222", count: 2 },
@@ -152,7 +191,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       icon: CreditCard,
       items: [
         { icon: CreditCard, label: "Billing Center", href: "/billing-center" },
-        { icon: CreditCard, label: "Cash Collection", href: "/cash-collection", count: 5, highlight: "alert" },
         { icon: CreditCard, label: "Insurance Mgmt", href: "/insurance", count: 4 },
         { icon: Workflow, label: "Clearinghouse", href: "/clearinghouse", count: 5 },
         { icon: FileCheck, label: "Prior Authorization", href: "/prior-auth", count: 12 },
@@ -180,12 +218,6 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
         { icon: BarChart3, label: "Analytics", href: "/analytics" },
         { icon: Target, label: "MIPS Quality", href: "/quality-dashboard" },
         { icon: Microscope, label: "Research & Data Science", href: "/research-dashboard", count: 4 },
-        { icon: MapPin, label: "Michigan Surveillance", href: "/michigan-surveillance", count: 3, highlight: "alert" },
-        { icon: Network, label: "MiHIN Integration", href: "/mihin-integration", count: 2, highlight: "alert" },
-        { icon: Users, label: "MI Workforce Assessment", href: "/michigan-workforce", count: 13, highlight: "alert" },
-        { icon: GraduationCap, label: "Mi-SUTWA Portal", href: "/mi-sutwa-portal", count: 8, highlight: "alert" },
-        { icon: Building2, label: "State Oversight Dashboard", href: "/state-oversight", count: 3, highlight: "alert" },
-        { icon: Shield, label: "SOTA Dashboard", href: "/sota-dashboard", count: 6, highlight: "alert" },
       ],
     },
     {
@@ -194,49 +226,19 @@ const getNavigationCategories = (isSuperAdmin: boolean): NavCategory[] => {
       items: [
         { icon: Shield, label: "Compliance Dashboard", href: "/compliance" },
         { icon: Shield, label: "Regulatory Portal", href: "/regulatory-portal", count: 3, highlight: "alert" },
-        ...(isRecipientRightsOfficer
-          ? [
-              {
-                icon: Shield,
-                label: "Recipient Rights",
-                href: "/recipient-rights",
-                count: 8,
-                highlight: "alert" as const,
-              },
-            ]
-          : []),
-      ],
-    },
-    {
-      label: "Community Outreach",
-      icon: Heart,
-      items: [
-        { icon: Target, label: "Community Management", href: "/community-management", count: 247, highlight: "alert" },
-        { icon: Heart, label: "MASE Access Portal", href: "/mase-access", count: 5, highlight: "alert" },
-        { icon: Users, label: "Outreach Dashboard", href: "/outreach", count: 8 },
-        { icon: ClipboardList, label: "Public Screening", href: "/screening" },
-        { icon: Send, label: "Referral Gateway", href: "/referral" },
       ],
     },
     {
       label: "Administration",
       icon: Settings,
       items: [
-        { icon: Users, label: "HR Management", href: "/hr-management", count: 15, highlight: "alert" },
         { icon: UserCheck, label: "Staff Management", href: "/staff", count: 24 },
         { icon: Activity, label: "Staff Workflows", href: "/workflows", count: 3 },
         { icon: Building2, label: "Facility Mgmt", href: "/facility", count: 4 },
-        { icon: Shield, label: "Security Officer Portal", href: "/security-officer", count: 2, highlight: "alert" },
         { icon: Crown, label: "Subscription", href: "/subscription", highlight: "premium" },
         { icon: Headphones, label: "IT Support", href: "/it-support", highlight: "premium" },
         { icon: FileBarChart, label: "System Report", href: "/system-report", highlight: "premium" },
         { icon: Settings, label: "Settings", href: "/settings" },
-        { icon: Shield, label: "Regulatory Portal", href: "/regulatory-portal", count: 3, highlight: "alert" },
-        { icon: AlertTriangle, label: "Diversion Control", href: "/diversion-control", count: 3, highlight: "alert" },
-        { icon: Network, label: "County & PIHP Portal", href: "/county-pihp-portal", count: 2 },
-        { icon: Heart, label: "Community Collaboration", href: "/community-collaboration", count: 5 },
-        { icon: MapPin, label: "GPS Tracking", href: "/gps-tracking" },
-        { icon: Settings, label: "Callback Policies", href: "/callback-policies", count: 2 },
       ],
     },
   ]

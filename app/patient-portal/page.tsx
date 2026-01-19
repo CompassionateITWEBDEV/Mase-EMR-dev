@@ -54,12 +54,6 @@ import {
   Puzzle,
   Syringe,
   QrCode,
-  Dumbbell,
-  Play,
-  CheckCircle,
-  TrendingUp,
-  Activity,
-  Shield,
 } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
@@ -199,33 +193,6 @@ export default function PatientPortalPage() {
     },
   ])
 
-  const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
-  const [logExerciseDialog, setLogExerciseDialog] = useState(false)
-  const [exerciseLog, setExerciseLog] = useState({
-    exerciseId: "",
-    sets: 0,
-    reps: 0,
-    painLevel: 0,
-    difficulty: 3,
-    notes: "",
-  })
-
-  // ADDED: Recipient rights complaint state
-  const [complaintDialogOpen, setComplaintDialogOpen] = useState(false)
-  const [complaintForm, setComplaintForm] = useState({
-    incidentDate: "",
-    incidentTime: "",
-    incidentLocation: "",
-    category: "",
-    type: "",
-    description: "",
-    witnessNames: "",
-    isAnonymous: false,
-    contactName: "",
-    contactPhone: "",
-    contactEmail: "",
-  })
-
   // Fetch patient data
   useEffect(() => {
     const loadPatientInfo = async () => {
@@ -285,11 +252,6 @@ export default function PatientPortalPage() {
   // Fetch referrals
   const { data: referralsData, mutate: mutateReferrals } = useSWR(
     patientId ? `/api/patient-portal/referrals?patientId=${patientId}` : null,
-    fetcher,
-  )
-
-  const { data: hepPrograms, mutate: mutateHepPrograms } = useSWR(
-    patientId ? `/api/patient-portal/hep-programs?patientId=${patientId}` : null,
     fetcher,
   )
 
@@ -512,70 +474,6 @@ export default function PatientPortalPage() {
     }
   }
 
-  const handleLogExercise = async () => {
-    try {
-      const response = await fetch("/api/patient-portal/hep-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId,
-          programId: selectedProgram,
-          ...exerciseLog,
-          logDate: new Date().toISOString().split("T")[0],
-        }),
-      })
-
-      if (response.ok) {
-        toast.success("Exercise logged successfully! Keep up the great work!")
-        setLogExerciseDialog(false)
-        setExerciseLog({ exerciseId: "", sets: 0, reps: 0, painLevel: 0, difficulty: 3, notes: "" })
-        mutateHepPrograms()
-      } else {
-        toast.error("Failed to log exercise")
-      }
-    } catch (error) {
-      toast.error("Failed to log exercise")
-    }
-  }
-
-  // ADDED: Submit complaint handler
-  const handleSubmitComplaint = async () => {
-    try {
-      const response = await fetch("/api/patient-portal/recipient-rights-complaint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId: complaintForm.isAnonymous ? null : patientId,
-          ...complaintForm,
-        }),
-      })
-
-      if (response.ok) {
-        toast.success(
-          "Your complaint has been submitted confidentially. A Recipient Rights Officer will contact you within 24 hours.",
-        )
-        setComplaintDialogOpen(false)
-        setComplaintForm({
-          incidentDate: "",
-          incidentTime: "",
-          incidentLocation: "",
-          category: "",
-          type: "",
-          description: "",
-          witnessNames: "",
-          isAnonymous: false,
-          contactName: "",
-          contactPhone: "",
-          contactEmail: "",
-        })
-      } else {
-        toast.error("Failed to submit complaint")
-      }
-    } catch (error) {
-      toast.error("Failed to submit complaint")
-    }
-  }
-
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (loading) {
@@ -646,15 +544,12 @@ export default function PatientPortalPage() {
       {/* Main Content */}
       <main className="max-w-6xl mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-10">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="home">
               <Heart className="mr-1 h-4 w-4" />
               Home
             </TabsTrigger>
-            <TabsTrigger value="hep">
-              <Dumbbell className="mr-1 h-4 w-4" />
-              My Exercises
-            </TabsTrigger>
+            {/* CHANGE: Added Take-Home Dose tab for patient QR verification */}
             <TabsTrigger value="takehome">
               <QrCode className="mr-1 h-4 w-4" />
               Take-Home
@@ -690,15 +585,6 @@ export default function PatientPortalPage() {
             <TabsTrigger value="support">
               <MessageSquare className="mr-1 h-4 w-4" />
               Support
-            </TabsTrigger>
-            {/* ADDED: Health Records Tab */}
-            <TabsTrigger value="health-records">
-              <Heart className="mr-1 h-4 w-4" />
-              Health Records
-            </TabsTrigger>
-            <TabsTrigger value="recipient-rights">
-              <Shield className="mr-1 h-4 w-4" />
-              Rights
             </TabsTrigger>
           </TabsList>
 
@@ -1478,8 +1364,8 @@ export default function PatientPortalPage() {
                     <p className="text-sm text-muted-foreground">
                       Under federal law (42 CFR Part 2), your substance use disorder treatment records are protected
                       with special confidentiality protections. Your records cannot be disclosed without your written
-                      consent, except in limited circumstances. This includes protection to employers, law enforcement,
-                      and even other healthcare providers without your permission.
+                      consent, except in limited circumstances. This includes protection from disclosure to employers,
+                      law enforcement, and even other healthcare providers without your permission.
                     </p>
                     <Button variant="link" className="p-0 mt-2 h-auto">
                       Learn more about your rights
@@ -1873,666 +1759,88 @@ export default function PatientPortalPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* ADDED: Recipient Rights TabsContent */}
-          <TabsContent value="recipient-rights" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-12 w-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: "#dc2626" }}
-                  >
-                    <Shield className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle>Recipient Rights</CardTitle>
-                    <CardDescription>File a confidential complaint about your care or treatment</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Your Rights Section */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg" style={{ color: "#1e293b" }}>
-                    Your Rights as a Patient
-                  </h3>
-                  <div className="grid gap-3">
-                    {[
-                      {
-                        title: "Right to Informed Consent",
-                        description: "You have the right to understand your treatment and give informed consent",
-                      },
-                      {
-                        title: "Right to Dignity & Respect",
-                        description:
-                          "You have the right to be treated with dignity, respect, and without discrimination",
-                      },
-                      {
-                        title: "Right to Privacy & Confidentiality",
-                        description:
-                          "Your medical information is confidential and protected under HIPAA and 42 CFR Part 2",
-                      },
-                      {
-                        title: "Right to Refuse Treatment",
-                        description:
-                          "You have the right to refuse any treatment or medication after being informed of risks",
-                      },
-                      {
-                        title: "Right to Safe Environment",
-                        description: "You have the right to receive care in a safe, clean, and appropriate environment",
-                      },
-                      {
-                        title: "Right to File Complaints",
-                        description:
-                          "You have the right to file complaints without fear of retaliation or discrimination",
-                      },
-                    ].map((right, idx) => (
-                      <Card key={idx}>
-                        <CardContent className="pt-4">
-                          <h4 className="font-medium mb-1" style={{ color: "#0f172a" }}>
-                            {right.title}
-                          </h4>
-                          <p className="text-sm" style={{ color: "#64748b" }}>
-                            {right.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                {/* File Complaint Button */}
-                <div className="pt-4 border-t" style={{ borderColor: "#e2e8f0" }}>
-                  <div className="flex flex-col gap-4">
-                    <div
-                      className="p-4 rounded-lg border-2 border-dashed"
-                      style={{ borderColor: "#dc2626", backgroundColor: "#fef2f2" }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 mt-0.5" style={{ color: "#dc2626" }} />
-                        <div className="flex-1">
-                          <h4 className="font-semibold mb-1" style={{ color: "#991b1b" }}>
-                            Need to File a Complaint?
-                          </h4>
-                          <p className="text-sm mb-3" style={{ color: "#7f1d1d" }}>
-                            If you believe your rights have been violated or you have concerns about your care, please
-                            file a confidential complaint. A Recipient Rights Officer will review your complaint and
-                            contact you within 24 hours.
-                          </p>
-                          <div className="flex gap-2">
-                            <Button onClick={() => setComplaintDialogOpen(true)} style={{ backgroundColor: "#dc2626" }}>
-                              <Send className="mr-2 h-4 w-4" />
-                              File Complaint
-                            </Button>
-                            <Button variant="outline" asChild>
-                              <a href="tel:988">
-                                <Phone className="mr-2 h-4 w-4" />
-                                Crisis Line: 988
-                              </a>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Card>
-                        <CardContent className="pt-4">
-                          <h4 className="font-medium mb-2" style={{ color: "#0f172a" }}>
-                            Confidential Process
-                          </h4>
-                          <p className="text-sm" style={{ color: "#64748b" }}>
-                            All complaints are handled confidentially and investigated by trained Recipient Rights
-                            Officers. You can file anonymously if you prefer.
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="pt-4">
-                          <h4 className="font-medium mb-2" style={{ color: "#0f172a" }}>
-                            No Retaliation
-                          </h4>
-                          <p className="text-sm" style={{ color: "#64748b" }}>
-                            You are protected from retaliation for filing a complaint. It is illegal for any staff to
-                            retaliate against you for exercising your rights.
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="hep" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Dumbbell className="h-5 w-5 text-primary" />
-                  My Home Exercise Programs
-                </CardTitle>
-                <CardDescription>
-                  View your assigned exercises, log your progress, and track your recovery
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {!hepPrograms || hepPrograms.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No exercise programs assigned yet</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Your therapist will assign exercises during your next appointment
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {hepPrograms.map((program: any) => (
-                      <Card key={program.id} className="border-2">
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle className="text-lg">{program.program_name}</CardTitle>
-                              <CardDescription>
-                                Assigned by {program.therapist_name} • {program.frequency}
-                              </CardDescription>
-                            </div>
-                            <Badge
-                              variant={program.status === "active" ? "default" : "secondary"}
-                              className="capitalize"
-                            >
-                              {program.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {/* Progress Overview */}
-                          <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-primary">{program.compliance_rate}%</div>
-                              <p className="text-xs text-muted-foreground">Compliance</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold">{program.days_completed}</div>
-                              <p className="text-xs text-muted-foreground">Days Completed</p>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold">{program.streak}</div>
-                              <p className="text-xs text-muted-foreground">Day Streak</p>
-                            </div>
-                          </div>
-
-                          {/* Exercises */}
-                          <div className="space-y-3">
-                            <h4 className="font-semibold text-sm">Exercises</h4>
-                            {program.exercises?.map((exercise: any, idx: number) => (
-                              <div key={idx} className="flex items-start justify-between p-3 bg-background rounded-lg">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h5 className="font-medium">{exercise.exercise_name}</h5>
-                                    {exercise.completed_today && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Done Today
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">{exercise.description}</p>
-                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                    <span>
-                                      {exercise.sets} sets × {exercise.reps} reps
-                                    </span>
-                                    {exercise.hold_duration_seconds && (
-                                      <span>Hold {exercise.hold_duration_seconds}s</span>
-                                    )}
-                                  </div>
-                                  {exercise.video_url && (
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="p-0 h-auto mt-2"
-                                      onClick={() => window.open(exercise.video_url, "_blank")}
-                                    >
-                                      <Play className="h-3 w-3 mr-1" />
-                                      Watch Video
-                                    </Button>
-                                  )}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedProgram(program.id)
-                                    setExerciseLog({ ...exerciseLog, exerciseId: exercise.id })
-                                    setLogExerciseDialog(true)
-                                  }}
-                                  disabled={exercise.completed_today}
-                                >
-                                  Log Exercise
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Special Instructions */}
-                          {program.special_instructions && (
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                              <h5 className="font-medium text-sm text-blue-900 mb-1">Special Instructions</h5>
-                              <p className="text-sm text-blue-800">{program.special_instructions}</p>
-                            </div>
-                          )}
-
-                          {/* Program Goals */}
-                          {program.program_goals && (
-                            <div className="p-3 bg-green-50 rounded-lg">
-                              <h5 className="font-medium text-sm text-green-900 mb-1">
-                                <Target className="h-4 w-4 inline mr-1" />
-                                Program Goals
-                              </h5>
-                              <p className="text-sm text-green-800">{program.program_goals}</p>
-                            </div>
-                          )}
-
-                          {/* Progress Chart */}
-                          {program.weekly_progress && (
-                            <div className="space-y-2">
-                              <h5 className="font-medium text-sm flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4" />
-                                Weekly Progress
-                              </h5>
-                              <div className="grid grid-cols-7 gap-2">
-                                {program.weekly_progress.map((day: any, idx: number) => (
-                                  <div key={idx} className="text-center">
-                                    <div
-                                      className={`h-12 rounded-lg flex items-center justify-center text-xs font-medium ${
-                                        day.completed ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
-                                      }`}
-                                    >
-                                      {day.completed ? <CheckCircle className="h-4 w-4" /> : day.day}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{day.day}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Referral Request Dialog */}
-          <Dialog open={referralDialogOpen} onOpenChange={setReferralDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Request Service Referral</DialogTitle>
-                <DialogDescription>Submit a request for additional support services</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Service Type</Label>
-                  <Select
-                    value={referralForm.serviceType}
-                    onValueChange={(v) => setReferralForm({ ...referralForm, serviceType: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select service type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Housing Assistance">Housing Assistance</SelectItem>
-                      <SelectItem value="Employment Services">Employment Services</SelectItem>
-                      <SelectItem value="Mental Health Counseling">Mental Health Counseling</SelectItem>
-                      <SelectItem value="Transportation">Transportation</SelectItem>
-                      <SelectItem value="Legal Aid">Legal Aid</SelectItem>
-                      <SelectItem value="Family Services">Family Services</SelectItem>
-                      <SelectItem value="Medical Care">Medical Care</SelectItem>
-                      <SelectItem value="Dental Care">Dental Care</SelectItem>
-                      <SelectItem value="Food Assistance">Food Assistance</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Reason for Request</Label>
-                  <Textarea
-                    placeholder="Please describe why you need this service..."
-                    value={referralForm.reason}
-                    onChange={(e) => setReferralForm({ ...referralForm, reason: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Urgency</Label>
-                  <Select
-                    value={referralForm.urgency}
-                    onValueChange={(v) => setReferralForm({ ...referralForm, urgency: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low - Within a month</SelectItem>
-                      <SelectItem value="normal">Normal - Within 2 weeks</SelectItem>
-                      <SelectItem value="high">High - Within a week</SelectItem>
-                      <SelectItem value="urgent">Urgent - Immediate need</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Additional Notes (Optional)</Label>
-                  <Textarea
-                    placeholder="Any additional information..."
-                    value={referralForm.notes}
-                    onChange={(e) => setReferralForm({ ...referralForm, notes: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setReferralDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSubmitReferral}
-                  disabled={!referralForm.serviceType || !referralForm.reason}
-                  style={{ backgroundColor: "#16a34a" }}
-                >
-                  Submit Request
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={logExerciseDialog} onOpenChange={setLogExerciseDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Log Exercise</DialogTitle>
-                <DialogDescription>Record your exercise completion and how you felt</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Sets Completed</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={exerciseLog.sets}
-                      onChange={(e) => setExerciseLog({ ...exerciseLog, sets: Number.parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Reps per Set</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={exerciseLog.reps}
-                      onChange={(e) => setExerciseLog({ ...exerciseLog, reps: Number.parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Pain Level (0 = No Pain, 10 = Worst Pain)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="range"
-                      min="0"
-                      max="10"
-                      value={exerciseLog.painLevel}
-                      onChange={(e) => setExerciseLog({ ...exerciseLog, painLevel: Number.parseInt(e.target.value) })}
-                      className="flex-1"
-                    />
-                    <span className="w-8 text-center font-bold">{exerciseLog.painLevel}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Difficulty (1 = Too Easy, 5 = Too Hard)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="range"
-                      min="1"
-                      max="5"
-                      value={exerciseLog.difficulty}
-                      onChange={(e) => setExerciseLog({ ...exerciseLog, difficulty: Number.parseInt(e.target.value) })}
-                      className="flex-1"
-                    />
-                    <span className="w-8 text-center font-bold">{exerciseLog.difficulty}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
-                  <Textarea
-                    placeholder="Any pain, difficulty, or questions about the exercise?"
-                    value={exerciseLog.notes}
-                    onChange={(e) => setExerciseLog({ ...exerciseLog, notes: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setLogExerciseDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleLogExercise}>Log Exercise</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* ADDED: Recipient Rights Complaint Dialog */}
-          <Dialog open={complaintDialogOpen} onOpenChange={setComplaintDialogOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" style={{ color: "#dc2626" }} />
-                  File a Recipient Rights Complaint
-                </DialogTitle>
-                <DialogDescription>
-                  Your complaint will be handled confidentially by a Recipient Rights Officer. You can file anonymously
-                  if you prefer.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                {/* Anonymous Option */}
-                <div
-                  className="flex items-center space-x-2 p-3 border rounded-lg"
-                  style={{ backgroundColor: "#f8fafc" }}
-                >
-                  <input
-                    type="checkbox"
-                    id="anonymous"
-                    checked={complaintForm.isAnonymous}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, isAnonymous: e.target.checked })}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="anonymous" className="text-sm">
-                    File this complaint anonymously (your identity will not be disclosed)
-                  </Label>
-                </div>
-
-                {/* Incident Details */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="incidentDate">Incident Date *</Label>
-                    <Input
-                      id="incidentDate"
-                      type="date"
-                      value={complaintForm.incidentDate}
-                      onChange={(e) => setComplaintForm({ ...complaintForm, incidentDate: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="incidentTime">Incident Time</Label>
-                    <Input
-                      id="incidentTime"
-                      type="time"
-                      value={complaintForm.incidentTime}
-                      onChange={(e) => setComplaintForm({ ...complaintForm, incidentTime: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="incidentLocation">Incident Location</Label>
-                  <Input
-                    id="incidentLocation"
-                    placeholder="e.g., Counseling Room 3, Waiting Area, Dispensing Window"
-                    value={complaintForm.incidentLocation}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, incidentLocation: e.target.value })}
-                  />
-                </div>
-
-                {/* Complaint Category */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="category">Complaint Category *</Label>
-                    <Select
-                      value={complaintForm.category}
-                      onValueChange={(val) => setComplaintForm({ ...complaintForm, category: val })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="abuse">Abuse (Physical, Verbal, Emotional)</SelectItem>
-                        <SelectItem value="neglect">Neglect or Abandonment</SelectItem>
-                        <SelectItem value="rights_violation">Rights Violation</SelectItem>
-                        <SelectItem value="quality_of_care">Quality of Care</SelectItem>
-                        <SelectItem value="medication_error">Medication Error</SelectItem>
-                        <SelectItem value="confidentiality">Confidentiality Breach</SelectItem>
-                        <SelectItem value="discrimination">Discrimination</SelectItem>
-                        <SelectItem value="financial">Financial Exploitation</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="type">Specific Type *</Label>
-                    <Input
-                      id="type"
-                      placeholder="e.g., Verbal abuse, Denied access to records"
-                      value={complaintForm.type}
-                      onChange={(e) => setComplaintForm({ ...complaintForm, type: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <Label htmlFor="description">Detailed Description of Incident *</Label>
-                  <Textarea
-                    id="description"
-                    rows={6}
-                    placeholder="Please describe what happened in as much detail as possible. Include who was involved, what was said or done, and any other relevant information..."
-                    value={complaintForm.description}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, description: e.target.value })}
-                    required
-                  />
-                </div>
-
-                {/* Witnesses */}
-                <div>
-                  <Label htmlFor="witnessNames">Witnesses (if any)</Label>
-                  <Input
-                    id="witnessNames"
-                    placeholder="Names of any witnesses to the incident"
-                    value={complaintForm.witnessNames}
-                    onChange={(e) => setComplaintForm({ ...complaintForm, witnessNames: e.target.value })}
-                  />
-                </div>
-
-                {/* Contact Information (if not anonymous) */}
-                {!complaintForm.isAnonymous && (
-                  <Card style={{ backgroundColor: "#f0fdf4", borderColor: "#10b981" }}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Contact Information</CardTitle>
-                      <CardDescription className="text-xs">
-                        We will use this information to follow up with you about your complaint
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <Label htmlFor="contactName">Your Name</Label>
-                        <Input
-                          id="contactName"
-                          value={complaintForm.contactName || patientInfo?.name}
-                          onChange={(e) => setComplaintForm({ ...complaintForm, contactName: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor="contactPhone">Phone Number</Label>
-                          <Input
-                            id="contactPhone"
-                            type="tel"
-                            value={complaintForm.contactPhone}
-                            onChange={(e) => setComplaintForm({ ...complaintForm, contactPhone: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="contactEmail">Email Address</Label>
-                          <Input
-                            id="contactEmail"
-                            type="email"
-                            value={complaintForm.contactEmail}
-                            onChange={(e) => setComplaintForm({ ...complaintForm, contactEmail: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Important Notice */}
-                <Card style={{ backgroundColor: "#fef2f2", borderColor: "#dc2626" }}>
-                  <CardContent className="pt-4">
-                    <div className="flex gap-3">
-                      <AlertTriangle className="h-5 w-5 flex-shrink-0" style={{ color: "#dc2626" }} />
-                      <div className="space-y-2 text-sm">
-                        <p className="font-semibold" style={{ color: "#991b1b" }}>
-                          Important Information About Your Rights
-                        </p>
-                        <ul className="space-y-1" style={{ color: "#7f1d1d" }}>
-                          <li>• You have the right to file a complaint without fear of retaliation</li>
-                          <li>• Your complaint will be investigated within 24 hours</li>
-                          <li>• You will receive a response within 5 business days</li>
-                          <li>• If immediate danger exists, please call 911 or our crisis line: 988</li>
-                          <li>• You can request advocacy support from the Recipient Rights Officer</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setComplaintDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  style={{ backgroundColor: "#dc2626", color: "#ffffff" }}
-                  onClick={handleSubmitComplaint}
-                  disabled={
-                    !complaintForm.incidentDate ||
-                    !complaintForm.category ||
-                    !complaintForm.type ||
-                    !complaintForm.description
-                  }
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Submit Complaint
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </Tabs>
       </main>
+
+      {/* Referral Request Dialog */}
+      <Dialog open={referralDialogOpen} onOpenChange={setReferralDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Service Referral</DialogTitle>
+            <DialogDescription>Submit a request for additional support services</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Service Type</Label>
+              <Select
+                value={referralForm.serviceType}
+                onValueChange={(v) => setReferralForm({ ...referralForm, serviceType: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select service type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Housing Assistance">Housing Assistance</SelectItem>
+                  <SelectItem value="Employment Services">Employment Services</SelectItem>
+                  <SelectItem value="Mental Health Counseling">Mental Health Counseling</SelectItem>
+                  <SelectItem value="Transportation">Transportation</SelectItem>
+                  <SelectItem value="Legal Aid">Legal Aid</SelectItem>
+                  <SelectItem value="Family Services">Family Services</SelectItem>
+                  <SelectItem value="Medical Care">Medical Care</SelectItem>
+                  <SelectItem value="Dental Care">Dental Care</SelectItem>
+                  <SelectItem value="Food Assistance">Food Assistance</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Reason for Request</Label>
+              <Textarea
+                placeholder="Please describe why you need this service..."
+                value={referralForm.reason}
+                onChange={(e) => setReferralForm({ ...referralForm, reason: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Urgency</Label>
+              <Select
+                value={referralForm.urgency}
+                onValueChange={(v) => setReferralForm({ ...referralForm, urgency: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low - Within a month</SelectItem>
+                  <SelectItem value="normal">Normal - Within 2 weeks</SelectItem>
+                  <SelectItem value="high">High - Within a week</SelectItem>
+                  <SelectItem value="urgent">Urgent - Immediate need</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Additional Notes (Optional)</Label>
+              <Textarea
+                placeholder="Any additional information..."
+                value={referralForm.notes}
+                onChange={(e) => setReferralForm({ ...referralForm, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReferralDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitReferral}
+              disabled={!referralForm.serviceType || !referralForm.reason}
+              style={{ backgroundColor: "#16a34a" }}
+            >
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

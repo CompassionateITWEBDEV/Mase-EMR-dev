@@ -29,25 +29,21 @@ import {
   Shield,
 } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import { createServiceClient } from "@/lib/supabase/service-client"
 import { toast } from "sonner"
 
 interface Patient {
   id: string
   first_name: string
   last_name: string
-  date_of_birth?: string
-  gender?: string
-  phone?: string
-  email?: string
-  address?: string
+  date_of_birth: string
+  gender: string
+  phone: string
+  email: string
+  address: string
   client_number?: string
   program_type?: string
-  created_at?: string
   updated_at?: string
-  emergency_contact_name?: string
-  emergency_contact_phone?: string
-  insurance_provider?: string
-  insurance_id?: string
 }
 
 interface VitalSign {
@@ -89,7 +85,7 @@ export default function PatientChartPage() {
   const [loading, setLoading] = useState(false)
   const [vitalSigns, setVitalSigns] = useState<VitalSign[]>([])
   const [medications, setMedications] = useState<Medication[]>([])
-  const [assessments, setAssessments] = useState<any[]>([])
+  const [assessments, setAssessments] = useState<Assessment[]>([])
   const [encounters, setEncounters] = useState<any[]>([])
   const [dosingLog, setDosingLog] = useState<any[]>([])
   const [consents, setConsents] = useState<any[]>([])
@@ -121,9 +117,7 @@ export default function PatientChartPage() {
       } else if (sortBy === "client") {
         return (a.client_number || "").localeCompare(b.client_number || "")
       } else if (sortBy === "recent") {
-        const aDate = a.updated_at || a.created_at || 0
-        const bDate = b.updated_at || b.created_at || 0
-        return new Date(bDate).getTime() - new Date(aDate).getTime()
+        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
       }
       return 0
     })
@@ -136,14 +130,6 @@ export default function PatientChartPage() {
       fetchPatientData(selectedPatientId)
     }
   }, [selectedPatientId])
-
-  const getDisplayValue = (value?: string | null) => {
-    if (value === null || value === undefined) {
-      return "N/A"
-    }
-    const trimmed = value.toString().trim()
-    return trimmed.length > 0 ? trimmed : "N/A"
-  }
 
   const fetchPatients = async () => {
     try {
@@ -158,25 +144,23 @@ export default function PatientChartPage() {
   const fetchPatientData = async (patientId: string) => {
     console.log("[v0] fetchPatientData called with patientId:", patientId)
     setLoading(true)
-    setAlerts([])
+    const supabase = createServiceClient()
 
     try {
-      console.log("[v0] Fetching patient data from API...")
-      const res = await fetch(`/api/patient-chart/${patientId}`)
-      let data: any = null
+      console.log("[v0] Fetching patient data from Supabase...")
+      const { data: patientDataArray, error: patientError } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", patientId)
 
-      try {
-        data = await res.json()
-      } catch (parseError) {
-        console.error("Error parsing patient chart response:", parseError)
+      console.log("[v0] Patient data array:", patientDataArray)
+      console.log("[v0] Patient error:", patientError)
+
+      if (patientError) {
+        throw patientError
       }
 
-      if (!res.ok) {
-        const message = data?.error || "Failed to load patient chart data"
-        throw new Error(message)
-      }
-
-      const patientData = data.patient as Patient | null
+      const patientData = patientDataArray && patientDataArray.length > 0 ? patientDataArray[0] : null
 
       if (!patientData) {
         throw new Error("Patient not found")
@@ -184,7 +168,12 @@ export default function PatientChartPage() {
 
       setSelectedPatient(patientData)
 
-      const vitalsData = data.vital_signs as VitalSign[]
+      const { data: vitalsData } = await supabase
+        .from("vital_signs")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("measurement_date", { ascending: false })
+        .limit(30)
 
       setVitalSigns(vitalsData || [])
 
@@ -212,23 +201,51 @@ export default function PatientChartPage() {
         ])
       }
 
-      setMedications((data.medications as Medication[]) || [])
-      setAssessments(data.assessments || [])
-      setEncounters(data.encounters || [])
-      setDosingLog(data.dosing_log || [])
-      setConsents(data.hie_patient_consents || [])
+      const { data: medsData } = await supabase
+        .from("medications")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false })
+
+      setMedications(medsData || [])
+
+      const { data: assessmentsData } = await supabase
+        .from("assessments")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      setAssessments(assessmentsData || [])
+
+      const { data: encountersData } = await supabase
+        .from("encounters")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("encounter_date", { ascending: false })
+        .limit(10)
+
+      setEncounters(encountersData || [])
+
+      const { data: dosingData } = await supabase
+        .from("dosing_log")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("dose_date", { ascending: false })
+        .limit(30)
+
+      setDosingLog(dosingData || [])
+
+      const { data: consentsData } = await supabase
+        .from("hie_patient_consents")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false })
+
+      setConsents(consentsData || [])
     } catch (error) {
       console.error("Error fetching patient data:", error)
-      setSelectedPatient(null)
-      setVitalSigns([])
-      setMedications([])
-      setAssessments([])
-      setEncounters([])
-      setDosingLog([])
-      setConsents([])
-      toast.error("Unable to load patient chart data.", {
-        description: "Please try again or select another patient.",
-      })
+      toast.error("Failed to load patient chart data")
     } finally {
       setLoading(false)
     }
@@ -380,11 +397,7 @@ export default function PatientChartPage() {
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground mt-1">
-                              DOB: {getDisplayValue(patient.date_of_birth)} • {getDisplayValue(patient.gender)} •{" "}
-                              {getDisplayValue(patient.phone)}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Program: {getDisplayValue(patient.program_type)}
+                              DOB: {patient.date_of_birth} • {patient.gender} • {patient.phone || "No phone"}
                             </div>
                           </div>
                           {selectedPatientId === patient.id && <ChevronRight className="h-5 w-5 text-primary" />}
@@ -403,7 +416,7 @@ export default function PatientChartPage() {
                         Selected: {selectedPatient.first_name} {selectedPatient.last_name}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Client #{getDisplayValue(selectedPatient.client_number)} • MRN: {selectedPatient.id.slice(0, 8)}
+                        Client #{selectedPatient.client_number || "N/A"} • MRN: {selectedPatient.id.slice(0, 8)}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -468,35 +481,35 @@ export default function PatientChartPage() {
                         <Calendar className="h-4 w-4" />
                         <span>Date of Birth</span>
                       </div>
-                      <p className="font-medium">{getDisplayValue(selectedPatient.date_of_birth)}</p>
+                      <p className="font-medium">{selectedPatient.date_of_birth}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <User className="h-4 w-4" />
                         <span>Gender</span>
                       </div>
-                      <p className="font-medium">{getDisplayValue(selectedPatient.gender)}</p>
+                      <p className="font-medium">{selectedPatient.gender}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <Phone className="h-4 w-4" />
                         <span>Phone</span>
                       </div>
-                      <p className="font-medium">{getDisplayValue(selectedPatient.phone)}</p>
+                      <p className="font-medium">{selectedPatient.phone}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <Mail className="h-4 w-4" />
                         <span>Email</span>
                       </div>
-                      <p className="font-medium">{getDisplayValue(selectedPatient.email)}</p>
+                      <p className="font-medium">{selectedPatient.email}</p>
                     </div>
                     <div className="col-span-3">
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <MapPin className="h-4 w-4" />
                         <span>Address</span>
                       </div>
-                      <p className="font-medium">{getDisplayValue(selectedPatient.address)}</p>
+                      <p className="font-medium">{selectedPatient.address}</p>
                     </div>
                   </div>
                 </CardContent>

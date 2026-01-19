@@ -22,7 +22,38 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { Search, Fingerprint, Camera, KeyRound, AlertTriangle, CheckCircle2, XCircle, User, Pill, Syringe, Clock, FileText, Printer, PauseCircle, StopCircle, Send, AlertCircle, Shield, Activity, ChevronRight, ChevronDown, Scale, Loader2, Award as IdCard, Lock, History, Ban, RotateCcw, Play, Square } from "lucide-react"
+import {
+  Search,
+  Fingerprint,
+  Camera,
+  KeyRound,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  User,
+  Pill,
+  Syringe,
+  Clock,
+  FileText,
+  Printer,
+  PauseCircle,
+  StopCircle,
+  Send,
+  AlertCircle,
+  Shield,
+  Activity,
+  ChevronRight,
+  ChevronDown,
+  Scale,
+  Loader2,
+  Award as IdCard,
+  Lock,
+  History,
+  Ban,
+  RotateCcw,
+  Play,
+  Square,
+} from "lucide-react"
 
 interface Patient {
   id: string
@@ -261,75 +292,12 @@ export default function DosingWindowPage() {
   }
 
   const generateQRCodeSVG = (data: string): string => {
-    // Real QR code generation using built-in browser canvas API
-    // This creates a proper QR code matrix following ISO/IEC 18004 standards
-    const size = 29 // QR Code Version 3 (29x29 modules for alphanumeric data)
-    const qrMatrix = generateQRMatrix(data, size)
-    
-    const pixelSize = 4
-    const svgSize = size * pixelSize
-    const padding = 16
-    const totalSize = svgSize + (padding * 2)
-    
-    let svgContent = `<svg viewBox="0 0 ${totalSize} ${totalSize}" width="${totalSize}" height="${totalSize}" xmlns="http://www.w3.org/2000/svg">`
-    svgContent += `<rect width="${totalSize}" height="${totalSize}" fill="white"/>`
-    
-    // Render QR code modules
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (qrMatrix[y][x]) {
-          const posX = padding + (x * pixelSize)
-          const posY = padding + (y * pixelSize)
-          svgContent += `<rect x="${posX}" y="${posY}" width="${pixelSize}" height="${pixelSize}" fill="black"/>`
-        }
-      }
-    }
-    
-    svgContent += '</svg>'
-    return svgContent
-  }
-
-  // Simplified QR Matrix generator (supports alphanumeric mode for dosing codes)
-  const generateQRMatrix = (data: string, size: number): boolean[][] => {
-    const matrix: boolean[][] = Array(size).fill(0).map(() => Array(size).fill(false))
-    
-    // Add finder patterns (7x7 squares in corners)
-    const addFinderPattern = (row: number, col: number) => {
-      for (let i = 0; i < 7; i++) {
-        for (let j = 0; j < 7; j++) {
-          if (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4)) {
-            matrix[row + i][col + j] = true
-          }
-        }
-      }
-    }
-    
-    addFinderPattern(0, 0) // Top-left
-    addFinderPattern(0, size - 7) // Top-right
-    addFinderPattern(size - 7, 0) // Bottom-left
-    
-    // Add timing patterns
-    for (let i = 8; i < size - 8; i++) {
-      matrix[6][i] = i % 2 === 0
-      matrix[i][6] = i % 2 === 0
-    }
-    
-    // Encode data in a serpentine pattern (simplified version)
-    const dataHash = data.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    let bitIndex = 0
-    for (let col = size - 1; col > 0; col -= 2) {
-      if (col === 6) col-- // Skip timing column
-      for (let row = 0; row < size; row++) {
-        const r = col % 4 < 2 ? row : size - 1 - row
-        if (!matrix[r][col] && !matrix[r][col - 1]) {
-          matrix[r][col] = (dataHash >> bitIndex) % 2 === 1
-          matrix[r][col - 1] = (dataHash >> (bitIndex + 1)) % 2 === 1
-          bitIndex += 2
-        }
-      }
-    }
-    
-    return matrix
+    // In production, use a QR code library like qrcode.react or node-qrcode
+    // For now, return a placeholder SVG that will be replaced with actual QR generation
+    return `<svg viewBox="0 0 100 100" width="100" height="100">
+      <rect width="100" height="100" fill="white"/>
+      <text x="50" y="50" textAnchor="middle" fontSize="6" fill="black">${data}</text>
+    </svg>`
   }
 
   const printTakeHomeLabelsWithDymo = async () => {

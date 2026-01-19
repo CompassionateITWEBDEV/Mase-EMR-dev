@@ -1,0 +1,138 @@
+================================================================================
+RESEARCH STUDIES FEATURE - SETUP INSTRUCTIONS
+================================================================================
+
+This document provides step-by-step instructions to set up the database table
+and storage bucket required for the Research Studies feature.
+
+================================================================================
+QUICK START - TERMINAL COMMANDS
+================================================================================
+
+Option 1: Automated Storage Bucket Setup (Recommended)
+-------------------------------------------------------
+Run this command in your terminal from the project root:
+
+    node scripts/setup_research_storage_bucket.js
+
+This will automatically create the storage bucket if it doesn't exist.
+
+Option 2: Manual Setup
+----------------------
+Follow the manual instructions below.
+
+================================================================================
+STEP 1: CREATE AUDIT TABLE
+================================================================================
+
+1. Open your Supabase Dashboard
+2. Navigate to: SQL Editor
+3. Open the file: scripts/setup_research_audit_and_storage_sql_only.sql
+4. Copy the entire SQL content
+5. Paste it into the SQL Editor
+6. Click "Run" to execute
+
+The SQL will create:
+- research_study_audit_log table
+- Required indexes for performance
+
+Verification:
+Run this query in SQL Editor:
+    SELECT table_name FROM information_schema.tables 
+    WHERE table_name = 'research_study_audit_log';
+
+Expected result: research_study_audit_log
+
+================================================================================
+STEP 2: CREATE STORAGE BUCKET
+================================================================================
+
+Method A: Automated (Recommended)
+----------------------------------
+Run in terminal:
+    node scripts/setup_research_storage_bucket.js
+
+Method B: Manual Setup
+-----------------------
+1. Open Supabase Dashboard
+2. Navigate to: Storage
+3. Click: "New bucket"
+4. Configure:
+   - Name: research-consents
+   - Public bucket: YES (check this box)
+   - File size limit: 10485760 (10MB in bytes)
+5. Click: "Create bucket"
+
+Verification:
+- Go to Storage in Supabase Dashboard
+- You should see "research-consents" bucket
+- It should show as "Public"
+
+================================================================================
+ENVIRONMENT VARIABLES REQUIRED
+================================================================================
+
+Make sure your .env file contains:
+- NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL)
+- SUPABASE_SERVICE_ROLE_KEY
+
+The scripts will read these automatically.
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Issue: "Missing Supabase configuration"
+Solution: Check your .env file has the required variables
+
+Issue: "Bucket creation fails"
+Solution: 
+1. Verify SUPABASE_SERVICE_ROLE_KEY is correct
+2. Create bucket manually in Supabase Dashboard
+3. Make sure it's set to Public
+
+Issue: "Table already exists"
+Solution: This is fine! The table is already set up.
+
+Issue: "Permission denied"
+Solution: 
+- Use Service Role Key (not anon key)
+- Verify admin access to Supabase project
+
+================================================================================
+VERIFICATION CHECKLIST
+================================================================================
+
+After setup, verify:
+
+[ ] Audit table exists (run SQL verification query)
+[ ] Storage bucket "research-consents" exists
+[ ] Storage bucket is set to Public
+[ ] File size limit is 10MB
+[ ] Can access Supabase Dashboard
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+Once setup is complete:
+1. Test participant enrollment
+2. Test file upload in enrollment dialog
+3. Verify audit logs are being created
+4. Check notifications are working
+
+For detailed testing, see:
+docs/RESEARCH_STUDIES_IMPLEMENTATION_TEST_PLAN.md
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you encounter issues:
+1. Check error messages in terminal/console
+2. Verify environment variables in .env
+3. Check Supabase Dashboard for errors
+4. Review setup logs
+
+================================================================================
+

@@ -6,7 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "migrate:research": "node scripts/execute-migration.js",
+    "migrate:research:show": "node scripts/run-migration-simple.js",
+    "migrate:research:direct": "node scripts/execute-migration-direct.js",
+    "migrate:fidelity": "node scripts/execute-fidelity-migration.js"
   },
   "dependencies": {
     "@ai-sdk/react": "2.0.102",
@@ -42,7 +46,6 @@
     "@supabase/ssr": "0.6.0",
     "@supabase/supabase-js": "2.47.10",
     "@vercel/analytics": "latest",
-    "@vercel/blob": "2.0.0",
     "ai": "5.0.102",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "3.0.3",
@@ -54,9 +57,12 @@
     "embla-carousel-react": "8.5.1",
     "geist": "latest",
     "input-otp": "1.4.1",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.454.0",
     "next": "14.2.35",
     "next-themes": "latest",
+    "pg": "^8.16.3",
     "react": "^18",
     "react-day-picker": "latest",
     "react-dom": "^18",
@@ -69,6 +75,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
+    "xlsx": "^0.18.5",
     "zod": "3.25.67"
   },
   "devDependencies": {
@@ -76,6 +83,7 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/xlsx": "^0.0.36",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.16",
     "postcss": "^8.5",

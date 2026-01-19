@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -128,18 +128,11 @@ export default function TakeHomeDiversionPage() {
     complianceRate: 0,
   })
 
-  // State callback policy tracking
-  const [callbackPolicies, setCallbackPolicies] = useState<any[]>([])
-  const [callbackLogs, setCallbackLogs] = useState<any[]>([])
-  const [showCallbackDialog, setShowCallbackDialog] = useState(false)
-  const [selectedPatientForCallback, setSelectedPatientForCallback] = useState<string | null>(null)
-
   const supabase = createClient()
 
   useEffect(() => {
     fetchAllData()
     fetchSettings()
-    fetchCallbackPolicies() // Fetch callback policies on load
   }, [])
 
   const fetchSettings = async () => {
@@ -256,81 +249,6 @@ export default function TakeHomeDiversionPage() {
       console.error("[v0] Error fetching data:", error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchCallbackPolicies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("state_callback_policies")
-        .select("*")
-        .eq("is_active", true)
-        .order("policy_type")
-
-      if (error) {
-        console.error("[v0] Error fetching callback policies:", error)
-      } else {
-        setCallbackPolicies(data || [])
-      }
-
-      // Also fetch recent callback logs
-      const { data: logsData, error: logsError } = await supabase
-        .from("state_callback_log")
-        .select("*, patients(first_name, last_name)")
-        .order("created_at", { ascending: false })
-        .limit(50)
-
-      if (!logsError) {
-        setCallbackLogs(logsData || [])
-      }
-    } catch (error) {
-      console.error("[v0] Error in fetchCallbackPolicies:", error)
-    }
-  }
-
-  const checkAndTriggerCallback = async (patientId: string, violationType: string) => {
-    console.log("[v0] Checking callback requirements for patient:", patientId, "violation:", violationType)
-
-    // Find matching policy
-    const matchingPolicy = callbackPolicies.find((p) => p.policy_type === violationType && p.callback_requirement)
-
-    if (!matchingPolicy) {
-      console.log("[v0] No callback policy found for violation type:", violationType)
-      return
-    }
-
-    // Check if patient has exceeded max failures
-    const recentAlerts = alerts.filter(
-      (a) => a.patient_id === patientId && a.alert_type === violationType && a.status !== "resolved",
-    )
-
-    if (recentAlerts.length >= matchingPolicy.max_failures_allowed) {
-      console.log("[v0] Patient exceeded max failures, scheduling callback")
-
-      // Calculate callback window
-      const callbackDate = new Date()
-      callbackDate.setHours(callbackDate.getHours() + matchingPolicy.callback_window_hours)
-
-      // Create callback log entry
-      const { error: callbackError } = await supabase.from("state_callback_log").insert({
-        patient_id: patientId,
-        callback_policy_id: matchingPolicy.id,
-        trigger_event: `${violationType} violation - ${recentAlerts.length} failures`,
-        callback_scheduled_date: callbackDate.toISOString().split("T")[0],
-        callback_completed: false,
-        outcome: "pending",
-        staff_notes: `Auto-triggered by diversion control system. Policy: ${matchingPolicy.policy_type}`,
-      })
-
-      if (callbackError) {
-        console.error("[v0] Error creating callback log:", callbackError)
-      } else {
-        toast({
-          title: "Callback Scheduled",
-          description: `State callback policy triggered for patient. Due within ${matchingPolicy.callback_window_hours} hours.`,
-        })
-        fetchCallbackPolicies() // Refresh callback logs
-      }
     }
   }
 
@@ -466,8 +384,6 @@ export default function TakeHomeDiversionPage() {
 
       if (error) throw error
 
-      await checkAndTriggerCallback(selectedAlert.patient_id, selectedAlert.alert_type)
-
       toast({ title: "Success", description: "Alert resolved successfully" })
       setResolveDialogOpen(false)
       setResolutionNotes("")
@@ -572,57 +488,6 @@ export default function TakeHomeDiversionPage() {
     }
   }
 
-  const handleScheduleCallback = async (patientId: string, reason: string) => {
-    try {
-      // Find the appropriate policy or use general policy
-      const defaultPolicy = callbackPolicies.find((p) => p.policy_type === "missed_dose")
-
-      const callbackDate = new Date()
-      callbackDate.setDate(callbackDate.getDate() + 1) // Default next day
-
-      const { error } = await supabase.from("state_callback_log").insert({
-        patient_id: patientId,
-        callback_policy_id: defaultPolicy?.id || null,
-        trigger_event: reason,
-        callback_scheduled_date: callbackDate.toISOString().split("T")[0],
-        callback_completed: false,
-        outcome: "pending",
-        staff_notes: "Manually scheduled by staff",
-      })
-
-      if (error) throw error
-
-      toast({ title: "Success", description: "Callback scheduled successfully" })
-      setShowCallbackDialog(false)
-      fetchCallbackPolicies()
-    } catch (error) {
-      console.error("[v0] Error scheduling callback:", error)
-      toast({ title: "Error", description: "Failed to schedule callback", variant: "destructive" })
-    }
-  }
-
-  const handleCompleteCallback = async (callbackId: string, outcome: string, notes: string) => {
-    try {
-      const { error } = await supabase
-        .from("state_callback_log")
-        .update({
-          callback_completed: true,
-          callback_completion_time: new Date().toISOString(),
-          outcome,
-          staff_notes: notes,
-        })
-        .eq("id", callbackId)
-
-      if (error) throw error
-
-      toast({ title: "Success", description: "Callback completed successfully" })
-      fetchCallbackPolicies()
-    } catch (error) {
-      console.error("[v0] Error completing callback:", error)
-      toast({ title: "Error", description: "Failed to complete callback", variant: "destructive" })
-    }
-  }
-
   const filteredScanLogs = scanLogs.filter((scan) => {
     switch (scanLogFilter) {
       case "passed":
@@ -690,13 +555,12 @@ export default function TakeHomeDiversionPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-7 w-full">
+        <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="alerts">Alerts ({alerts.filter((a) => a.status === "pending").length})</TabsTrigger>
           <TabsTrigger value="compliance">Patient Compliance</TabsTrigger>
           <TabsTrigger value="exceptions">Travel Exceptions</TabsTrigger>
           <TabsTrigger value="scans">Scan Logs</TabsTrigger>
-          <TabsTrigger value="callbacks">State Callbacks</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -1072,133 +936,6 @@ export default function TakeHomeDiversionPage() {
                   )}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* State Callbacks Tab */}
-        <TabsContent value="callbacks">
-          <Card>
-            <CardHeader>
-              <CardTitle>State Callback Policy Compliance</CardTitle>
-              <CardDescription>
-                Automated callback scheduling based on state policies and diversion control violations
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Active Policies */}
-              <div>
-                <h3 className="font-semibold mb-4">Active Callback Policies</h3>
-                <div className="space-y-3">
-                  {callbackPolicies.map((policy) => (
-                    <div key={policy.id} className="p-4 border rounded-lg bg-blue-50 flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold">{policy.policy_type.replace(/_/g, " ").toUpperCase()}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Max Failures: {policy.max_failures_allowed} | Callback Window: {policy.callback_window_hours}h
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          State: {policy.state_name || "All States"} | Methods:{" "}
-                          {policy.callback_method?.join(", ") || "Phone"}
-                        </p>
-                      </div>
-                      <Badge variant={policy.callback_requirement ? "default" : "secondary"}>
-                        {policy.callback_requirement ? "Required" : "Optional"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pending Callbacks */}
-              <div>
-                <h3 className="font-semibold mb-4">
-                  Pending Callbacks ({callbackLogs.filter((l) => !l.callback_completed).length})
-                </h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Trigger Event</TableHead>
-                      <TableHead>Scheduled Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {callbackLogs
-                      .filter((log) => !log.callback_completed)
-                      .map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell>
-                            {log.patients?.first_name} {log.patients?.last_name}
-                          </TableCell>
-                          <TableCell className="text-sm">{log.trigger_event}</TableCell>
-                          <TableCell>{new Date(log.callback_scheduled_date).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Badge variant={log.outcome === "pending" ? "secondary" : "default"}>{log.outcome}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleCompleteCallback(log.id, "successful", "Callback completed successfully")
-                              }
-                            >
-                              Mark Complete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Recent Completed Callbacks */}
-              <div>
-                <h3 className="font-semibold mb-4">Recent Completed Callbacks</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Completed</TableHead>
-                      <TableHead>Outcome</TableHead>
-                      <TableHead>Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {callbackLogs
-                      .filter((log) => log.callback_completed)
-                      .slice(0, 10)
-                      .map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell>
-                            {log.patients?.first_name} {log.patients?.last_name}
-                          </TableCell>
-                          <TableCell>
-                            {log.callback_completion_time
-                              ? new Date(log.callback_completion_time).toLocaleDateString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                log.outcome === "successful"
-                                  ? "default"
-                                  : log.outcome === "declined"
-                                    ? "destructive"
-                                    : "secondary"
-                              }
-                            >
-                              {log.outcome}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{log.staff_notes}</TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

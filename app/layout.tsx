@@ -21,6 +21,15 @@ export const metadata: Metadata = {
   title: "MASE Behavioral Health EMR",
   description: "AI-Assisted Behavioral Health Documentation System",
   generator: "v0.app",
+  icons: {
+    icon: [
+      { url: "/icon-light-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 }
 
 export default function RootLayout({

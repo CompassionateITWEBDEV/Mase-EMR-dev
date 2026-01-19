@@ -150,6 +150,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       if (noteError) console.error("Note error:", noteError)
     }
 
+    // Link Evidence-Based Practices if provided
+    if (body.ebp_deliveries && Array.isArray(body.ebp_deliveries) && body.ebp_deliveries.length > 0) {
+      const { createServiceClient } = await import("@/lib/supabase/service-role")
+      const serviceSupabase = createServiceClient()
+      
+      for (const ebpDelivery of body.ebp_deliveries) {
+        if (ebpDelivery.ebp_id && ebpDelivery.patient_id) {
+          const deliveryDate = ebpDelivery.delivery_date || new Date().toISOString().split('T')[0]
+          
+          // Check for duplicate
+          const { data: existing } = await serviceSupabase
+            .from("ebp_patient_delivery")
+            .select("id")
+            .eq("ebp_id", ebpDelivery.ebp_id)
+            .eq("patient_id", ebpDelivery.patient_id)
+            .eq("delivery_date", deliveryDate)
+            .maybeSingle()
+
+          if (!existing) {
+            await serviceSupabase.from("ebp_patient_delivery").insert({
+              ebp_id: ebpDelivery.ebp_id,
+              patient_id: ebpDelivery.patient_id,
+              encounter_id: id, // Link to this encounter
+              delivery_date: deliveryDate,
+              delivery_type: ebpDelivery.delivery_type || 'session',
+              delivered_by: body.provider_id,
+              notes: ebpDelivery.notes || null,
+            })
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error updating encounter:", error)

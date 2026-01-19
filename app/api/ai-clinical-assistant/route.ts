@@ -1,4 +1,8 @@
+import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
@@ -55,9 +59,9 @@ export async function POST(request: Request) {
       patientEducation: recommendPatientEducation(patient, medications),
     }
 
-    return Response.json(analysis)
+    return NextResponse.json(analysis)
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
